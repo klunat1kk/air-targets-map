@@ -13,6 +13,34 @@
         .btn:hover { background: #8a7559; }
         .controls { margin: 10px 0; display: flex; flex-wrap: wrap; }
 
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #a38d6d;
+            width: 300px;
+        }
+        .modal input, .modal select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #a38d6d;
+            border-radius: 5px;
+            background: #1a1f2d;
+            color: white;
+        }
+
         /* Стили для целей */
         .target-item {
             padding: 10px;
@@ -25,7 +53,7 @@
             background: #34495e;
         }
 
-        /* Стили для треугольных маркеров */
+        /* Треугольные маркеры */
         .triangle-icon {
             width: 0;
             height: 0;
@@ -33,13 +61,26 @@
             border-right: 8px solid transparent;
             border-bottom: 16px solid;
         }
+
+        /* Поиск */
+        .search-container { margin: 10px 0; position: relative; }
+        #searchInput { width: 300px; padding: 10px; border: 1px solid #a38d6d; border-radius: 5px; background: #2c3e50; color: white; }
+        #searchResults { position: absolute; background: #2c3e50; border: 1px solid #a38d6d; max-height: 200px; overflow-y: auto; width: 300px; display: none; z-index: 1000; }
+        .search-result { padding: 10px; cursor: pointer; border-bottom: 1px solid #a38d6d; }
+        .search-result:hover { background: #34495e; }
     </style>
 </head>
 <body>
     <h1>🗺️ Карта повітряних цілей</h1>
 
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="🔍 Пошук населеного пункту...">
+        <div id="searchResults"></div>
+    </div>
+
     <div class="controls">
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
+        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль кліком</button>
         <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
         <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
     </div>
@@ -49,16 +90,41 @@
     <h3>🎯 Активні цілі:</h3>
     <div id="targetsList">Завантаження...</div>
 
+    <!-- Форма добавления/редактирования цели -->
+    <div id="targetForm" class="modal">
+        <div class="modal-content">
+            <h3 id="formTitle">➕ Додати ціль</h3>
+            <input type="hidden" id="targetId">
+            <input type="text" id="targetName" placeholder="Назва цілі">
+            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)">
+            <input type="number" id="targetCourse" placeholder="Курс (0-360°)" min="0" max="360">
+            <select id="targetType">
+                <option value="винищувач">Винищувач</option>
+                <option value="дрон">Дрон (Shahed)</option>
+                <option value="ракета">Ракета</option>
+                <option value="бомба">Бомба</option>
+                <option value="корабль">Корабель</option>
+            </select>
+            <div style="margin-top:15px;">
+                <button class="btn" onclick="saveTarget()">💾 Зберегти</button>
+                <button class="btn" onclick="hideTargetForm()" style="background:#e74c3c;">❌ Скасувати</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Глобальные переменные
         let map;
         let markers = {};
         let animationPaused = false;
+        let addMode = false;
         let currentMapView = 'street';
         let baseLayers = {};
         let targets = [];
         let animationInterval;
+        let nextId = 3;
+        let clickMarker = null;
         let lastFrameTime = performance.now();
 
         // Инициализация карты
@@ -78,8 +144,189 @@
             });
 
             baseLayers.street.addTo(map);
+
+            // Инициализация поиска
+            initSearch();
+
+            // Обработчик кликов по карте
+            map.on('click', function(e) {
+                if (addMode) {
+                    handleAddClick(e);
+                }
+            });
+
             loadTargets();
             startAnimation();
+        }
+
+        // Инициализация поиска
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                if (query.length > 2) {
+                    searchLocation(query);
+                } else {
+                    document.getElementById('searchResults').style.display = 'none';
+                }
+            });
+        }
+
+        // Поиск населенных пунктов
+        function searchLocation(query) {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=uk`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const results = document.getElementById('searchResults');
+                    results.innerHTML = '';
+
+                    if (data.length > 0) {
+                        data.forEach(place => {
+                            const div = document.createElement('div');
+                            div.className = 'search-result';
+                            div.textContent = place.display_name;
+                            div.onclick = () => {
+                                map.setView([parseFloat(place.lat), parseFloat(place.lon)], 12);
+                                results.style.display = 'none';
+                                document.getElementById('searchInput').value = '';
+                            };
+                            results.appendChild(div);
+                        });
+                        results.style.display = 'block';
+                    }
+                });
+        }
+
+        // Режим добавления цели
+        function toggleAddMode() {
+            addMode = !addMode;
+            const btn = document.getElementById('addModeBtn');
+
+            if (addMode) {
+                btn.textContent = '❌ Скасувати додавання';
+                btn.style.background = '#e74c3c';
+                alert('Режим додавання: клікніть на карту для вибору позиції цілі');
+            } else {
+                btn.textContent = '📍 Додати ціль кліком';
+                btn.style.background = '#a38d6d';
+                if (clickMarker) {
+                    map.removeLayer(clickMarker);
+                    clickMarker = null;
+                }
+            }
+        }
+
+        // Обработчик клика для добавления цели
+        function handleAddClick(e) {
+            if (clickMarker) {
+                map.removeLayer(clickMarker);
+            }
+
+            clickMarker = L.marker(e.latlng)
+                .addTo(map)
+                .bindPopup('Нова ціль тут')
+                .openPopup();
+
+            showTargetForm(null, e.latlng);
+        }
+
+        // Показать форму для добавления
+        function showTargetForm(targetId = null, latlng = null) {
+            const form = document.getElementById('targetForm');
+            const title = document.getElementById('formTitle');
+            const idField = document.getElementById('targetId');
+            const nameField = document.getElementById('targetName');
+            const speedField = document.getElementById('targetSpeed');
+            const courseField = document.getElementById('targetCourse');
+            const typeField = document.getElementById('targetType');
+
+            if (targetId) {
+                // Режим редактирования
+                const target = targets.find(t => t.id === targetId);
+                if (target) {
+                    title.textContent = '✏️ Редагувати ціль';
+                    idField.value = target.id;
+                    nameField.value = target.name;
+                    speedField.value = target.speed;
+                    courseField.value = target.course;
+                    typeField.value = target.type;
+                }
+            } else {
+                // Режим добавления
+                title.textContent = '➕ Додати ціль';
+                idField.value = '';
+                nameField.value = 'Ціль ' + nextId;
+                speedField.value = 800;
+                courseField.value = 90;
+                typeField.value = 'винищувач';
+
+                // Сохраняем координаты для новой цели
+                if (latlng) {
+                    window.newTargetLatLng = latlng;
+                }
+            }
+
+            form.style.display = 'flex';
+        }
+
+        function hideTargetForm() {
+            document.getElementById('targetForm').style.display = 'none';
+            if (clickMarker) {
+                map.removeLayer(clickMarker);
+                clickMarker = null;
+            }
+            addMode = false;
+            document.getElementById('addModeBtn').textContent = '📍 Додати ціль кліком';
+            document.getElementById('addModeBtn').style.background = '#a38d6d';
+        }
+
+        // Сохранение цели
+        function saveTarget() {
+            const id = document.getElementById('targetId').value;
+            const name = document.getElementById('targetName').value;
+            const speed = parseFloat(document.getElementById('targetSpeed').value);
+            const course = parseFloat(document.getElementById('targetCourse').value);
+            const type = document.getElementById('targetType').value;
+
+            if (id) {
+                // Редактирование существующей цели
+                const target = targets.find(t => t.id === parseInt(id));
+                if (target) {
+                    target.name = name;
+                    target.speed = speed;
+                    target.course = course;
+                    target.type = type;
+                }
+            } else {
+                // Добавление новой цели
+                let lat, lng;
+                if (window.newTargetLatLng) {
+                    lat = window.newTargetLatLng.lat;
+                    lng = window.newTargetLatLng.lng;
+                } else {
+                    const center = map.getCenter();
+                    lat = center.lat + (Math.random() - 0.5);
+                    lng = center.lng + (Math.random() - 0.5);
+                }
+
+                const newTarget = {
+                    id: nextId++,
+                    name: name,
+                    type: type,
+                    speed: speed,
+                    course: course,
+                    lat: lat,
+                    lng: lng
+                };
+
+                targets.push(newTarget);
+            }
+
+            updateMapMarkers();
+            updateTargetsList();
+            hideTargetForm();
         }
 
         // Загрузка целей
@@ -130,7 +377,8 @@
                         <b>${target.name}</b><br>
                         Тип: ${target.type}<br>
                         Швидкість: ${target.speed} км/год<br>
-                        Курс: ${target.course}°
+                        Курс: ${target.course}°<br>
+                        <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
                     `);
 
                 markers[target.id] = marker;
@@ -150,6 +398,7 @@
                     Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
                     Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
                 `;
+                div.onclick = () => showTargetForm(target.id);
                 container.appendChild(div);
             });
         }
