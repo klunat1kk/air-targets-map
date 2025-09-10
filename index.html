@@ -1,10 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
-    <title>Test Page</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта повітряних цілей</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 20px; background: #1a1f2d; color: white; font-family: Arial; }
+        #map { height: 500px; width: 100%; border: 2px solid #a38d6d; border-radius: 8px; }
+        .btn { padding: 10px; background: #a38d6d; color: white; border: none; border-radius: 5px; margin: 5px; }
+    </style>
 </head>
 <body>
-    <h1>Тестовая страница работает! ✅</h1>
-    <p>Если это видно, значит GitHub Pages работает</p>
+    <h1>🗺️ Карта повітряних цілей</h1>
+    <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        
+        function initMap() {
+            console.log("Карта ініціалізується...");
+            map = L.map('map').setView([50.4501, 30.5234], 6);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            
+            // Тестовий маркер
+            L.marker([50.4501, 30.5234])
+                .addTo(map)
+                .bindPopup('Київ')
+                .openPopup();
+        }
+        
+        function centerMap() {
+            map.setView([50.4501, 30.5234], 6);
+        }
+        
+        // Запуск при завантаженні
+        window.onload = initMap;
+    </script>
 </body>
 </html>
