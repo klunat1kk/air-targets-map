@@ -68,6 +68,11 @@
         #searchResults { position: absolute; background: #2c3e50; border: 1px solid #a38d6d; max-height: 200px; overflow-y: auto; width: 300px; display: none; z-index: 1000; }
         .search-result { padding: 10px; cursor: pointer; border-bottom: 1px solid #a38d6d; }
         .search-result:hover { background: #34495e; }
+
+        /* Скрытые маркеры */
+        .target-icon.hidden {
+            opacity: 0.3;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +87,9 @@
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
         <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль кліком</button>
         <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
+        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
         <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
+        <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
     </div>
 
     <div id="map"></div>
@@ -107,6 +114,7 @@
             </select>
             <div style="margin-top:15px;">
                 <button class="btn" onclick="saveTarget()">💾 Зберегти</button>
+                <button class="btn" onclick="deleteTarget()" style="background:#ff0000;">🗑️ Видалити</button>
                 <button class="btn" onclick="hideTargetForm()" style="background:#e74c3c;">❌ Скасувати</button>
             </div>
         </div>
@@ -118,14 +126,20 @@
         let map;
         let markers = {};
         let animationPaused = false;
+        let courseMode = false;
         let addMode = false;
+        let trailsVisible = true;
+        let selectedTargetId = null;
         let currentMapView = 'street';
         let baseLayers = {};
         let targets = [];
         let animationInterval;
         let nextId = 3;
+        let targetTrails = {};
+        let targetHistory = {};
         let clickMarker = null;
         let lastFrameTime = performance.now();
+        let hiddenTargets = new Set();
 
         // Инициализация карты
         function initMap() {
@@ -152,11 +166,54 @@
             map.on('click', function(e) {
                 if (addMode) {
                     handleAddClick(e);
+                } else if (courseMode && selectedTargetId !== null) {
+                    updateTargetCourse(e);
                 }
             });
 
+            // Обработчик перемещения карты
+            map.on('moveend', updateVisibleTargets);
+
             loadTargets();
             startAnimation();
+        }
+
+        // Обновление видимости целей
+        function updateVisibleTargets() {
+            const bounds = map.getBounds();
+            hiddenTargets.clear();
+
+            targets.forEach(target => {
+                const targetLatLng = L.latLng(target.lat, target.lng);
+                const isVisible = bounds.contains(targetLatLng);
+
+                if (markers[target.id]) {
+                    if (isVisible) {
+                        markers[target.id].addTo(map);
+                        if (markers[target.id]._icon) {
+                            markers[target.id]._icon.classList.remove('hidden');
+                        }
+                    } else {
+                        markers[target.id].remove();
+                        hiddenTargets.add(target.id);
+                    }
+                }
+            });
+            updateTargetsList();
+        }
+
+        // Показать все цели
+        function showAllTargets() {
+            targets.forEach(target => {
+                if (markers[target.id] && !map.hasLayer(markers[target.id])) {
+                    markers[target.id].addTo(map);
+                    if (markers[target.id]._icon) {
+                        markers[target.id]._icon.classList.remove('hidden');
+                    }
+                    hiddenTargets.delete(target.id);
+                }
+            });
+            updateTargetsList();
         }
 
         // Инициализация поиска
@@ -208,6 +265,8 @@
                 btn.textContent = '❌ Скасувати додавання';
                 btn.style.background = '#e74c3c';
                 alert('Режим додавання: клікніть на карту для вибору позиції цілі');
+                courseMode = false;
+                selectedTargetId = null;
             } else {
                 btn.textContent = '📍 Додати ціль кліком';
                 btn.style.background = '#a38d6d';
@@ -241,6 +300,7 @@
             const speedField = document.getElementById('targetSpeed');
             const courseField = document.getElementById('targetCourse');
             const typeField = document.getElementById('targetType');
+            const deleteBtn = document.querySelector('button[onclick="deleteTarget()"]');
 
             if (targetId) {
                 // Режим редактирования
@@ -252,6 +312,7 @@
                     speedField.value = target.speed;
                     courseField.value = target.course;
                     typeField.value = target.type;
+                    deleteBtn.style.display = 'inline-block';
                 }
             } else {
                 // Режим добавления
@@ -261,8 +322,8 @@
                 speedField.value = 800;
                 courseField.value = 90;
                 typeField.value = 'винищувач';
+                deleteBtn.style.display = 'none';
 
-                // Сохраняем координаты для новой цели
                 if (latlng) {
                     window.newTargetLatLng = latlng;
                 }
@@ -322,10 +383,34 @@
                 };
 
                 targets.push(newTarget);
+                targetHistory[newTarget.id] = [[lat, lng]];
             }
 
             updateMapMarkers();
             updateTargetsList();
+            hideTargetForm();
+        }
+
+        // Удаление цели
+        function deleteTarget() {
+            const id = document.getElementById('targetId').value;
+            if (!id) return;
+
+            if (confirm('Ви впевнені, що хочете видалити цю ціль?')) {
+                const index = targets.findIndex(t => t.id === parseInt(id));
+                if (index !== -1) {
+                    targets.splice(index, 1);
+                    if (targetTrails[id]) {
+                        map.removeLayer(targetTrails[id]);
+                        delete targetTrails[id];
+                    }
+                    if (targetHistory[id]) {
+                        delete targetHistory[id];
+                    }
+                    updateMapMarkers();
+                    updateTargetsList();
+                }
+            }
             hideTargetForm();
         }
 
@@ -335,6 +420,11 @@
                 {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
                 {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
             ];
+
+            targets.forEach(target => {
+                targetHistory[target.id] = [[target.lat, target.lng]];
+            });
+
             updateTargetsList();
             updateMapMarkers();
         }
@@ -362,26 +452,51 @@
 
         // Обновление маркеров на карте
         function updateMapMarkers() {
-            // Удаляем старые маркеры
+            const bounds = map.getBounds();
+
             for (const id in markers) {
                 map.removeLayer(markers[id]);
             }
+            for (const id in targetTrails) {
+                if (targetTrails[id]) map.removeLayer(targetTrails[id]);
+            }
             markers = {};
+            targetTrails = {};
+            hiddenTargets.clear();
 
-            // Добавляем новые маркеры
             targets.forEach(target => {
                 const icon = createTriangleIcon(target.type, target.course);
                 const marker = L.marker([target.lat, target.lng], {icon: icon})
-                    .addTo(map)
                     .bindPopup(`
                         <b>${target.name}</b><br>
                         Тип: ${target.type}<br>
                         Швидкість: ${target.speed} км/год<br>
                         Курс: ${target.course}°<br>
                         <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
-                    `);
+                        <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
+                    `)
+                    .on('click', function() {
+                        if (courseMode) {
+                            selectTargetForCourse(target.id);
+                        }
+                    });
+
+                if (bounds.contains([target.lat, target.lng])) {
+                    marker.addTo(map);
+                } else {
+                    hiddenTargets.add(target.id);
+                }
 
                 markers[target.id] = marker;
+
+                // Траектории
+                if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
+                    targetTrails[target.id] = L.polyline(targetHistory[target.id], {
+                        color: 'red',
+                        weight: 1,
+                        opacity: 0.7
+                    }).addTo(map);
+                }
             });
         }
 
@@ -393,10 +508,12 @@
             targets.forEach(target => {
                 const div = document.createElement('div');
                 div.className = 'target-item';
+                const isHidden = hiddenTargets.has(target.id);
                 div.innerHTML = `
-                    <strong>${target.name}</strong> (${target.type})<br>
+                    <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
                     Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
                     Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+                    ${isHidden ? '<br><small>поза межами карти</small>' : ''}
                 `;
                 div.onclick = () => showTargetForm(target.id);
                 container.appendChild(div);
@@ -417,10 +534,10 @@
             const now = performance.now();
             const deltaTime = (now - lastFrameTime) / 1000;
             lastFrameTime = now;
+            const bounds = map.getBounds();
 
             targets.forEach(target => {
                 if (target.speed > 0) {
-                    // Реалистичное движение
                     const speedKmPerSecond = target.speed / 3600;
                     const latDegreesPerKm = 1 / 111.0;
                     const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
@@ -435,20 +552,73 @@
                     target.lat += deltaLat;
                     target.lng += deltaLng;
 
-                    // Обновляем позицию маркера
-                    if (markers[target.id]) {
+                    if (!targetHistory[target.id]) targetHistory[target.id] = [];
+                    targetHistory[target.id].push([target.lat, target.lng]);
+
+                    // Обновляем маркер если он видимый
+                    if (markers[target.id] && map.hasLayer(markers[target.id])) {
                         markers[target.id].setLatLng([target.lat, target.lng]);
                         const newIcon = createTriangleIcon(target.type, target.course);
                         markers[target.id].setIcon(newIcon);
+                    }
+
+                    // Обновляем видимость
+                    const isVisible = bounds.contains([target.lat, target.lng]);
+                    if (markers[target.id]) {
+                        if (isVisible && !map.hasLayer(markers[target.id])) {
+                            markers[target.id].addTo(map);
+                            hiddenTargets.delete(target.id);
+                        } else if (!isVisible && map.hasLayer(markers[target.id])) {
+                            markers[target.id].remove();
+                            hiddenTargets.add(target.id);
+                        }
+                    }
+
+                    // Обновляем траекторию
+                    if (trailsVisible && targetTrails[target.id]) {
+                        targetTrails[target.id].setLatLngs(targetHistory[target.id]);
                     }
                 }
             });
             updateTargetsList();
         }
 
-        // Центрирование карты
-        function centerMap() {
-            map.setView([50.4501, 30.5234], 6);
+        // Выбор цели для изменения курса
+        function selectTargetForCourse(targetId) {
+            courseMode = true;
+            selectedTargetId = targetId;
+            alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
+        }
+
+        // Обновление курса цели
+        function updateTargetCourse(e) {
+            if (!selectedTargetId) return;
+
+            const target = targets.find(t => t.id === selectedTargetId);
+            if (!target) return;
+
+            const dx = e.latlng.lng - target.lng;
+            const dy = e.latlng.lat - target.lat;
+            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+
+            target.course = newCourse;
+
+            if (markers[target.id]) {
+                const newIcon = createTriangleIcon(target.type, newCourse);
+                markers[target.id].setIcon(newIcon);
+            }
+
+            alert(`Курс змінено на: ${Math.round(newCourse)}°`);
+            courseMode = false;
+            selectedTargetId = null;
+        }
+
+        // Переключение траекторий
+        function toggleTrails() {
+            trailsVisible = !trailsVisible;
+            const btn = document.getElementById('trailsBtn');
+            btn.textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
+            updateMapMarkers();
         }
 
         // Пауза/воспроизведение
@@ -475,6 +645,13 @@
                 currentMapView = 'street';
                 document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
             }
+            updateVisibleTargets();
+        }
+
+        // Центрирование карты
+        function centerMap() {
+            map.setView([50.4501, 30.5234], 6);
+            updateVisibleTargets();
         }
 
         // Запуск при загрузке
