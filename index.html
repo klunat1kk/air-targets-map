@@ -611,6 +611,145 @@ function updateTargetsList() {
         container.appendChild(div);
     });
 }
-        
+                function startAnimation() {
+            if (animationInterval) clearInterval(animationInterval);
+            lastFrameTime = performance.now();
+            animationInterval = setInterval(moveTargets, 50);
+        }
+
+        function moveTargets() {
+            if (animationPaused) return;
+
+            const now = performance.now();
+            const deltaTime = (now - lastFrameTime) / 1000;
+            lastFrameTime = now;
+
+            targets.forEach(target => {
+                if (target.speed > 0) {
+                    // Конвертируем скорость
+                    const speedDegreesPerSecond = (target.speed / 3600) / 111.0;
+                    const courseRad = target.course * Math.PI / 180;
+                    
+                    // Движение по курсу
+                    const deltaLat = -Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
+                    const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime / Math.cos(target.lat * Math.PI / 180);
+                    
+                    target.lat += deltaLat;
+                    target.lng += deltaLng;
+                    
+                    // Сохраняем историю
+                    if (!targetHistory[target.id]) targetHistory[target.id] = [];
+                    targetHistory[target.id].push([target.lat, target.lng]);
+                    
+                    // Обновляем маркер
+                    if (markers[target.id]) {
+                        markers[target.id].setLatLng([target.lat, target.lng]);
+                        updateMarkerRotation(target.id, target.course);
+                    }
+                }
+            });
+            
+            updateTargetsList();
+        }
+
+        // Функция поворота маркера
+        function updateMarkerRotation(targetId, course) {
+            const target = targets.find(t => t.id === targetId);
+            if (!target || !markers[targetId]) return;
+            
+            if (target.type === 'дрон') {
+                if (markers[targetId]._icon) {
+                    markers[targetId]._icon.style.transform = `rotate(${course}deg)`;
+                }
+            } else {
+                const newIcon = createCustomIcon(target.type, course);
+                markers[targetId].setIcon(newIcon);
+            }
+        }
+
+        function selectTargetForCourse(targetId) {
+            courseMode = true;
+            selectedTargetId = targetId;
+            alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту для встановлення курсу.`);
+        }
+
+        // ПРОСТАЯ И ПРАВИЛЬНАЯ ФОРМУЛА КУРСА
+        function updateTargetCourse(e) {
+            if (!selectedTargetId) return;
+            
+            const target = targets.find(t => t.id === selectedTargetId);
+            if (!target) return;
+            
+            const startLat = target.lat;
+            const startLng = target.lng;
+            const endLat = e.latlng.lat;
+            const endLng = e.latlng.lng;
+            
+            // ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ
+            const dLng = endLng - startLng;
+            const dLat = endLat - startLat;
+            
+            let angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+            let newCourse = (360 - angle) % 360;
+            
+            // Округляем до целого
+            target.course = Math.round(newCourse);
+            
+            // Сразу обновляем отображение
+            updateMarkerRotation(target.id, target.course);
+            saveTargetsToStorage();
+            
+            alert(`Курс встановлено: ${target.course}°`);
+            courseMode = false;
+            selectedTargetId = null;
+        }
+
+        function toggleTrails() {
+            trailsVisible = !trailsVisible;
+            document.getElementById('trailsBtn').textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
+            updateMapMarkers();
+        }
+
+        function togglePause() {
+            animationPaused = !animationPaused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = animationPaused ? '▶️ Відтворити' : '⏸️ Пауза';
+            if (!animationPaused) lastFrameTime = performance.now();
+        }
+
+        function toggleMapView() {
+            if (currentMapView === 'street') {
+                map.removeLayer(baseLayers.street);
+                baseLayers.satellite.addTo(map);
+                currentMapView = 'satellite';
+                document.getElementById('mapViewBtn').textContent = '🗺️ Мапа';
+            } else {
+                map.removeLayer(baseLayers.satellite);
+                baseLayers.street.addTo(map);
+                currentMapView = 'street';
+                document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
+            }
+        }
+
+        function centerMap() {
+            map.setView([50.4501, 30.5234], 6);
+        }
+
+        // Пересоздаем все маркеры при загрузке
+        function reloadAllMarkers() {
+            for (const id in markers) {
+                map.removeLayer(markers[id]);
+            }
+            markers = {};
+            updateMapMarkers();
+        }
+
+        window.onload = function() {
+            initMap();
+            setTimeout(reloadAllMarkers, 1000);
+        }
+    </script>
+</body>
+</html>
 
         
