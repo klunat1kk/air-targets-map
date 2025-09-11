@@ -12,46 +12,46 @@
         .btn { padding: 10px 15px; background: #a38d6d; color: white; border: none; border-radius: 5px; margin: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
         .btn:hover { background: #8a7559; }
         .controls { margin: 10px 0; display: flex; flex-wrap: wrap; }
-        
+
         /* Стили для модальных окон */
-        .modal { 
-            display: none; 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); 
-            z-index: 1000; 
-            justify-content: center; 
-            align-items: center; 
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
-        .modal-content { 
-            background: #2c3e50; 
-            padding: 20px; 
-            border-radius: 10px; 
-            border: 2px solid #a38d6d; 
-            width: 300px; 
+        .modal-content {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #a38d6d;
+            width: 300px;
         }
-        .modal input, .modal select { 
-            width: 100%; 
-            padding: 10px; 
-            margin: 5px 0; 
-            border: 1px solid #a38d6d; 
-            border-radius: 5px; 
-            background: #1a1f2d; 
-            color: white; 
+        .modal input, .modal select {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #a38d6d;
+            border-radius: 5px;
+            background: #1a1f2d;
+            color: white;
         }
-        
-        .target-item { 
-            padding: 10px; 
-            margin: 5px 0; 
-            background: #2c3e50; 
-            border-radius: 5px; 
+
+        .target-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #2c3e50;
+            border-radius: 5px;
             cursor: pointer;
         }
-        .target-item:hover { 
-            background: #34495e; 
+        .target-item:hover {
+            background: #34495e;
         }
-        
+
         /* Стили для треугольных маркеров */
         .triangle-icon {
             width: 0;
@@ -60,7 +60,7 @@
             border-right: 8px solid transparent;
             border-bottom: 16px solid;
         }
-        
+
         /* Стили для поиска */
         .search-container { margin: 10px 0; position: relative; }
         #searchInput { width: 300px; padding: 10px; border: 1px solid #a38d6d; border-radius: 5px; background: #2c3e50; color: white; }
@@ -73,25 +73,45 @@
             opacity: 0.3;
         }
 
-        .status-bar {
-            background: #2c3e50;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
+        .disclaimer-modal {
             display: flex;
-            justify-content: space-between;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
         }
-
-        .group-controls {
+        .disclaimer-content {
             background: #2c3e50;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 10px 0;
-            border: 1px solid #a38d6d;
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #e74c3c;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+        .disclaimer-content h2 {
+            color: #e74c3c;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
+    <!-- Disclaimer Modal -->
+    <div id="disclaimerModal" class="disclaimer-modal">
+        <div class="disclaimer-content">
+            <h2>⚠️ УВАГА</h2>
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                <strong>Сайт не є офіційним джерелом інформації, не являється військовою технологією, всі дані беруться лише з відкритих джерел</strong>
+            </p>
+            <button class="btn" onclick="hideDisclaimer()" style="background: #27ae60; padding: 12px 24px;">
+                Я розумію
+            </button>
+        </div>
+    </div>
+
     <h1>🗺️ Карта повітряних цілей</h1>
 
     <div class="search-container">
@@ -101,29 +121,11 @@
 
     <div class="controls">
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
-        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль</button>
+        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль кліком</button>
         <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
         <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
         <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
-        <button class="btn" onclick="showAllTargets()">👁️ Показати всі</button>
-        <button class="btn" onclick="clearAllTargets()" style="background:#e74c3c;">🗑️ Очистити всі</button>
-        <button class="btn" onclick="exportData()" style="background:#27ae60;">📊 Експорт</button>
-    </div>
-
-    <div class="status-bar">
-        <span>📊 Статус: <span id="statusText">Активний</span></span>
-        <span>🎯 Цілей: <span id="targetsCount">0</span></span>
-        <span>⏱️ Час: <span id="timer">00:00:00</span></span>
-    </div>
-
-    <div class="group-controls">
-        <h3>👥 Групове керування:</h3>
-        <button class="btn" onclick="changeAllCourses(0)">🔼 Північ (0°)</button>
-        <button class="btn" onclick="changeAllCourses(90)">▶️ Схід (90°)</button>
-        <button class="btn" onclick="changeAllCourses(180)">🔻 Південь (180°)</button>
-        <button class="btn" onclick="changeAllCourses(270)">◀️ Захід (270°)</button>
-        <button class="btn" onclick="changeAllSpeed(100)">➕ Швидкість +100</button>
-        <button class="btn" onclick="changeAllSpeed(-100)">➖ Швидкість -100</button>
+        <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
     </div>
 
     <div id="map"></div>
@@ -157,45 +159,44 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Глобальные переменные
-        let map;
-        let markers = {};
-        let animationPaused = false;
-        let courseMode = false;
-        let addMode = false;
-        let trailsVisible = true;
-        let selectedTargetId = null;
-        let currentMapView = 'street';
-        let baseLayers = {};
-        let targets = [];
-        let animationInterval;
-        let nextId = 3;
-        let targetTrails = {};
-        let targetHistory = {};
-        let clickMarker = null;
-        let lastFrameTime = performance.now();
-        let hiddenTargets = new Set();
-        let startTime = Date.now();
-        // Инициализация карты
+let map;
+let markers = {};
+let animationPaused = false;
+let courseMode = false;
+let addMode = false;
+let trailsVisible = true;
+let selectedTargetId = null;
+let currentMapView = 'street';
+let baseLayers = {};
+let targets = [];
+let animationInterval;
+let nextId = 3;
+let targetTrails = {};
+let targetHistory = {};
+let clickMarker = null;
+let lastFrameTime = performance.now();
+let hiddenTargets = new Set();
+
+// Инициализация карты
 function initMap() {
     console.log("Инициализация карты...");
-    
     map = L.map('map').setView([50.4501, 30.5234], 6);
-    
+
     baseLayers.street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
     });
-    
+
     baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: '© Esri',
         maxZoom: 19
     });
-    
+
     baseLayers.street.addTo(map);
-    
+
     // Инициализация поиска
     initSearch();
-    
+
     // Обработчик кликов по карте
     map.on('click', function(e) {
         if (addMode) {
@@ -204,36 +205,28 @@ function initMap() {
             updateTargetCourse(e);
         }
     });
-    
+
     // Обработчик перемещения карты
     map.on('moveend', updateVisibleTargets);
-    
+
     loadTargets();
     startAnimation();
-    startTimer();
 }
 
-// Таймер работы системы
-function startTimer() {
-    setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const hours = Math.floor(elapsed / 3600000);
-        const minutes = Math.floor((elapsed % 3600000) / 60000);
-        const seconds = Math.floor((elapsed % 60000) / 1000);
-        document.getElementById('timer').textContent = 
-            `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }, 1000);
+// Показать/скрыть disclaimer
+function hideDisclaimer() {
+    document.getElementById('disclaimerModal').style.display = 'none';
 }
 
 // Обновление видимости целей
 function updateVisibleTargets() {
     const bounds = map.getBounds();
     hiddenTargets.clear();
-    
+
     targets.forEach(target => {
         const targetLatLng = L.latLng(target.lat, target.lng);
         const isVisible = bounds.contains(targetLatLng);
-        
+
         if (markers[target.id]) {
             if (isVisible) {
                 markers[target.id].addTo(map);
@@ -246,9 +239,10 @@ function updateVisibleTargets() {
             }
         }
     });
+    updateTargetsList();
 }
 
-// Показать все цели (даже вне экрана)
+// Показать все цели
 function showAllTargets() {
     targets.forEach(target => {
         if (markers[target.id] && !map.hasLayer(markers[target.id])) {
@@ -257,28 +251,85 @@ function showAllTargets() {
                 markers[target.id]._icon.classList.remove('hidden');
             }
             hiddenTargets.delete(target.id);
-            
-            // Плавно перемещаем карту к цели, если она далеко
-            const targetBounds = L.latLngBounds([target.lat, target.lng]);
-            if (!map.getBounds().contains([target.lat, target.lng])) {
-                map.panTo([target.lat, target.lng], {animate: true, duration: 1});
-            }
         }
     });
+    updateTargetsList();
 }
 
 // Инициализация поиска
 function initSearch() {
     const searchInput = document.getElementById('searchInput');
-    
+    const searchResults = document.getElementById('searchResults');
+
     searchInput.addEventListener('input', function() {
         const query = this.value.trim();
         if (query.length > 2) {
             searchLocation(query);
         } else {
-            document.getElementById('searchResults').style.display = 'none';
+            searchResults.style.display = 'none';
         }
     });
+
+    // Закрытие результатов при клике вне области
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+}
+
+// Поиск населенных пунктов
+function searchLocation(query) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=uk`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '';
+
+            if (data.length > 0) {
+                data.forEach(place => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result';
+                    div.textContent = place.display_name;
+                    div.onclick = () => {
+                        map.setView([parseFloat(place.lat), parseFloat(place.lon)], 12);
+                        results.style.display = 'none';
+                        document.getElementById('searchInput').value = '';
+                    };
+                    results.appendChild(div);
+                });
+                results.style.display = 'block';
+            } else {
+                results.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка поиска:', error);
+            document.getElementById('searchResults').style.display = 'none';
+        });
+}
+
+// Режим добавления цели
+function toggleAddMode() {
+    addMode = !addMode;
+    const btn = document.getElementById('addModeBtn');
+
+    if (addMode) {
+        btn.textContent = '❌ Скасувати додавання';
+        btn.style.background = '#e74c3c';
+        alert('Режим додавання: клікніть на карту для вибору позиції цілі');
+        courseMode = false;
+        selectedTargetId = null;
+    } else {
+        btn.textContent = '📍 Додати ціль кліком';
+        btn.style.background = '#a38d6d';
+        if (clickMarker) {
+            map.removeLayer(clickMarker);
+            clickMarker = null;
+        }
+    }
 }
 
 // Обработчик клика для добавления цели
@@ -286,41 +337,74 @@ function handleAddClick(e) {
     if (clickMarker) {
         map.removeLayer(clickMarker);
     }
-    
+
     clickMarker = L.marker(e.latlng)
         .addTo(map)
         .bindPopup('Нова ціль тут')
         .openPopup();
-    
-    showTargetForm(null, e.latlng);
-}
 
-function toggleAddMode() {
-    addMode = !addMode;
-    const btn = document.getElementById('addModeBtn');
-    
-    if (addMode) {
-        btn.textContent = '❌ Скасувати';
-        btn.style.background = '#e74c3c';
-        // Отключаем другие режимы
-        courseMode = false;
-        selectedTargetId = null;
+    showTargetForm(null, e.latlng);
+        }
+        // Показать форму для добавления
+function showTargetForm(targetId = null, latlng = null) {
+    const form = document.getElementById('targetForm');
+    const title = document.getElementById('formTitle');
+    const idField = document.getElementById('targetId');
+    const nameField = document.getElementById('targetName');
+    const speedField = document.getElementById('targetSpeed');
+    const courseField = document.getElementById('targetCourse');
+    const typeField = document.getElementById('targetType');
+    const deleteBtn = document.querySelector('button[onclick="deleteTarget()"]');
+
+    if (targetId) {
+        // Режим редактирования
+        const target = targets.find(t => t.id === targetId);
+        if (target) {
+            title.textContent = '✏️ Редагувати ціль';
+            idField.value = target.id;
+            nameField.value = target.name;
+            speedField.value = target.speed;
+            courseField.value = target.course;
+            typeField.value = target.type;
+            deleteBtn.style.display = 'inline-block';
+        }
     } else {
-        btn.textContent = '📍 Додати ціль';
-        btn.style.background = '#a38d6d';
-        if (clickMarker) {
-            map.removeLayer(clickMarker);
-            clickMarker = null;
+        // Режим добавления
+        title.textContent = '➕ Додати ціль';
+        idField.value = '';
+        nameField.value = 'Ціль ' + nextId;
+        speedField.value = 800;
+        courseField.value = 90;
+        typeField.value = 'винищувач';
+        deleteBtn.style.display = 'none';
+
+        if (latlng) {
+            window.newTargetLatLng = latlng;
         }
     }
-        }
-        function saveTarget() {
+
+    form.style.display = 'flex';
+}
+
+function hideTargetForm() {
+    document.getElementById('targetForm').style.display = 'none';
+    if (clickMarker) {
+        map.removeLayer(clickMarker);
+        clickMarker = null;
+    }
+    addMode = false;
+    document.getElementById('addModeBtn').textContent = '📍 Додати ціль кліком';
+    document.getElementById('addModeBtn').style.background = '#a38d6d';
+}
+
+// Сохранение цели
+function saveTarget() {
     const id = document.getElementById('targetId').value;
     const name = document.getElementById('targetName').value;
     const speed = parseFloat(document.getElementById('targetSpeed').value);
     const course = parseFloat(document.getElementById('targetCourse').value);
     const type = document.getElementById('targetType').value;
-    
+
     if (id) {
         // Редактирование существующей цели
         const target = targets.find(t => t.id === parseInt(id));
@@ -341,7 +425,7 @@ function toggleAddMode() {
             lat = center.lat + (Math.random() - 0.5);
             lng = center.lng + (Math.random() - 0.5);
         }
-        
+
         const newTarget = {
             id: nextId++,
             name: name,
@@ -351,23 +435,21 @@ function toggleAddMode() {
             lat: lat,
             lng: lng
         };
-        
+
         targets.push(newTarget);
         targetHistory[newTarget.id] = [[lat, lng]];
     }
-    
-    // Сохраняем в LocalStorage
-    saveTargetsToStorage();
-    
+
     updateMapMarkers();
     updateTargetsList();
     hideTargetForm();
 }
 
+// Удаление цели
 function deleteTarget() {
     const id = document.getElementById('targetId').value;
     if (!id) return;
-    
+
     if (confirm('Ви впевнені, що хочете видалити цю ціль?')) {
         const index = targets.findIndex(t => t.id === parseInt(id));
         if (index !== -1) {
@@ -382,10 +464,6 @@ function deleteTarget() {
             if (hiddenTargets.has(parseInt(id))) {
                 hiddenTargets.delete(parseInt(id));
             }
-            
-            // Сохраняем в LocalStorage
-            saveTargetsToStorage();
-            
             updateMapMarkers();
             updateTargetsList();
         }
@@ -393,376 +471,263 @@ function deleteTarget() {
     hideTargetForm();
 }
 
-// Поиск населенных пунктов
-function searchLocation(query) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=uk`;
-    
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            const results = document.getElementById('searchResults');
-            results.innerHTML = '';
-            
-            if (data.length > 0) {
-                data.forEach(place => {
-                    const div = document.createElement('div');
-                    div.className = 'search-result';
-                    div.textContent = place.display_name;
-                    div.onclick = () => {
-                        map.setView([parseFloat(place.lat), parseFloat(place.lon)], 12);
-                        results.style.display = 'none';
-                        document.getElementById('searchInput').value = '';
-                    };
-                    results.appendChild(div);
-                });
-                results.style.display = 'block';
-            }
-        });
-}
-
-// Сохранение целей в LocalStorage
-function saveTargetsToStorage() {
-    localStorage.setItem('airTargets', JSON.stringify(targets));
-    localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
-    localStorage.setItem('nextId', nextId.toString());
-}
-
-// Загрузка целей из LocalStorage
-function loadTargetsFromStorage() {
-    const savedTargets = localStorage.getItem('airTargets');
-    const savedHistory = localStorage.getItem('targetHistory');
-    const savedNextId = localStorage.getItem('nextId');
-    
-    if (savedTargets) {
-        targets = JSON.parse(savedTargets);
-    }
-    if (savedHistory) {
-        targetHistory = JSON.parse(savedHistory);
-    }
-    if (savedNextId) {
-        nextId = parseInt(savedNextId);
-    }
-    
-    // Если нет сохраненных целей, создаем демо-цели
-    if (targets.length === 0) {
-        targets = [
-            {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 0, lat: 50.45, lng: 30.52},
-            {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 90, lat: 49.0, lng: 31.0}
-        ];
-        
-        targets.forEach(target => {
-            targetHistory[target.id] = [[target.lat, target.lng]];
-        });
-        nextId = 3;
-    }
-}
-
+// Загрузка целей
 function loadTargets() {
-    loadTargetsFromStorage();
+    targets = [
+        {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
+        {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
+    ];
+
+    targets.forEach(target => {
+        targetHistory[target.id] = [[target.lat, target.lng]];
+    });
+
     updateTargetsList();
     updateMapMarkers();
-    updateStatusBar();
 }
-                // Создание треугольного маркера с правильным поворотом (0° = вверх)
-        function createTriangleIcon(type, course) {
-            const colors = {
-                'винищувач': '#3498db',
-                'дрон': '#e74c3c',
-                'ракета': '#f39c12',
-                'бомба': '#95a5a6',
-                'корабль': '#9b59b6'
-            };
 
-            const color = colors[type] || '#3498db';
-            
-            // 0° = вверх, 90° = вправо
-            const rotation = course;
+// Создание треугольного маркера
+function createTriangleIcon(type, course) {
+    const colors = {
+        'винищувач': '#3498db',
+        'дрон': '#e74c3c',
+        'ракета': '#f39c12',
+        'бомба': '#95a5a6',
+        'корабль': '#9b59b6'
+    };
 
-            return L.divIcon({
-                className: 'target-icon',
-                html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg); transform-origin: center;"></div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-            });
-        }
+    const color = colors[type] || '#3498db';
+    
+    // Правильное направление: 0° - север, 90° - восток
+    const rotation = course;
 
-        function updateMapMarkers() {
-            const bounds = map.getBounds();
-            
-            for (const id in markers) {
-                map.removeLayer(markers[id]);
-            }
-            for (const id in targetTrails) {
-                if (targetTrails[id]) map.removeLayer(targetTrails[id]);
-            }
-            markers = {};
-            targetTrails = {};
-            hiddenTargets.clear();
-            
-            targets.forEach(target => {
-                const icon = createTriangleIcon(target.type, target.course);
-                const marker = L.marker([target.lat, target.lng], {icon: icon})
-                    .bindPopup(`
-                        <b>${target.name}</b><br>
-                        Тип: ${target.type}<br>
-                        Швидкість: ${target.speed} км/год<br>
-                        Курс: ${target.course}°<br>
-                        <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
-                        <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
-                    `)
-                    .on('click', function() {
-                        if (courseMode) {
-                            selectTargetForCourse(target.id);
-                        }
-                    });
-                
-                // Добавляем маркер на карту только если он в пределах видимости
-                if (bounds.contains([target.lat, target.lng])) {
-                    marker.addTo(map);
-                } else {
-                    hiddenTargets.add(target.id);
-                }
-                
-                markers[target.id] = marker;
-                
-                // Траектории (только для видимых целей)
-                if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
-                    targetTrails[target.id] = L.polyline(targetHistory[target.id], {
-                        color: 'red',
-                        weight: 1,
-                        opacity: 0.7
-                    }).addTo(map);
+    return L.divIcon({
+        className: 'target-icon',
+        html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+}
+
+// Обновление маркеров на карте
+function updateMapMarkers() {
+    const bounds = map.getBounds();
+
+    // Удаляем старые маркеры
+    for (const id in markers) {
+        map.removeLayer(markers[id]);
+    }
+    for (const id in targetTrails) {
+        if (targetTrails[id]) map.removeLayer(targetTrails[id]);
+    }
+    
+    markers = {};
+    targetTrails = {};
+    hiddenTargets.clear();
+
+    // Добавляем новые маркеры
+    targets.forEach(target => {
+        const icon = createTriangleIcon(target.type, target.course);
+        const marker = L.marker([target.lat, target.lng], {icon: icon})
+            .bindPopup(`
+                <b>${target.name}</b><br>
+                Тип: ${target.type}<br>
+                Швидкість: ${target.speed} км/год<br>
+                Курс: ${target.course}°<br>
+                <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
+                <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
+            `)
+            .on('click', function() {
+                if (courseMode) {
+                    selectTargetForCourse(target.id);
                 }
             });
-            
-            updateStatusBar();
+
+        // Добавляем маркер только если он в пределах видимости
+        if (bounds.contains([target.lat, target.lng])) {
+            marker.addTo(map);
+        } else {
+            hiddenTargets.add(target.id);
         }
 
-        function updateTargetsList() {
-            const container = document.getElementById('targetsList');
-            container.innerHTML = '';
-            
-            targets.forEach(target => {
-                const div = document.createElement('div');
-                div.className = 'target-item';
-                const isHidden = hiddenTargets.has(target.id);
-                div.innerHTML = `
-                    <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
-                    Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
-                    Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
-                    ${isHidden ? '<br><small>поза межами карти</small>' : ''}
-                `;
-                div.onclick = () => showTargetForm(target.id);
-                container.appendChild(div);
-            });
+        markers[target.id] = marker;
+
+        // Траектории (только для видимых целей)
+        if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
+            targetTrails[target.id] = L.polyline(targetHistory[target.id], {
+                color: 'red',
+                weight: 1,
+                opacity: 0.7
+            }).addTo(map);
         }
+    });
+}
+        // Обновление списка целей
+function updateTargetsList() {
+    const container = document.getElementById('targetsList');
+    container.innerHTML = '';
 
-        function updateStatusBar() {
-            document.getElementById('targetsCount').textContent = targets.length;
-            document.getElementById('statusText').textContent = animationPaused ? 'Пауза' : 'Активний';
-        }
+    targets.forEach(target => {
+        const div = document.createElement('div');
+        div.className = 'target-item';
+        const isHidden = hiddenTargets.has(target.id);
+        div.innerHTML = `
+            <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
+            Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
+            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+            ${isHidden ? '<br><small>поза межами карти</small>' : ''}
+        `;
+        div.onclick = () => showTargetForm(target.id);
+        container.appendChild(div);
+    });
+}
 
-        function startAnimation() {
-            if (animationInterval) clearInterval(animationInterval);
-            lastFrameTime = performance.now();
-            animationInterval = setInterval(moveTargets, 50);
-        }
+// Запуск анимации
+function startAnimation() {
+    if (animationInterval) clearInterval(animationInterval);
+    lastFrameTime = performance.now();
+    animationInterval = setInterval(moveTargets, 50);
+}
 
-        function moveTargets() {
-            if (animationPaused) return;
+// Движение целей
+function moveTargets() {
+    if (animationPaused) return;
 
-            const now = performance.now();
-            const deltaTime = (now - lastFrameTime) / 1000;
-            lastFrameTime = now;
-            const bounds = map.getBounds();
+    const now = performance.now();
+    const deltaTime = (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+    const bounds = map.getBounds();
 
-            targets.forEach(target => {
-                if (target.speed > 0) {
-                    // РЕАЛИСТИЧНАЯ СКОРОСТЬ: км/ч -> градусы/секунду
-                    const speedKmPerSecond = target.speed / 3600;
-                    const latDegreesPerKm = 1 / 111.0;
-                    const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
-                    
-                    const speedDegreesPerSecond = speedKmPerSecond * latDegreesPerKm;
-                    const courseRad = (90 - target.course) * Math.PI / 180; // 0° = вверх
-                    
-                    const deltaLat = Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
-                    const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime * 
-                                    (latDegreesPerKm / lngDegreesPerKm);
-                    
-                    const newLat = target.lat + deltaLat;
-                    const newLng = target.lng + deltaLng;
-                    
-                    target.lat = newLat;
-                    target.lng = newLng;
-                    
-                    if (!targetHistory[target.id]) targetHistory[target.id] = [];
-                    targetHistory[target.id].push([newLat, newLng]);
-                    
-                    // Обновляем маркер если он видимый
-                    if (markers[target.id] && map.hasLayer(markers[target.id])) {
-                        markers[target.id].setLatLng([newLat, newLng]);
-                        const newIcon = createTriangleIcon(target.type, target.course);
-                        markers[target.id].setIcon(newIcon);
-                    }
-                    
-                    // Обновляем видимость
-                    const isVisible = bounds.contains([newLat, newLng]);
-                    if (markers[target.id]) {
-                        if (isVisible && !map.hasLayer(markers[target.id])) {
-                            markers[target.id].addTo(map);
-                            hiddenTargets.delete(target.id);
-                        } else if (!isVisible && map.hasLayer(markers[target.id])) {
-                            markers[target.id].remove();
-                            hiddenTargets.add(target.id);
-                        }
-                    }
-                    
-                    // Обновляем траекторию
-                    if (trailsVisible && targetTrails[target.id]) {
-                        targetTrails[target.id].setLatLngs(targetHistory[target.id]);
-                    }
-                }
-            });
-            
-            // Автосохранение каждые 30 секунд
-            if (Math.random() < 0.01) {
-                saveTargetsToStorage();
-            }
-            
-            updateTargetsList();
-            updateStatusBar();
-        }
+    targets.forEach(target => {
+        if (target.speed > 0) {
+            // РЕАЛИСТИЧНАЯ СКОРОСТЬ: км/ч -> градусы/секунду
+            const speedKmPerSecond = target.speed / 3600;
+            const latDegreesPerKm = 1 / 111.0;
+            const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
 
-        function selectTargetForCourse(targetId) {
-            courseMode = true;
-            selectedTargetId = targetId;
-        }
+            const speedDegreesPerSecond = speedKmPerSecond * latDegreesPerKm;
+            
+            // Правильное направление: 0° - север, 90° - восток
+            const courseRad = (90 - target.course) * Math.PI / 180;
 
-        function updateTargetCourse(e) {
-            if (!selectedTargetId) return;
-            
-            const target = targets.find(t => t.id === selectedTargetId);
-            if (!target) return;
-            
-            const dx = e.latlng.lng - target.lng;
-            const dy = e.latlng.lat - target.lat;
-            
-            // Правильный расчет курса: 0° = вверх, 90° = вправо
-            let newCourse = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
-            
-            target.course = newCourse;
-            
-            if (markers[target.id]) {
-                const newIcon = createTriangleIcon(target.type, newCourse);
+            const deltaLat = Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
+            const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime * 
+                            (latDegreesPerKm / lngDegreesPerKm);
+
+            target.lat += deltaLat;
+            target.lng += deltaLng;
+
+            if (!targetHistory[target.id]) targetHistory[target.id] = [];
+            targetHistory[target.id].push([target.lat, target.lng]);
+
+            // Обновляем маркер если он видимый
+            if (markers[target.id] && map.hasLayer(markers[target.id])) {
+                markers[target.id].setLatLng([target.lat, target.lng]);
+                const newIcon = createTriangleIcon(target.type, target.course);
                 markers[target.id].setIcon(newIcon);
             }
-            
-            // Сохраняем изменения
-            saveTargetsToStorage();
-            
-            courseMode = false;
-            selectedTargetId = null;
-        }
 
-        // Новые функции группового управления
-        function changeAllCourses(newCourse) {
-            targets.forEach(target => {
-                target.course = newCourse;
-                if (markers[target.id]) {
-                    const newIcon = createTriangleIcon(target.type, newCourse);
-                    markers[target.id].setIcon(newIcon);
+            // Обновляем видимость
+            const isVisible = bounds.contains([target.lat, target.lng]);
+            if (markers[target.id]) {
+                if (isVisible && !map.hasLayer(markers[target.id])) {
+                    markers[target.id].addTo(map);
+                    hiddenTargets.delete(target.id);
+                } else if (!isVisible && map.hasLayer(markers[target.id])) {
+                    markers[target.id].remove();
+                    hiddenTargets.add(target.id);
                 }
-            });
-            saveTargetsToStorage();
-        }
+            }
 
-        function changeAllSpeed(delta) {
-            targets.forEach(target => {
-                target.speed = Math.max(0, target.speed + delta);
-            });
-            saveTargetsToStorage();
-            updateTargetsList();
-        }
-
-        function clearAllTargets() {
-            if (confirm('Ви впевнені, що хочете видалити всі цілі?')) {
-                targets = [];
-                targetHistory = {};
-                nextId = 1;
-                
-                for (const id in markers) {
-                    map.removeLayer(markers[id]);
-                }
-                for (const id in targetTrails) {
-                    if (targetTrails[id]) map.removeLayer(targetTrails[id]);
-                }
-                
-                markers = {};
-                targetTrails = {};
-                hiddenTargets.clear();
-                
-                saveTargetsToStorage();
-                updateTargetsList();
-                updateStatusBar();
+            // Обновляем траекторию
+            if (trailsVisible && targetTrails[target.id]) {
+                targetTrails[target.id].setLatLngs(targetHistory[target.id]);
             }
         }
+    });
 
-        function exportData() {
-            const data = {
-                targets: targets,
-                exportTime: new Date().toISOString(),
-                totalTargets: targets.length
-            };
-            
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `targets_export_${new Date().getTime()}.json`;
-            link.click();
-        }
+    updateTargetsList();
+}
 
-        function toggleTrails() {
-            trailsVisible = !trailsVisible;
-            const btn = document.getElementById('trailsBtn');
-            btn.textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
-            updateMapMarkers();
-        }
+// Выбор цели для изменения курса
+function selectTargetForCourse(targetId) {
+    courseMode = true;
+    selectedTargetId = targetId;
+    alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
+}
 
-        function togglePause() {
-            animationPaused = !animationPaused;
-            const btn = document.getElementById('pauseBtn');
-            btn.textContent = animationPaused ? '▶️ Відтворити' : '⏸️ Пауза';
-            btn.style.background = animationPaused ? '#27ae60' : '#a38d6d';
-            if (!animationPaused) {
-                lastFrameTime = performance.now();
-            }
-            updateStatusBar();
-        }
+// Обновление курса цели (ПРАВИЛЬНОЕ направление)
+function updateTargetCourse(e) {
+    if (!selectedTargetId) return;
 
-        function toggleMapView() {
-            if (currentMapView === 'street') {
-                map.removeLayer(baseLayers.street);
-                baseLayers.satellite.addTo(map);
-                currentMapView = 'satellite';
-                document.getElementById('mapViewBtn').textContent = '🗺️ Мапа';
-            } else {
-                map.removeLayer(baseLayers.satellite);
-                baseLayers.street.addTo(map);
-                currentMapView = 'street';
-                document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
-            }
-            updateVisibleTargets();
-        }
+    const target = targets.find(t => t.id === selectedTargetId);
+    if (!target) return;
 
-        function centerMap() {
-            map.setView([50.4501, 30.5234], 6);
-            updateVisibleTargets();
-        }
+    // Правильный расчет курса: 0° - север, 90° - восток
+    const dx = e.latlng.lng - target.lng;
+    const dy = e.latlng.lat - target.lat;
+    
+    // Math.atan2 возвращает угол в радианах от положительной оси X (восток)
+    let newCourse = (90 - Math.atan2(dy, dx) * 180 / Math.PI) % 360;
+    if (newCourse < 0) newCourse += 360;
 
-        window.onload = initMap;
-    </script>
-</body>
-</html>
+    target.course = newCourse;
+
+    if (markers[target.id]) {
+        const newIcon = createTriangleIcon(target.type, newCourse);
+        markers[target.id].setIcon(newIcon);
+    }
+
+    alert(`Курс змінено на: ${Math.round(newCourse)}°`);
+    courseMode = false;
+    selectedTargetId = null;
+}
+
+// Переключение траекторий
+function toggleTrails() {
+    trailsVisible = !trailsVisible;
+    const btn = document.getElementById('trailsBtn');
+    btn.textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
+    updateMapMarkers();
+}
+
+// Пауза/воспроизведение
+function togglePause() {
+    animationPaused = !animationPaused;
+    const btn = document.getElementById('pauseBtn');
+    btn.textContent = animationPaused ? '▶️ Відтворити' : '⏸️ Пауза';
+    btn.style.background = animationPaused ? '#27ae60' : '#a38d6d';
+    if (!animationPaused) {
+        lastFrameTime = performance.now();
+    }
+}
+
+// Переключение вида карты
+function toggleMapView() {
+    if (currentMapView === 'street') {
+        map.removeLayer(baseLayers.street);
+        baseLayers.satellite.addTo(map);
+        currentMapView = 'satellite';
+        document.getElementById('mapViewBtn').textContent = '🗺️ Мапа';
+    } else {
+        map.removeLayer(baseLayers.satellite);
+        baseLayers.street.addTo(map);
+        currentMapView = 'street';
+        document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
+    }
+    updateVisibleTargets();
+}
+
+// Центрирование карты
+function centerMap() {
+    map.setView([50.4501, 30.5234], 6);
+    updateVisibleTargets();
+}
+
+// Запуск при загрузке
+window.onload = function() {
+    // Показываем disclaimer при загрузке
+    document.getElementById('disclaimerModal').style.display = 'flex';
+    // Инициализируем карту
+    initMap();
+};
