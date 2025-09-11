@@ -18,67 +18,63 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: #0a0a1a;
             color: #e6e6e6;
-            min-height: 100vh;
-            overflow-x: hidden;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            width: 350px;
-            background: rgba(26, 26, 46, 0.95);
-            padding: 20px;
-            border-right: 2px solid #0d8bf2;
-            overflow-y: auto;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .main-content {
-            flex: 1;
+        .app-container {
             display: flex;
             flex-direction: column;
-        }
-
-        #map {
-            flex: 1;
-            z-index: 1;
+            height: 100vh;
         }
 
         .header {
             background: linear-gradient(90deg, #0d8bf2 0%, #0456a8 100%);
-            padding: 15px 25px;
+            padding: 12px 20px;
             text-align: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
         }
 
         .header h1 {
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 700;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
         .control-panel {
-            background: rgba(34, 40, 49, 0.95);
+            background: rgba(26, 26, 46, 0.98);
+            border-top: 2px solid #0d8bf2;
             padding: 15px;
-            border-bottom: 2px solid #0d8bf2;
+            height: auto;
+            max-height: 40vh;
+            overflow-y: auto;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .tabs {
             display: flex;
             margin-bottom: 15px;
-            background: rgba(26, 26, 46, 0.8);
-            border-radius: 8px;
+            background: rgba(34, 40, 49, 0.8);
+            border-radius: 10px;
             overflow: hidden;
         }
 
         .tab {
             flex: 1;
-            padding: 12px;
+            padding: 10px;
             text-align: center;
             background: rgba(13, 139, 242, 0.2);
             cursor: pointer;
@@ -86,11 +82,12 @@
             border: none;
             color: #e6e6e6;
             font-weight: 600;
+            font-size: 14px;
         }
 
         .tab.active {
             background: #0d8bf2;
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2);
         }
 
         .tab:hover {
@@ -106,24 +103,25 @@
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             font-weight: 600;
             color: #0d8bf2;
+            font-size: 14px;
         }
 
         input, select, button {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             border: none;
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.1);
             color: #e6e6e6;
-            font-size: 16px;
+            font-size: 14px;
             transition: all 0.3s ease;
         }
 
@@ -139,14 +137,13 @@
             font-weight: 600;
             cursor: pointer;
             border: none;
-            margin-top: 5px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-top: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         button:hover {
             background: linear-gradient(90deg, #1a9bff 0%, #0d6efd 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
         }
 
         button:active {
@@ -154,111 +151,110 @@
         }
 
         .targets-list {
-            margin-top: 20px;
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
             background: rgba(34, 40, 49, 0.8);
             border-radius: 8px;
-            padding: 10px;
+            padding: 8px;
         }
 
         .target-item {
             background: rgba(13, 139, 242, 0.15);
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 10px;
+            margin-bottom: 8px;
             border-radius: 6px;
-            border-left: 4px solid #0d8bf2;
+            border-left: 3px solid #0d8bf2;
             transition: all 0.3s ease;
         }
 
         .target-item:hover {
             background: rgba(13, 139, 242, 0.25);
-            transform: translateX(5px);
         }
 
         .target-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .target-name {
             font-weight: 700;
             color: #0d8bf2;
+            font-size: 14px;
         }
 
         .target-type {
             background: rgba(13, 139, 242, 0.3);
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
         }
 
         .target-details {
-            font-size: 14px;
+            font-size: 12px;
             color: #b8b8b8;
         }
 
         .target-actions {
             display: flex;
-            gap: 8px;
-            margin-top: 8px;
+            gap: 6px;
+            margin-top: 6px;
         }
 
         .target-actions button {
             flex: 1;
-            padding: 8px;
-            font-size: 14px;
+            padding: 6px;
+            font-size: 12px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
-            margin-top: 15px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 12px;
         }
 
         .stat-card {
             background: rgba(13, 139, 242, 0.15);
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
             border: 1px solid rgba(13, 139, 242, 0.3);
         }
 
         .stat-value {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: 700;
             color: #0d8bf2;
-            margin: 8px 0;
+            margin: 6px 0;
         }
 
         .stat-label {
-            font-size: 14px;
+            font-size: 12px;
             color: #b8b8b8;
         }
 
         .status-bar {
             background: rgba(34, 40, 49, 0.95);
-            padding: 10px 20px;
+            padding: 8px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 2px solid #0d8bf2;
-            font-size: 14px;
+            border-top: 1px solid #0d8bf2;
+            font-size: 12px;
         }
 
         .status-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .status-indicator {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             background: #4caf50;
         }
@@ -267,21 +263,16 @@
             background: #f44336;
         }
 
-        .icon-btn {
-            width: auto;
-            padding: 8px 12px;
-            margin: 0 5px;
-        }
-
         .speed-control {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+            margin: 10px 0;
         }
 
         .speed-btn {
-            width: 40px;
-            height: 40px;
+            width: 35px;
+            height: 35px;
             padding: 0;
             display: flex;
             align-items: center;
@@ -289,41 +280,32 @@
             font-weight: bold;
         }
 
-        @media (max-width: 1200px) {
-            .container {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                border-right: none;
-                border-bottom: 2px solid #0d8bf2;
-                max-height: 400px;
-            }
-        }
-
+        /* Адаптивність */
         @media (max-width: 768px) {
             .header h1 {
-                font-size: 22px;
+                font-size: 18px;
             }
+            
             .tabs {
                 flex-direction: column;
             }
+            
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+            
             .status-bar {
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
                 text-align: center;
+            }
+            
+            .control-panel {
+                max-height: 50vh;
             }
         }
 
-        .leaflet-popup-content {
-            color: #333;
-            font-size: 14px;
-        }
-
-        /* Анимации */
+        /* Анімації */
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -334,19 +316,41 @@
             animation: pulse 2s infinite;
         }
 
-        /* Стилі для траєкторій */
-        .trajectory-path {
-            stroke-width: 1;
-            stroke-opacity: 0.7;
+        /* Стрілки для розгортання панелі */
+        .panel-toggle {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0d8bf2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            z-index: 1001;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
+    <div class="app-container">
+        <div class="header">
+            <h1><i class="fas fa-crosshairs"></i> Карта Повітряних Цілей</h1>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <div class="control-panel">
+            <button class="panel-toggle" onclick="togglePanel()">
+                <i class="fas fa-chevron-up" id="panelIcon"></i>
+            </button>
+            
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('add-target')">Додати ціль</button>
-                <button class="tab" onclick="switchTab('targets-list')">Список цілей</button>
+                <button class="tab active" onclick="switchTab('add-target')">Додати</button>
+                <button class="tab" onclick="switchTab('targets-list')">Цілі</button>
                 <button class="tab" onclick="switchTab('stats')">Статистика</button>
                 <button class="tab" onclick="switchTab('settings')">Налаштування</button>
             </div>
@@ -369,15 +373,15 @@
                 </div>
                 <div class="form-group">
                     <label for="targetSpeed">Швидкість (км/год):</label>
-                    <input type="number" id="targetSpeed" placeholder="Введіть швидкість" value="150">
+                    <input type="number" id="targetSpeed" placeholder="Швидкість" value="150">
                 </div>
                 <div class="form-group">
                     <label for="targetCourse">Курс (0-360°):</label>
-                    <input type="number" id="targetCourse" placeholder="Введіть курс" value="0" min="0" max="360">
+                    <input type="number" id="targetCourse" placeholder="Курс" value="0" min="0" max="360">
                 </div>
                 <button onclick="addTarget()"><i class="fas fa-plus"></i> Додати ціль</button>
                 <button onclick="addRandomTarget()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
-                    <i class="fas fa-dice"></i> Додати випадкову ціль
+                    <i class="fas fa-dice"></i> Випадкова ціль
                 </button>
             </div>
 
@@ -394,7 +398,7 @@
                         <div class="stat-value" id="totalTargets">0</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Активних цілей</div>
+                        <div class="stat-label">Активних</div>
                         <div class="stat-value" id="activeTargets">0</div>
                     </div>
                     <div class="stat-card">
@@ -406,7 +410,7 @@
                         <div class="stat-value" id="maxSpeed">0 км/год</div>
                     </div>
                 </div>
-                <button onclick="exportData()" style="margin-top: 15px;">
+                <button onclick="exportData()" style="margin-top: 10px;">
                     <i class="fas fa-download"></i> Експорт даних
                 </button>
                 <button onclick="importData()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
@@ -416,7 +420,7 @@
 
             <div id="settings" class="tab-content">
                 <div class="form-group">
-                    <label for="simulationSpeed">Швидкість симуляції:</label>
+                    <label>Швидкість симуляції:</label>
                     <div class="speed-control">
                         <button class="speed-btn" onclick="changeSpeed(-1)">-</button>
                         <span id="speedValue">5x</span>
@@ -436,29 +440,21 @@
                     <i class="fas fa-crosshairs"></i> Центрувати карту
                 </button>
             </div>
-        </div>
-
-        <div class="main-content">
-            <div class="header">
-                <h1><i class="fas fa-crosshairs"></i> Карта Повітряних Цілей</h1>
-            </div>
-            <div class="control-panel">
-                <div class="status-bar">
-                    <div class="status-item">
-                        <div class="status-indicator" id="statusIndicator"></div>
-                        <span id="statusText">Підключено до Firebase</span>
-                    </div>
-                    <div class="status-item">
-                        <i class="fas fa-users"></i>
-                        <span id="onlineUsers">Онлайн: 1</span>
-                    </div>
-                    <div class="status-item">
-                        <i class="fas fa-clock"></i>
-                        <span id="updateTime">Оновлено: --:--:--</span>
-                    </div>
+            
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Підключено до Firebase</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-users"></i>
+                    <span id="onlineUsers">Онлайн: 1</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-clock"></i>
+                    <span id="updateTime">Оновлено: --:--:--</span>
                 </div>
             </div>
-            <div id="map"></div>
         </div>
     </div>
 
@@ -476,16 +472,18 @@
         let targetHistory = {};
         let isOnline = false;
         let showTrajectories = true;
+        let isPanelExpanded = true;
 
-        // Ініціалізація Firebase
+        // ВАШІ НАЛАШТУВАННЯ FIREBASE
         const firebaseConfig = {
-            apiKey: "your-api-key-here",
-            authDomain: "your-project-id.firebaseapp.com",
-            databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project-id.appspot.com",
-            messagingSenderId: "123456789000",
-            appId: "your-app-id-here"
+            apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
+            authDomain: "air-tracking-site.firebaseapp.com",
+            databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "air-tracking-site",
+            storageBucket: "air-tracking-site.firebasestorage.app",
+            messagingSenderId: "185790784262",
+            appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
+            measurementId: "G-XW9Y6JKCPG"
         };
 
         // Ініціалізація додатку
@@ -501,11 +499,6 @@
         // Ініціалізація карти
         function initMap() {
             map = L.map('map').setView([50.4500, 30.5233], 6);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    maxZoom: 19
-}).addTo(map);
 
 // Додаємо темну тему карти
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -517,12 +510,13 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 // Ініціалізація Firebase
 function initFirebase() {
     try {
+        // Використовуємо ваші реальні налаштування
         firebase.initializeApp(firebaseConfig);
         isOnline = true;
+        console.log("Firebase успішно підключено!");
         setupRealtimeListeners();
-        console.log("Firebase initialized successfully");
     } catch (error) {
-        console.log("Firebase initialization error, using offline mode:", error);
+        console.log("Помилка підключення до Firebase, використовуємо офлайн-режим:", error);
         isOnline = false;
     }
     updateStatus();
@@ -543,13 +537,18 @@ function setupRealtimeListeners() {
             updateMap();
             saveTargetsToLocalStorage();
             updateStats();
+            updateTargetsList();
         }
     });
     
     // Лічильник онлайн-користувачів
     const usersRef = db.ref('onlineUsers');
     const userRef = usersRef.push();
-    userRef.set(true);
+    userRef.set({
+        connected: true,
+        lastSeen: Date.now()
+    });
+    
     userRef.onDisconnect().remove();
     
     usersRef.on('value', (snapshot) => {
@@ -580,13 +579,15 @@ function addTarget() {
         longitude: map.getCenter().lng,
         distance: 0,
         maxSpeed: speed,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        updatedAt: Date.now()
     };
     
     targets.push(target);
     addTargetToMap(target);
     saveTargets();
     updateStats();
+    updateTargetsList();
     
     // Очистити форму
     document.getElementById('targetName').value = '';
@@ -616,13 +617,15 @@ function addRandomTarget() {
         longitude: map.getCenter().lng + (Math.random() - 0.5) * 4,
         distance: 0,
         maxSpeed: 0,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        updatedAt: Date.now()
     };
     
     targets.push(target);
     addTargetToMap(target);
     saveTargets();
     updateStats();
+    updateTargetsList();
 }
 
 // ОНОВЛЕНА ФУНКЦІЯ: Використання PNG іконок
@@ -650,15 +653,18 @@ function addTargetToMap(target) {
     }
     
     const icon = getIconForType(target.type);
-    const marker = L.marker([target.latitude, target.longitude], { icon: icon, rotationAngle: target.course })
-        .addTo(map)
-        .bindPopup(`
-            <strong>${target.name}</strong><br>
-            Тип: ${target.type}<br>
-            Швидкість: ${target.speed} км/год<br>
-            Курс: ${target.course}°<br>
-            Відстань: ${(target.distance).toFixed(1)} км
-        `);
+    const marker = L.marker([target.latitude, target.longitude], { 
+        icon: icon, 
+        rotationAngle: target.course 
+    })
+    .addTo(map)
+    .bindPopup(`
+        <strong>${target.name}</strong><br>
+        Тип: ${target.type}<br>
+        Швидкість: ${target.speed} км/год<br>
+        Курс: ${target.course}°<br>
+        Відстань: ${(target.distance).toFixed(1)} км
+    `);
     
     markers[target.id] = marker;
     
@@ -757,6 +763,7 @@ function moveTargets() {
         target.longitude = newPos.longitude;
         target.distance += distanceThisFrame;
         target.maxSpeed = Math.max(target.maxSpeed, target.speed);
+        target.updatedAt = Date.now();
         
         totalDistance += target.distance;
         maxSpeed = Math.max(maxSpeed, target.speed);
@@ -821,7 +828,8 @@ function loadTargetsFromLocalStorage() {
                 longitude: 30.52,
                 distance: 0,
                 maxSpeed: 150,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                updatedAt: Date.now()
             },
             {
                 id: '2',
@@ -833,7 +841,8 @@ function loadTargetsFromLocalStorage() {
                 longitude: 32.0,
                 distance: 0,
                 maxSpeed: 300,
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                updatedAt: Date.now()
             }
         ];
     }
@@ -853,6 +862,8 @@ function loadTargetsFromLocalStorage() {
     }
     
     updateMap();
+    updateStats();
+    updateTargetsList();
 }
 
 function syncWithFirebase() {
@@ -866,7 +877,9 @@ function syncWithFirebase() {
         targetsDict[target.id] = target;
     });
     
-    targetsRef.set(targetsDict);
+    targetsRef.set(targetsDict)
+        .then(() => console.log("Дані синхронізовано з Firebase"))
+        .catch(error => console.error("Помилка синхронізації:", error));
 }
 
 function shouldSyncWithFirebase(firebaseTargets) {
@@ -945,35 +958,50 @@ function clearAllTargets() {
 function centerMap() {
     if (targets.length > 0) {
         const group = new L.featureGroup(Object.values(markers));
-        map.fitBounds(group.getBounds());
+        map.fitBounds(group.getBounds().pad(0.1));
     } else {
         map.setView([50.4500, 30.5233], 6);
     }
 }
 
+function togglePanel() {
+    const panel = document.querySelector('.control-panel');
+    const icon = document.getElementById('panelIcon');
+    
+    isPanelExpanded = !isPanelExpanded;
+    
+    if (isPanelExpanded) {
+        panel.style.maxHeight = '40vh';
+        icon.className = 'fas fa-chevron-down';
+    } else {
+        panel.style.maxHeight = '60px';
+icon.className = 'fas fa-chevron-up';
+}
+}
+
 // Оновлення інтерфейсу
 function updateMap() {
-    // Видаляємо старі маркери
-    Object.values(markers).forEach(marker => map.removeLayer(marker));
-    Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
-    
-    markers = {};
-    polylines = {};
-    
-    // Додаємо нові маркери
-    targets.forEach(target => {
-        addTargetToMap(target);
-    });
+// Видаляємо старі маркери
+Object.values(markers).forEach(marker => map.removeLayer(marker));
+Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+
+markers = {};
+polylines = {};
+
+// Додаємо нові маркери
+targets.forEach(target => {
+addTargetToMap(target);
+});
 }
 
 function updateStats() {
-    document.getElementById('totalTargets').textContent = targets.length;
-    document.getElementById('activeTargets').textContent = targets.length;
-    
-    const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
-    const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
+document.getElementById('totalTargets').textContent = targets.length;
+document.getElementById('activeTargets').textContent = targets.length;
 
-        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
+const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
+const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
+
+document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
 document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
 }
 
@@ -982,26 +1010,26 @@ const container = document.getElementById('targetsListContainer');
 container.innerHTML = '';
 
 targets.forEach(target => {
-    const targetElement = document.createElement('div');
-    targetElement.className = 'target-item';
-    targetElement.innerHTML = `
-        <div class="target-header">
-            <span class="target-name">${target.name}</span>
-            <span class="target-type">${target.type}</span>
-        </div>
-        <div class="target-details">
-            Швидкість: ${target.speed} км/год<br>
-            Курс: ${target.course}°<br>
-            Відстань: ${target.distance.toFixed(1)} км
-        </div>
-        <div class="target-actions">
-            <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
-            <button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(targetElement);
+const targetElement = document.createElement('div');
+targetElement.className = 'target-item';
+targetElement.innerHTML = `
+<div class="target-header">
+<span class="target-name">${target.name}</span>
+<span class="target-type">${target.type}</span>
+</div>
+<div class="target-details">
+Швидкість: ${target.speed} км/год<br>
+Курс: ${target.course}°<br>
+Відстань: ${target.distance.toFixed(1)} км
+</div>
+<div class="target-actions">
+<button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
+<button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+<i class="fas fa-trash"></i>
+</button>
+</div>
+`;
+container.appendChild(targetElement);
 });
 }
 
@@ -1030,14 +1058,14 @@ targets = targets.filter(t => t.id !== id);
 
 // Видаляємо маркер
 if (markers[id]) {
-    map.removeLayer(markers[id]);
-    delete markers[id];
+map.removeLayer(markers[id]);
+delete markers[id];
 }
 
 // Видаляємо траєкторію
 if (polylines[id]) {
-    map.removeLayer(polylines[id]);
-    delete polylines[id];
+map.removeLayer(polylines[id]);
+delete polylines[id];
 }
 
 // Видаляємо історію
@@ -1051,12 +1079,12 @@ updateTargetsList();
 function switchTab(tabName) {
 // Приховуємо всі вкладки
 document.querySelectorAll('.tab-content').forEach(tab => {
-    tab.classList.remove('active');
+tab.classList.remove('active');
 });
 
 // Деактивуємо всі кнопки вкладок
 document.querySelectorAll('.tab').forEach(tab => {
-    tab.classList.remove('active');
+tab.classList.remove('active');
 });
 
 // Показуємо обрану вкладку
@@ -1067,15 +1095,15 @@ document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add(
 
 // Оновлюємо список цілей при переході на відповідну вкладку
 if (tabName === 'targets-list') {
-    updateTargetsList();
+updateTargetsList();
 }
 }
 
 function exportData() {
 const data = {
-    targets: targets,
-    exportDate: new Date().toISOString(),
-    version: '2.5'
+targets: targets,
+exportDate: new Date().toISOString(),
+version: '2.5'
 };
 
 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1100,27 +1128,27 @@ if (!file) return;
 
 const reader = new FileReader();
 reader.onload = function(e) {
-    try {
-        const data = JSON.parse(e.target.result);
-        
-        if (data.targets && Array.isArray(data.targets)) {
-            // Видаляємо поточні цілі
-            clearAllTargets();
-            
-            // Додаємо імпортовані цілі
-            targets = data.targets;
-            updateMap();
-            saveTargets();
-            updateStats();
-            updateTargetsList();
-            
-            alert(`Успішно імпортовано ${targets.length} цілей`);
-        } else {
-            throw new Error('Невірний формат файлу');
-        }
-    } catch (error) {
-        alert('Помилка при імпорті даних: ' + error.message);
-    }
+try {
+const data = JSON.parse(e.target.result);
+
+if (data.targets && Array.isArray(data.targets)) {
+// Видаляємо поточні цілі
+clearAllTargets();
+
+// Додаємо імпортовані цілі
+targets = data.targets;
+updateMap();
+saveTargets();
+updateStats();
+updateTargetsList();
+
+alert(`Успішно імпортовано ${targets.length} цілей`);
+} else {
+throw new Error('Невірний формат файлу');
+}
+} catch (error) {
+alert('Помилка при імпорті даних: ' + error.message);
+}
 };
 reader.readAsText(file);
 
@@ -1134,11 +1162,11 @@ const statusText = document.getElementById('statusText');
 const updateTime = document.getElementById('updateTime');
 
 if (isOnline) {
-    indicator.className = 'status-indicator';
-    statusText.textContent = 'Підключено до Firebase';
+indicator.className = 'status-indicator';
+statusText.textContent = 'Підключено до Firebase';
 } else {
-    indicator.className = 'status-indicator offline';
-    statusText.textContent = 'Автономний режим';
+indicator.className = 'status-indicator offline';
+statusText.textContent = 'Автономний режим';
 }
 
 updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
@@ -1150,13 +1178,13 @@ document.getElementById('importFile').addEventListener('change', handleFileImpor
 
 // Гарячі клавіші
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        centerMap();
-    }
-    if (e.key === ' ' && !e.target.tagName.toLowerCase().match(/input|textarea/)) {
-        e.preventDefault();
-        toggleSimulation();
-    }
+if (e.key === 'Escape') {
+centerMap();
+}
+if (e.key === ' ' && !e.target.tagName.toLowerCase().match(/input|textarea/)) {
+e.preventDefault();
+toggleSimulation();
+}
 });
 
 // Оновлення часу кожну хвилину
@@ -1183,20 +1211,20 @@ updateTrajectoriesButton();
 
 // Встановлюємо початкову швидкість
 document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
+
+// Додаємо обробник для закриття Firebase з'єднання
+window.addEventListener('beforeunload', function() {
+if (isOnline) {
+const db = firebase.database();
+const usersRef = db.ref('onlineUsers');
+// Тут має бути логіка для видалення поточного користувача
+}
+});
 });
 
 // Обробник помилок
 window.addEventListener('error', function(e) {
-    console.error('Global error:', e.error);
-});
-
-// Додаємо обробник для закриття Firebase з'єднання при закритті сторінки
-window.addEventListener('beforeunload', function() {
-    if (isOnline) {
-        const db = firebase.database();
-        const usersRef = db.ref('onlineUsers');
-        // Тут має бути логіка для видалення поточного користувача
-    }
+console.error('Global error:', e.error);
 });
 </script>
 
