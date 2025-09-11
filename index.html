@@ -111,13 +111,8 @@
         .edit-btn { background: #3498db; color: white; }
         .delete-btn { background: #e74c3c; color: white; }
         
-        .speed-control {
-            margin: 10px 0;
-        }
-        .speed-slider {
-            width: 100%;
-            margin: 5px 0;
-        }
+        /* Убираем слайдер скорости */
+        .speed-control { display: none; }
     </style>
 </head>
 <body>
@@ -127,7 +122,7 @@
             <div id="syncInfo">💾 Локальний режим | Статус: ⏸️ Стоп</div>
         </div>
         <div>
-            <span style="color: #95a5a6; font-size: 12px;">v1.0</span>
+            <span style="color: #95a5a6; font-size: 12px;">v2.1</span>
         </div>
     </div>
 
@@ -141,10 +136,11 @@
         <button class="btn btn-danger" onclick="clearAllTargets()">🗑️ Очистити</button>
     </div>
 
+    <!-- Убрали слайдер скорости -->
     <div class="speed-control">
         <label>🚀 Швидкість симуляції:</label>
-        <input type="range" id="speedSlider" class="speed-slider" min="1" max="10" value="5" onchange="changeSimulationSpeed()">
-        <span id="speedValue">5x</span>
+        <input type="range" id="speedSlider" class="speed-slider" min="1" max="10" value="1" onchange="changeSimulationSpeed()">
+        <span id="speedValue">1x</span>
     </div>
 
     <div id="map"></div>
@@ -158,7 +154,7 @@
             <h3 id="formTitle">➕ Додати нову ціль</h3>
             <input type="hidden" id="targetId">
             <input type="text" id="targetName" placeholder="Назва цілі" value="Ціль">
-            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" value="100">
+            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" value="150">
             <input type="number" id="targetCourse" placeholder="Курс (0-360°)" value="90" min="0" max="360">
             <select id="targetType">
                 <option value="винищувач">🛩️ Винищувач</option>
@@ -187,8 +183,11 @@ let isMoving = false;
 let movementInterval;
 let lastUpdateTime = Date.now();
 let trailsVisible = false;
-let simulationSpeed = 5;
 let editingTargetId = null;
+
+// Константы для реалистичного движения
+const EARTH_RADIUS_KM = 6371; // Радиус Земли в км
+const DEGREES_PER_KM = 1 / 111; // Примерно 1° = 111 км
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function initMap() {
@@ -255,7 +254,7 @@ function showAddForm() {
     document.getElementById('formTitle').textContent = '➕ Додати нову ціль';
     document.getElementById('targetId').value = '';
     document.getElementById('targetName').value = 'Ціль ' + nextId;
-    document.getElementById('targetSpeed').value = '100';
+    document.getElementById('targetSpeed').value = '150';
     document.getElementById('targetCourse').value = '90';
     document.getElementById('targetType').value = 'винищувач';
     document.getElementById('saveBtn').textContent = '✅ Додати';
@@ -287,7 +286,7 @@ function hideTargetForm() {
 function saveTarget() {
     const id = document.getElementById('targetId').value;
     const name = document.getElementById('targetName').value;
-    const speed = parseInt(document.getElementById('targetSpeed').value) || 100;
+    const speed = parseInt(document.getElementById('targetSpeed').value) || 150;
     const course = parseInt(document.getElementById('targetCourse').value) || 90;
     const type = document.getElementById('targetType').value;
     
@@ -431,7 +430,7 @@ function getColorForType(type) {
     return colors[type] || '#3498db';
 }
 
-// ==================== ДВИЖЕНИЕ ЦЕЛЕЙ ====================
+// ==================== РЕАЛИСТИЧНОЕ ДВИЖЕНИЕ ЦЕЛЕЙ ====================
 function toggleMovement() {
     if (isMoving) {
         stopMovement();
@@ -445,7 +444,7 @@ function startMovement() {
     document.getElementById('movementBtn').textContent = '⏸️ Стоп';
     document.getElementById('movementBtn').classList.add('btn-active');
     lastUpdateTime = Date.now();
-    movementInterval = setInterval(moveTargets, 100);
+    movementInterval = setInterval(moveTargets, 100); // Обновление каждые 100ms
     updateStatus();
     console.log("▶️ Початок руху цілей");
 }
@@ -463,20 +462,25 @@ function moveTargets() {
     if (!isMoving || targets.length === 0) return;
     
     const now = Date.now();
-    const deltaTime = (now - lastUpdateTime) / 1000; // в секундах
+    const deltaTime = (now - lastUpdateTime) / 1000; // Время в секундах
     lastUpdateTime = now;
     
     targets.forEach(target => {
         if (target.speed > 0) {
-            // Реалистичное движение с учетом курса
-            const distance = (target.speed * deltaTime * simulationSpeed) / 3600; // км
-            const latChange = distance * Math.cos(target.course * Math.PI / 180) / 111;
-            const lngChange = distance * Math.sin(target.course * Math.PI / 180) / (111 * Math.cos(target.lat * Math.PI / 180));
+            // РЕАЛИСТИЧНОЕ ДВИЖЕНИЕ: 150 км/ч = реальные 150 км за час
+            const distanceKm = (target.speed * deltaTime) / 3600; // Пройденное расстояние в км
+            const distanceDegrees = distanceKm * DEGREES_PER_KM; // Перевод в градусы
             
+            // Расчет изменения координат с учетом курса
+            const courseRad = target.course * Math.PI / 180; // Курс в радианах
+            const latChange = distanceDegrees * Math.cos(courseRad);
+            const lngChange = distanceDegrees * Math.sin(courseRad) / Math.cos(target.lat * Math.PI / 180);
+            
+            // Обновление позиции
             target.lat += latChange;
             target.lng += lngChange;
             
-            // Обновляем маркер
+            // Обновляем маркер на карте
             if (markers[target.id]) {
                 markers[target.id].setLatLng([target.lat, target.lng]);
                 
@@ -491,11 +495,7 @@ function moveTargets() {
     updateTargetsList();
 }
 
-function changeSimulationSpeed() {
-    simulationSpeed = parseInt(document.getElementById('speedSlider').value);
-    document.getElementById('speedValue').textContent = simulationSpeed + 'x';
-    console.log("🚀 Швидкість симуляції: " + simulationSpeed + "x");
-}
+// Убрана функция changeSimulationSpeed() так как убрали ползунок
 
 // ==================== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ====================
 function updateTargetsList() {
@@ -599,7 +599,6 @@ window.showAllTargets = showAllTargets;
 window.clearAllTargets = clearAllTargets;
 window.saveToLocalStorage = saveToLocalStorage;
 window.toggleTrails = toggleTrails;
-window.changeSimulationSpeed = changeSimulationSpeed;
             </script>
 </body>
 </html>
