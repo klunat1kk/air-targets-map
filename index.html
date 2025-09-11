@@ -258,6 +258,10 @@ function updateVisibleTargets() {
                 markers[target.id].addTo(map);
                 if (markers[target.id]._icon) {
                     markers[target.id]._icon.classList.remove('hidden');
+                    // Поворачиваем PNG иконку дрона при обновлении видимости
+                    if (target.type === 'дрон') {
+                        markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
+                    }
                 }
             } else {
                 markers[target.id].remove();
@@ -274,6 +278,10 @@ function showAllTargets() {
             markers[target.id].addTo(map);
             if (markers[target.id]._icon) {
                 markers[target.id]._icon.classList.remove('hidden');
+                // Поворачиваем PNG иконку дрона
+                if (target.type === 'дрон') {
+                    markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
+                }
             }
             hiddenTargets.delete(target.id);
             
@@ -333,8 +341,7 @@ function toggleAddMode() {
             clickMarker = null;
         }
     }
-}
-        
+                                    }
         // Показать форму для добавления/редактирования
 function showTargetForm(targetId, latlng = null) {
     const form = document.getElementById('targetForm');
@@ -603,7 +610,7 @@ function updateTargetsList() {
         div.onclick = () => showTargetForm(target.id);
         container.appendChild(div);
     });
-        }
+}
                 function startAnimation() {
             if (animationInterval) clearInterval(animationInterval);
             lastFrameTime = performance.now();
@@ -662,6 +669,10 @@ function updateTargetsList() {
                         if (isVisible && !map.hasLayer(markers[target.id])) {
                             markers[target.id].addTo(map);
                             hiddenTargets.delete(target.id);
+                            // Поворачиваем PNG иконку дрона при появлении
+                            if (target.type === 'дрон' && markers[target.id]._icon) {
+                                markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
+                            }
                         } else if (!isVisible && map.hasLayer(markers[target.id])) {
                             markers[target.id].remove();
                             hiddenTargets.add(target.id);
