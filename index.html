@@ -1184,4 +1184,432 @@
         if (target) {
             isCourseSelectionMode = true;
             selectedTargetForCourse = targetId;
-            alert('Режим вибору курсу увімкнено. Клацніть 
+            alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для цієї цілі');
+        }
+    }
+
+    function setTargetCourseFromMap(latlng) {
+        if (!selectedTargetForCourse || !isAdmin) return;
+        
+        const target = targets.find(t => t.id === selectedTargetForCourse);
+        if (target) {
+            const dx = latlng.lng - target.longitude;
+            const dy = latlng.lat - target.latitude;
+            let course = Math.atan2(dy, dx) * 180 / Math.PI;
+            course = (360 + course) % 360;
+            
+            target.course = Math.round(course);
+            target.updatedAt = Date.now();
+            
+            updateTargetOnMap(target);
+            saveTargets();
+            updateTargetsList();
+        }
+        
+        isCourseSelectionMode = false;
+        selectedTargetForCourse = null;
+        alert('Режим вибору курсу вимкнено');
+    }
+
+    // Система збереження даних
+    function saveTargets() {
+        saveTargetsToLocalStorage();
+        if (isOnline) {
+            syncWithFirebase();
+        }
+    }
+
+    function saveTargetsToLocalStorage() {
+        localStorage.setItem('airTargets', JSON.stringify(targets));
+        localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
+        localStorage.setItem('simulationSpeed', simulationSpeed.toString());
+        localStorage.setItem('showTrajectories', showTrajectories.toString());
+        localStorage.setItem('isAdmin', isAdmin.toString());
+    }
+
+    function loadTargetsFromLocalStorage() {
+        const savedTargets = localStorage.getItem('airTargets');
+        const savedHistory = localStorage.getItem('targetHistory');
+        const savedSpeed = localStorage.getItem('simulationSpeed');
+        const savedTrajectories = localStorage.getItem('showTrajectories');
+        const savedAdmin = localStorage.getItem('isAdmin');
+        
+        if (savedTargets) {
+            targets = JSON.parse(savedTargets);
+        }
+        
+        if (savedHistory) {
+            targetHistory = JSON.parse(savedHistory);
+        }
+        
+        if (savedSpeed) {
+            simulationSpeed = parseInt(savedSpeed);
+            document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
+        }
+        
+        if (savedTrajectories) {
+            showTrajectories = savedTrajectories === 'true';
+            updateTrajectoriesButton();
+        }
+        
+        if (savedAdmin) {
+            isAdmin = savedAdmin === 'true';
+            updateUIForUserRole();
+        }
+        
+        updateMap();
+        updateStats();
+        updateTargetsList();
+    }
+
+    function syncWithFirebase() {
+        if (!isOnline) return;
+        
+        isSyncing = true;
+        
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        
+        const targetsDict = {};
+        targets.forEach(target => {
+            targetsDict[target.id] = {
+                ...target,
+                marker: undefined,
+                polyline: undefined
+            };
+        });
+        
+        targetsRef.set(targetsDict)
+            .then(() => {
+                console.log("Дані успішно синхронізовано з Firebase");
+                lastSyncTime = Date.now();
+            })
+            .catch(error => {
+                console.error("Помилка синхронізації з Firebase:", error);
+                setTimeout(() => {
+                    if (isOnline) syncWithFirebase();
+                }, 5000);
+            })
+            .finally(() => {
+                isSyncing = false;
+            });
+    }
+
+    function shouldSyncWithFirebase(firebaseTargets) {
+        if (Object.keys(firebaseTargets).length === 0) return false;
+        if (targets.length === 0) return true;
+
+        const localLastUpdate = Math.max(...targets.map(t => t.updatedAt || t.createdAt));
+        const remoteLastUpdate = Math.max(...Object.values(firebaseTargets).map(t => t.updatedAt || t.createdAt));
+
+        return remoteLastUpdate > localLastUpdate;
+    }
+
+    // Управління симуляцією
+    function toggleSimulation() {
+        isSimulationRunning = !isSimulationRunning;
+        
+        if (isSimulationRunning) {
+            document.getElementById('simulationBtn').innerHTML = '<i class="fas fa-pause"></i> Пауза';
+            lastUpdateTime = Date.now();
+            moveTargets();
+        } else {
+            document.getElementById('simulationBtn').innerHTML = '<i class="fas fa-play"></i> Почати симуляцію';
+        }
+    }
+
+    function changeSpeed(delta) {
+        simulationSpeed = Math.max(1, Math.min(10, simulationSpeed + delta));
+        document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
+        saveTargetsToLocalStorage();
+    }
+
+    function toggleTrajectories() {
+        showTrajectories = !showTrajectories;
+        
+        Object.keys(polylines).forEach(id => {
+            if (polylines[id]) {
+                if (showTrajectories) {
+                    map.addLayer(polylines[id]);
+                } else {
+                    map.removeLayer(polylines[id]);
+                }
+            }
+        });
+        
+        updateTrajectoriesButton();
+        saveTargetsToLocalStorage();
+    }
+
+    function updateTrajectoriesButton() {
+        const btn = document.getElementById('trajectoriesBtn');
+        if (showTrajectories) {
+            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Вимкнути траєкторії';
+        } else {
+            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Увімкнути траєкторії';
+        }
+    }
+
+    function clearAllTargets() {
+        if (!isAdmin) return;
+        
+        if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+        
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+        
+        targets = [];
+        markers = {};
+        polylines = {};
+        targetHistory = {};
+        
+        saveTargets();
+        updateStats();
+        updateTargetsList();
+    }
+
+    function centerMap() {
+        if (targets.length > 0) {
+            const group = new L.featureGroup(Object.values(markers));
+            map.fitBounds(group.getBounds().pad(0.1));
+        } else {
+            map.setView([50.4500, 30.5233], 6);
+        }
+    }
+
+    function togglePanel() {
+        const panel = document.querySelector('.control-panel');
+        const icon = document.getElementById('panelIcon');
+        
+        isPanelExpanded = !isPanelExpanded;
+        
+        if (isPanelExpanded) {
+            panel.style.maxHeight = '40vh';
+            icon.className = 'fas fa-chevron-down';
+        } else {
+            panel.style.maxHeight = '60px';
+            icon.className = 'fas fa-chevron-up';
+        }
+    }
+
+    // Оновлення інтерфейсу
+    function updateMap() {
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+        
+        markers = {};
+        polylines = {};
+        
+        targets.forEach(target => {
+            addTargetToMap(target);
+        });
+    }
+
+    function updateStats() {
+        document.getElementById('totalTargets').textContent = targets.length;
+        document.getElementById('activeTargets').textContent = targets.length;
+
+        const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
+        const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
+
+        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
+        document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
+    }
+
+    function updateTargetsList() {
+        const container = document.getElementById('targetsListContainer');
+        container.innerHTML = '';
+
+        targets.forEach(target => {
+            const targetElement = document.createElement('div');
+            targetElement.className = 'target-item';
+            targetElement.innerHTML = `
+                <div class="target-header">
+                    <span class="target-name">${target.name}</span>
+                    <span class="target-type">${target.type}</span>
+                </div>
+                <div class="target-details">
+                    Швидкість: ${target.speed} км/год<br>
+                    Курс: ${target.course}°<br>
+                    Відстань: ${target.distance.toFixed(1)} км
+                </div>
+                ${isAdmin ? `
+                <div class="target-actions">
+                    <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
+                    <button onclick="enableCourseSelectionForTarget('${target.id}')" style="background: #1dd1a1;">
+                        <i class="fas fa-route"></i>
+                    </button>
+                    <button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                ` : ''}
+            `;
+            container.appendChild(targetElement);
+        });
+    }
+
+    function deleteTarget(id) {
+        if (!isAdmin) return;
+        
+        if (!confirm('Видалити цю ціль?')) return;
+
+        targets = targets.filter(t => t.id !== id);
+
+        if (markers[id]) {
+            map.removeLayer(markers[id]);
+            delete markers[id];
+        }
+
+        if (polylines[id]) {
+            map.removeLayer(polylines[id]);
+            delete polylines[id];
+        }
+
+        delete targetHistory[id];
+
+        saveTargets();
+        updateStats();
+        updateTargetsList();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.getElementById(tabName).classList.add('active');
+        document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+        if (tabName === 'targets-list') {
+            updateTargetsList();
+        }
+    }
+
+    function exportData() {
+        if (!isAdmin) return;
+        
+        const data = {
+            targets: targets,
+            exportDate: new Date().toISOString(),
+            version: '3.0'
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importData() {
+        if (!isAdmin) return;
+        
+        document.getElementById('importFile').click();
+    }
+
+    function handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+
+                if (data.targets && Array.isArray(data.targets)) {
+                    clearAllTargets();
+                    targets = data.targets;
+                    updateMap();
+                    saveTargets();
+                    updateStats();
+                    updateTargetsList();
+                    alert(`Успішно імпортовано ${targets.length} цілей`);
+                } else {
+                    throw new Error('Невірний формат файлу');
+                }
+            } catch (error) {
+                alert('Помилка при імпорті даних: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function updateStatus() {
+        const indicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const updateTime = document.getElementById('updateTime');
+
+        if (isOnline) {
+            indicator.className = 'status-indicator';
+            statusText.textContent = 'Підключено до Firebase';
+        } else {
+            indicator.className = 'status-indicator offline';
+            statusText.textContent = 'Автономний режим';
+        }
+
+        updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
+    }
+
+    function checkConnection() {
+        if (isOnline && Date.now() - lastSyncTime > 30000) {
+            syncWithFirebase();
+        }
+    }
+
+    function setupEventListeners() {
+        document.getElementById('importFile').addEventListener('change', handleFileImport);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                centerMap();
+            }
+            if (e.key === ' ' && !e.target.tagName.toLowerCase().match(/input|textarea/)) {
+                e.preventDefault();
+                toggleSimulation();
+            }
+        });
+
+        setInterval(updateStatus, 60000);
+        setInterval(checkConnection, 30000);
+    }
+
+    // Ініціалізація при завантаженні
+    document.addEventListener('DOMContentLoaded', function() {
+        initApp();
+        updateTrajectoriesButton();
+        document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
+
+        window.addEventListener('beforeunload', function() {
+            if (isOnline) {
+                const db = firebase.database();
+                const usersRef = db.ref('onlineUsers');
+            }
+            if (autoSaveInterval) {
+                clearInterval(autoSaveInterval);
+            }
+        });
+    });
+
+    // Обробник помилок
+    window.addEventListener('error', function(e) {
+        console.error('Global error:', e.error);
+    });
+    </script>
+
+    <!-- Додаємо скрипти для Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+</body>
+</html>
