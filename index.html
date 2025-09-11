@@ -34,6 +34,7 @@
             background: #2c3e50;
             border-radius: 5px;
             cursor: pointer;
+            transition: background 0.3s;
         }
         .target-item:hover {
             background: #34495e;
@@ -72,20 +73,29 @@
             border-radius: 5px;
             margin-bottom: 10px;
         }
+        
+        .target-counter {
+            background: #27ae60;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 5px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="status-bar">
-        <h1>🗺️ Карта повітряних цілей</h1>
-        <div id="syncInfo">💾 Локальний режим | Цілей: 0</div>
+        <h1>🗺️ Карта повітряних цілей <span class="target-counter" id="targetCounter">0</span></h1>
+        <div id="syncInfo">💾 Локальний режим | Статус: ⏸️ Стоп</div>
     </div>
 
     <div class="controls">
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
         <button class="btn" onclick="showAddForm()">📍 Додати ціль</button>
-        <button class="btn" onclick="startMovement()">▶️ Пуск</button>
+        <button class="btn" onclick="toggleMovement()" id="movementBtn">▶️ Пуск</button>
         <button class="btn" onclick="clearAllTargets()">🗑️ Очистити</button>
         <button class="btn" onclick="saveToLocalStorage()">💾 Зберегти</button>
+        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
     </div>
 
     <div id="map"></div>
@@ -119,29 +129,27 @@
 // ==================== КОНФИГУРАЦИЯ ====================
 let map;
 let targets = [];
-let markers = [];
+let markers = {};
+let trails = {};
 let nextId = 1;
 let isMoving = false;
 let movementInterval;
+let lastUpdateTime = Date.now();
+let trailsVisible = false;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function initMap() {
     console.log("🔄 Ініціалізація карти...");
     
     try {
-        // Создаем карту
         map = L.map('map').setView([50.4501, 30.5234], 6);
         
-        // Добавляем tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(map);
         
-        // Загружаем сохраненные данные
         loadFromLocalStorage();
-        
-        // Обновляем интерфейс
         updateTargetsList();
         updateStatus();
         
@@ -164,39 +172,29 @@ function loadFromLocalStorage() {
             targets = data.targets || [];
             nextId = data.nextId || 1;
             console.log(`📁 Завантажено ${targets.length} цілей`);
-            
-            // Добавляем маркеры на карту
             addMarkersToMap();
-            
         } catch (error) {
             console.error("❌ Помилка завантаження:", error);
-            targets = [];
-            nextId = 1;
+            loadDefaultTargets();
         }
     } else {
-        // Тестовые данные при первом запуске
-        targets = [
-            {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
-            {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
-        ];
-        saveToLocalStorage();
+        loadDefaultTargets();
     }
 }
 
+function loadDefaultTargets() {
+    targets = [
+        {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
+        {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
+    ];
+    saveToLocalStorage();
+}
+
 function saveToLocalStorage() {
-    const data = {
-        targets: targets,
-        nextId: nextId,
-        lastUpdate: Date.now()
-    };
+    const data = { targets: targets, nextId: nextId, lastUpdate: Date.now() };
     localStorage.setItem('airTargetsData', JSON.stringify(data));
     updateStatus();
     console.log("💾 Дані збережено");
-}
-
-function updateStatus() {
-    const status = `💾 Локальний режим | Цілей: ${targets.length} | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'}`;
-    document.getElementById('syncInfo').textContent = status;
 }
 
 // ==================== РАБОТА С ЦЕЛЯМИ ====================
@@ -236,8 +234,6 @@ function addTarget() {
     updateTargetsList();
     saveToLocalStorage();
     hideAddForm();
-    
-    console.log(`✅ Додано нову ціль: ${name}`);
 }
 
 function deleteTarget(targetId) {
@@ -245,43 +241,27 @@ function deleteTarget(targetId) {
     if (targetIndex !== -1) {
         const targetName = targets[targetIndex].name;
         if (confirm(`🗑️ Видалити ціль "${targetName}"?`)) {
-            // Удаляем маркер с карты
-            if (markers[targetId]) {
-                map.removeLayer(markers[targetId]);
-                delete markers[targetId];
-            }
-            
-            // Удаляем из массива
+            if (markers[targetId]) map.removeLayer(markers[targetId]);
+            if (trails[targetId]) map.removeLayer(trails[targetId]);
             targets.splice(targetIndex, 1);
-            
             updateTargetsList();
             saveToLocalStorage();
-            console.log(`✅ Видалено ціль: ${targetName}`);
         }
     }
 }
 
 function clearAllTargets() {
     if (targets.length === 0) return;
-    
-    if (confirm("⚠️ Видалити ВСІ цілі? Цю дію не можна скасувати!")) {
-        // Удаляем все маркеры
-        for (const id in markers) {
-            map.removeLayer(markers[id]);
-        }
-        markers = {};
-        
-        // Очищаем массив
-        targets = [];
-        nextId = 1;
-        
+    if (confirm("⚠️ Видалити ВСІ цілі?")) {
+        for (const id in markers) map.removeLayer(markers[id]);
+        for (const id in trails) map.removeLayer(trails[id]);
+        markers = {}; trails = {}; targets = []; nextId = 1;
         updateTargetsList();
         saveToLocalStorage();
-        console.log("✅ Всі цілі видалені");
     }
 }
 
-// ==================== МАРКЕРЫ НА КАРТЕ ====================
+// ==================== МАРКЕРЫ И ТРАЕКТОРИИ ====================
 function addMarkerToMap(target) {
     const icon = L.divIcon({
         className: 'target-marker',
@@ -311,35 +291,126 @@ function addMarkerToMap(target) {
         `);
     
     markers[target.id] = marker;
+    
+    // Создаем траекторию
+    if (trailsVisible) {
+        trails[target.id] = L.polyline([[target.lat, target.lng]], {
+            color: getColorForType(target.type),
+            weight: 2,
+            opacity: 0.7
+        }).addTo(map);
+    }
 }
 
 function addMarkersToMap() {
-    // Очищаем старые маркеры
-    for (const id in markers) {
-        map.removeLayer(markers[id]);
-    }
-    markers = {};
+    for (const id in markers) map.removeLayer(markers[id]);
+    for (const id in trails) map.removeLayer(trails[id]);
+    markers = {}; trails = {};
     
-    // Добавляем новые
     targets.forEach(target => {
         addMarkerToMap(target);
     });
 }
 
+function toggleTrails() {
+    trailsVisible = !trailsVisible;
+    const btn = document.getElementById('trailsBtn');
+    btn.textContent = trailsVisible ? '⚫ Траєкторії' : '🔴 Траєкторії';
+    btn.style.background = trailsVisible ? '#27ae60' : '#a38d6d';
+    
+    if (trailsVisible) {
+        // Показываем траектории
+        targets.forEach(target => {
+            if (!trails[target.id]) {
+                trails[target.id] = L.polyline([[target.lat, target.lng]], {
+                    color: getColorForType(target.type),
+                    weight: 2,
+                    opacity: 0.7
+                }).addTo(map);
+            }
+        });
+    } else {
+        // Скрываем траектории
+        for (const id in trails) {
+            map.removeLayer(trails[id]);
+        }
+        trails = {};
+    }
+}
+
 function getColorForType(type) {
     const colors = {
-        'винищувач': '#3498db',
-        'дрон': '#e74c3c',
-        'ракета': '#f39c12',
-        'бомба': '#95a5a6',
+        'винищувач': '#3498db', 'дрон': '#e74c3c', 
+        'ракета': '#f39c12', 'бомба': '#95a5a6', 
         'корабль': '#9b59b6'
     };
     return colors[type] || '#3498db';
 }
 
+// ==================== ДВИЖЕНИЕ ЦЕЛЕЙ ====================
+function toggleMovement() {
+    if (isMoving) {
+        stopMovement();
+    } else {
+        startMovement();
+    }
+}
+
+function startMovement() {
+    isMoving = true;
+    document.getElementById('movementBtn').textContent = '⏸️ Стоп';
+    lastUpdateTime = Date.now();
+    movementInterval = setInterval(moveTargets, 100);
+    updateStatus();
+    console.log("▶️ Початок руху цілей");
+}
+
+function stopMovement() {
+    isMoving = false;
+    document.getElementById('movementBtn').textContent = '▶️ Пуск';
+    clearInterval(movementInterval);
+    updateStatus();
+    console.log("⏸️ Зупинка руху");
+}
+
+function moveTargets() {
+    if (!isMoving || targets.length === 0) return;
+    
+    const now = Date.now();
+    const deltaTime = (now - lastUpdateTime) / 1000; // в секундах
+    lastUpdateTime = now;
+    
+    targets.forEach(target => {
+        if (target.speed > 0) {
+            // Реалистичное движение с учетом курса
+            const distance = (target.speed * deltaTime) / 3600; // км
+            const latChange = distance * Math.cos(target.course * Math.PI / 180) / 111;
+            const lngChange = distance * Math.sin(target.course * Math.PI / 180) / (111 * Math.cos(target.lat * Math.PI / 180));
+            
+            target.lat += latChange;
+            target.lng += lngChange;
+            
+            // Обновляем маркер
+            if (markers[target.id]) {
+                markers[target.id].setLatLng([target.lat, target.lng]);
+                
+                // Обновляем траекторию
+                if (trailsVisible && trails[target.id]) {
+                    trails[target.id].addLatLng([target.lat, target.lng]);
+                }
+            }
+        }
+    });
+    
+    updateTargetsList();
+}
+
 // ==================== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ====================
 function updateTargetsList() {
     const container = document.getElementById('targetsList');
+    const counter = document.getElementById('targetCounter');
+    
+    counter.textContent = targets.length;
     
     if (targets.length === 0) {
         container.innerHTML = '<div class="target-item">📭 Немає активних цілей</div>';
@@ -360,68 +431,31 @@ function updateTargetsList() {
     container.innerHTML = html;
 }
 
-// ==================== УПРАВЛЕНИЕ ДВИЖЕНИЕМ ====================
-function startMovement() {
-    if (isMoving) {
-        stopMovement();
-    } else {
-        isMoving = true;
-        document.querySelector('button[onclick="startMovement()"]').textContent = '⏸️ Стоп';
-        console.log("▶️ Початок руху цілей");
-        updateStatus();
-        
-        // Запускаем движение (упрощенная версия)
-        movementInterval = setInterval(moveTargets, 1000);
-    }
+function updateStatus() {
+    const status = `💾 Локальний режим | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'}`;
+    document.getElementById('syncInfo').textContent = status;
 }
 
-function stopMovement() {
-    isMoving = false;
-    document.querySelector('button[onclick="startMovement()"]').textContent = '▶️ Пуск';
-    console.log("⏸️ Зупинка руху");
-    updateStatus();
-    
-    if (movementInterval) {
-        clearInterval(movementInterval);
-    }
-}
-
-function moveTargets() {
-    if (!isMoving) return;
-    
-    console.log("🔄 Оновлення позицій цілей...");
-    // Здесь будет логика движения
-    updateStatus();
-}
-
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 function centerMap() {
-    if (map) {
-        map.setView([50.4501, 30.5234], 6);
-        console.log("🎯 Карта відцентрована");
-    }
+    if (map) map.setView([50.4501, 30.5234], 6);
 }
 
-// ==================== ЗАПУСК ПРИ ЗАГРУЗКЕ ====================
+// ==================== ЗАПУСК ====================
 window.addEventListener('load', function() {
-    console.log("🚀 Завантаження додатку...");
     initMap();
-    
-    // Обновляем статус каждые 5 секунд
-    setInterval(updateStatus, 5000);
-    
-    console.log("✅ Додаток успішно завантажено!");
+    setInterval(updateStatus, 2000);
 });
 
-// Глобальные функции для HTML
+// Глобальные функции
 window.deleteTarget = deleteTarget;
 window.addTarget = addTarget;
 window.showAddForm = showAddForm;
 window.hideAddForm = hideAddForm;
-window.startMovement = startMovement;
+window.toggleMovement = toggleMovement;
 window.centerMap = centerMap;
 window.clearAllTargets = clearAllTargets;
 window.saveToLocalStorage = saveToLocalStorage;
-    </script>
+window.toggleTrails = toggleTrails;
+            </script>
 </body>
 </html>
