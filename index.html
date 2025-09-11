@@ -700,22 +700,22 @@ function updateTargetsList() {
             alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
         }
 
-        // ПРАВИЛЬНЫЙ расчет курса к точке клика
+        // ПРАВИЛЬНЫЙ расчет курса к точке клика - ИСПРАВЛЕННАЯ ВЕРСИЯ
         function updateTargetCourse(e) {
             if (!selectedTargetId) return;
             
             const target = targets.find(t => t.id === selectedTargetId);
             if (!target) return;
             
-            // Правильный расчет курса (0° = север, 90° = восток)
+            // ПРАВИЛЬНЫЙ РАСЧЕТ КУРСА (0° = север, 90° = восток)
             const dx = e.latlng.lng - target.lng;
             const dy = e.latlng.lat - target.lat;
             
-            // Правильный расчет угла в радианах (0 = север)
-            let angleRad = Math.atan2(dx, dy);
+            // Правильный расчет угла в радианах (0 = восток, против часовой стрелки)
+            let angleRad = Math.atan2(dy, dx);
             
-            // Конвертируем в градусы и нормализуем (0-360)
-            let newCourse = (angleRad * 180 / Math.PI + 360) % 360;
+            // Конвертируем в градусы и преобразуем в азимут (0° = север, 90° = восток)
+            let newCourse = (90 - angleRad * 180 / Math.PI + 360) % 360;
             
             target.course = newCourse;
             
@@ -739,6 +739,12 @@ function updateTargetsList() {
             
             courseMode = false;
             selectedTargetId = null;
+        }
+
+        // ДОБАВИТЬ эту функцию для принудительного обновления маркеров
+        function forceUpdateMarkers() {
+            updateMapMarkers();
+            updateTargetsList();
         }
 
         function toggleTrails() {
@@ -770,15 +776,21 @@ function updateTargetsList() {
                 currentMapView = 'street';
                 document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
             }
-            updateVisibleTargets();
+            // Принудительно обновляем маркеры после смены вида карты
+            forceUpdateMarkers();
         }
 
         function centerMap() {
             map.setView([50.4501, 30.5234], 6);
-            updateVisibleTargets();
+            // Принудительно обновляем маркеры после центрирования
+            forceUpdateMarkers();
         }
 
-        window.onload = initMap;
+        window.onload = function() {
+            initMap();
+            // Добавляем обработчик для полной загрузки страницы
+            setTimeout(forceUpdateMarkers, 1000);
+        }
     </script>
 </body>
 </html>
