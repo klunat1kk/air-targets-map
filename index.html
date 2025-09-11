@@ -3,744 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта повітряних цілей</title>
+    <title>Мапа Повітряних Цілей</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { padding: 20px; background: #1a1f2d; color: white; font-family: Arial, sans-serif; }
-        #map { height: 600px; width: 100%; border: 2px solid #a38d6d; border-radius: 8px; margin-bottom: 20px; }
-        .btn { padding: 10px 15px; background: #a38d6d; color: white; border: none; border-radius: 5px; margin: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn:hover { background: #8a7559; }
-        .controls { margin: 10px 0; display: flex; flex-wrap: wrap; }
+        body { font-family: 'Arial', sans-serif; display: flex; flex-direction: column; height: 100vh; }
         
-        /* Стили для модальных окон */
-        .modal { 
-            display: none; 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.8); 
-            z-index: 1000; 
-            justify-content: center; 
-            align-items: center; 
-        }
-        .modal-content { 
-            background: #2c3e50; 
-            padding: 20px; 
-            border-radius: 10px; 
-            border: 2px solid #a38d6d; 
-            width: 300px; 
-            text-align: center;
-        }
-        .modal input, .modal select { 
-            width: 100%; 
-            padding: 10px; 
-            margin: 5px 0; 
-            border: 1px solid #a38d6d; 
-            border-radius: 5px; 
-            background: #1a1f2d; 
-            color: white; 
-        }
+        #map { flex: 1; width: 100%; z-index: 1; }
         
-        .target-item { 
-            padding: 10px; 
-            margin: 5px 0; 
-            background: #2c3e50; 
-            border-radius: 5px; 
-            cursor: pointer;
-        }
-        .target-item:hover { 
-            background: #34495e; 
-        }
+        .control-panel { padding: 15px; background: #f4f4f4; border-bottom: 2px solid #ccc; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .control-panel input, .control-panel button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .control-panel button { background: #007bff; color: white; cursor: pointer; transition: background 0.3s; }
+        .control-panel button:hover { background: #0056b3; }
         
-        /* Стили для треугольных маркеров */
-        .triangle-icon {
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 16px solid;
-        }
+        #targets-list { max-height: 200px; overflow-y: auto; list-style: none; padding: 10px; background: #fff; border-top: 1px solid #ccc; }
+        #targets-list li { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        #targets-list li:hover { background: #f0f0f0; }
+        .target-info { font-size: 14px; }
+        .target-actions button { margin-left: 5px; padding: 3px 6px; font-size: 12px; }
         
-        /* Стили для поиска */
-        .search-container { margin: 10px 0; position: relative; }
-        #searchInput { width: 300px; padding: 10px; border: 1px solid #a38d6d; border-radius: 5px; background: #2c3e50; color: white; }
-        #searchResults { position: absolute; background: #2c3e50; border: 1px solid #a38d6d; max-height: 200px; overflow-y: auto; width: 300px; display: none; z-index: 1000; }
-        .search-result { padding: 10px; cursor: pointer; border-bottom: 1px solid #a38d6d; }
-        .search-result:hover { background: #34495e; }
-
-        /* Стиль для скрытых маркеров */
-        .target-icon.hidden {
-            opacity: 0.3;
-        }
-
-        /* Стиль для повернутых PNG иконок */
-        .rotated-icon {
-            transition: transform 0.3s ease;
-        }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; text-align: center; }
+        .modal-button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 15px; }
+        .modal-button:hover { background-color: #0056b3; }
+        
+        .marker-menu { background: white; padding: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .marker-menu button { display: block; width: 100%; margin: 5px 0; }
     </style>
 </head>
 <body>
-    <h1>🗺️ Карта повітряних цілей</h1>
-
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="🔍 Пошук населеного пункту...">
-        <div id="searchResults"></div>
+    <div id="warningModal" class="modal">
+        <div class="modal-content">
+            <h2>Попередження</h2>
+            <p>Сайт не є офіційним джерелом інформації про повітряні тривоги та може містити неточні дані. Використовуйте виключно в якості демонстраційного макету.</p>
+            <button id="understandBtn" class="modal-button">Зрозуміло</button>
+        </div>
     </div>
 
-    <div class="controls">
-        <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
-        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль кліком</button>
-        <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
-        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
-        <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
-        <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
-        <button class="btn" onclick="saveTargetsToStorage()" title="Зберегти всі цілі">💾 Зберегти</button>
-        <a href="/" class="btn">← На головну</a>
-        <a href="/targets" class="btn">📋 Список цілей</a>
+    <div class="control-panel">
+        <input type="number" id="course-input" placeholder="Курс (0-359°)" min="0" max="359">
+        <input type="number" id="speed-input" placeholder="Швидкість (км/год)" min="0">
+        <button id="add-target-btn">Додати ціль</button>
+        <button id="start-btn">Старт</button>
+        <button id="pause-btn">Пауза</button>
+        <button id="reset-btn">Скинути</button>
     </div>
 
     <div id="map"></div>
-
-    <h3>🎯 Активні цілі:</h3>
-    <div id="targetsList">Завантаження...</div>
-
-    <!-- Форма добавления/редактирования цели -->
-    <div id="targetForm" class="modal">
-        <div class="modal-content">
-            <h3 id="formTitle">➕ Додати ціль</h3>
-            <input type="hidden" id="targetId">
-            <input type="text" id="targetName" placeholder="Назва цілі">
-            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)">
-            <input type="number" id="targetCourse" placeholder="Курс (0-360°)" min="0" max="360">
-            <select id="targetType">
-                <option value="винищувач">Винищувач</option>
-                <option value="дрон">Дрон (Shahed)</option>
-                <option value="ракета">Ракета</option>
-                <option value="бомба">Бомба</option>
-                <option value="корабль">Корабель</option>
-            </select>
-            <div style="margin-top:15px;">
-                <button class="btn" onclick="saveTarget()">💾 Зберегти</button>
-                <button class="btn" onclick="deleteTarget()" style="background:#ff0000;">🗑️ Видалити</button>
-                <button class="btn" onclick="hideTargetForm()" style="background:#e74c3c;">❌ Скасувати</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно с предупреждением -->
-    <div id="disclaimerModal" class="modal">
-        <div class="modal-content">
-            <h3>⚠️ Увага!</h3>
-            <p>Сайт не є офіційним джерелом інформації, та не відноситься до військових технологій, дані беруться з відкритих джерел</p>
-            <button class="btn" onclick="hideDisclaimer()" style="margin-top: 15px;">Зрозуміло</button>
-        </div>
-    </div>
+    
+    <ul id="targets-list"></ul>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Глобальные переменные
+        // JavaScript код будет здесь
+        // Конфигурация и состояние приложения
 let map;
-let markers = {};
-let animationPaused = false;
-let courseMode = false;
-let addMode = false;
-let trailsVisible = true;
-let selectedTargetId = null;
-let currentMapView = 'street';
-let baseLayers = {};
-let targets = [];
-let animationInterval;
-let nextId = 3;
-let targetTrails = {};
-let targetHistory = {};
-let clickMarker = null;
-let lastFrameTime = performance.now();
-let hiddenTargets = new Set();
+let isSimulationRunning = false;
+let lastUpdateTime = 0;
+const updateInterval = 100; // ms
+const targets = [];
+let targetIdCounter = 1;
 
-// Функции для работы с модальным окном предупреждения
-function showDisclaimer() {
-    document.getElementById('disclaimerModal').style.display = 'flex';
-}
+// Элементы DOM
+const courseInput = document.getElementById('course-input');
+const speedInput = document.getElementById('speed-input');
+const addTargetBtn = document.getElementById('add-target-btn');
+const startBtn = document.getElementById('start-btn');
+const pauseBtn = document.getElementById('pause-btn');
+const resetBtn = document.getElementById('reset-btn');
+const targetsList = document.getElementById('targets-list');
+const warningModal = document.getElementById('warningModal');
+const understandBtn = document.getElementById('understandBtn');
 
-function hideDisclaimer() {
-    document.getElementById('disclaimerModal').style.display = 'none';
-}
-
-// Сохранение целей в LocalStorage (без всплывающего окна)
-function saveTargetsToStorage() {
-    localStorage.setItem('airTargets', JSON.stringify(targets));
-    localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
-    localStorage.setItem('nextId', nextId.toString());
-}
-
-// Загрузка целей из LocalStorage
-function loadTargetsFromStorage() {
-    const savedTargets = localStorage.getItem('airTargets');
-    const savedHistory = localStorage.getItem('targetHistory');
-    const savedNextId = localStorage.getItem('nextId');
-    
-    if (savedTargets) {
-        targets = JSON.parse(savedTargets);
-    }
-    if (savedHistory) {
-        targetHistory = JSON.parse(savedHistory);
-    }
-    if (savedNextId) {
-        nextId = parseInt(savedNextId);
-    }
-    
-    // Если нет сохраненных целей, создаем демо-цели
-    if (targets.length === 0) {
-        targets = [
-            {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 0, lat: 50.45, lng: 30.52},
-            {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 90, lat: 49.0, lng: 31.0}
-        ];
-        
-        targets.forEach(target => {
-            targetHistory[target.id] = [[target.lat, target.lng]];
-        });
-        nextId = 3;
-    }
-}
-
-// Инициализация карты
+// Инициализация карты с обработкой ошибок
 function initMap() {
-    console.log("Инициализация карты...");
-    
-    // Показываем предупреждение при загрузке
-    showDisclaimer();
-    
-    map = L.map('map').setView([50.4501, 30.5234], 6);
-    
-    baseLayers.street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    });
-    
-    baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri',
-        maxZoom: 19
-    });
-    
-    baseLayers.street.addTo(map);
-    
-    // Инициализация поиска
-    initSearch();
-    
-    // Обработчик кликов по карте
-    map.on('click', function(e) {
-        if (addMode) {
-            handleAddClick(e);
-        } else if (courseMode && selectedTargetId !== null) {
-            updateTargetCourse(e);
-        }
-    });
-    
-    // Обработчик перемещения карты
-    map.on('moveend', updateVisibleTargets);
-    
-    loadTargets();
-    startAnimation();
-}
-
-// Обновление видимости целей
-function updateVisibleTargets() {
-    const bounds = map.getBounds();
-    hiddenTargets.clear();
-    
-    targets.forEach(target => {
-        const targetLatLng = L.latLng(target.lat, target.lng);
-        const isVisible = bounds.contains(targetLatLng);
+    try {
+        map = L.map('map').setView([50.4500, 30.5233], 6); // Киев по умолчанию
         
-        if (markers[target.id]) {
-            if (isVisible) {
-                markers[target.id].addTo(map);
-                if (markers[target.id]._icon) {
-                    markers[target.id]._icon.classList.remove('hidden');
-                    // Поворачиваем PNG иконку дрона при обновлении видимости
-                    if (target.type === 'дрон') {
-                        markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
-                    }
-                }
-            } else {
-                markers[target.id].remove();
-                hiddenTargets.add(target.id);
-            }
-        }
-    });
-}
-
-// Показать все цели (даже вне экрана)
-function showAllTargets() {
-    targets.forEach(target => {
-        if (markers[target.id] && !map.hasLayer(markers[target.id])) {
-            markers[target.id].addTo(map);
-            if (markers[target.id]._icon) {
-                markers[target.id]._icon.classList.remove('hidden');
-                // Поворачиваем PNG иконку дрона
-                if (target.type === 'дрон') {
-                    markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
-                }
-            }
-            hiddenTargets.delete(target.id);
-            
-            // Плавно перемещаем карту к цели, если она далеко
-            const targetBounds = L.latLngBounds([target.lat, target.lng]);
-            if (!map.getBounds().contains([target.lat, target.lng])) {
-                map.panTo([target.lat, target.lng], {animate: true, duration: 1});
-            }
-        }
-    });
-}
-
-// Инициализация поиска
-function initSearch() {
-    const searchInput = document.getElementById('searchInput');
-    
-    searchInput.addEventListener('input', function() {
-        const query = this.value.trim();
-        if (query.length > 2) {
-            searchLocation(query);
-        } else {
-            document.getElementById('searchResults').style.display = 'none';
-        }
-    });
-}
-
-// Обработчик клика для добавления цели
-function handleAddClick(e) {
-    if (clickMarker) {
-        map.removeLayer(clickMarker);
-    }
-    
-    clickMarker = L.marker(e.latlng)
-        .addTo(map)
-        .bindPopup('Нова ціль тут')
-        .openPopup();
-    
-    showTargetForm(null, e.latlng);
-}
-
-function toggleAddMode() {
-    addMode = !addMode;
-    const btn = document.getElementById('addModeBtn');
-    
-    if (addMode) {
-        btn.textContent = '❌ Скасувати додавання';
-        btn.style.background = '#e74c3c';
-        alert('Режим додавання: клікніть на карту для вибору позиції цілі');
-        // Отключаем другие режимы
-        courseMode = false;
-        selectedTargetId = null;
-    } else {
-        btn.textContent = '📍 Додати ціль кліком';
-        btn.style.background = '#a38d6d';
-        if (clickMarker) {
-            map.removeLayer(clickMarker);
-            clickMarker = null;
-        }
-    }
-        }
-        // Показать форму для добавления/редактирования
-function showTargetForm(targetId, latlng = null) {
-    const form = document.getElementById('targetForm');
-    const title = document.getElementById('formTitle');
-    const idField = document.getElementById('targetId');
-    const nameField = document.getElementById('targetName');
-    const speedField = document.getElementById('targetSpeed');
-    const courseField = document.getElementById('targetCourse');
-    const typeField = document.getElementById('targetType');
-    const deleteBtn = document.querySelector('button[onclick="deleteTarget()"]');
-    
-    if (targetId) {
-        // Режим редактирования
-        const target = targets.find(t => t.id === targetId);
-        if (target) {
-            title.textContent = '✏️ Редагувати ціль';
-            idField.value = target.id;
-            nameField.value = target.name;
-            speedField.value = target.speed;
-            courseField.value = target.course;
-            typeField.value = target.type;
-            deleteBtn.style.display = 'inline-block';
-        }
-    } else {
-        // Режим добавления
-        title.textContent = '➕ Додати ціль';
-        idField.value = '';
-        nameField.value = 'Ціль ' + nextId;
-        speedField.value = 800;
-        courseField.value = 0;
-        typeField.value = 'винищувач';
-        deleteBtn.style.display = 'none';
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
         
-        // Сохраняем координаты для новой цели
-        if (latlng) {
-            window.newTargetLatLng = latlng;
+        console.log('Карта успешно инициализирована');
+    } catch (error) {
+        console.error('Ошибка инициализации карты:', error);
+        alert('Не удалось загрузить карту. Пожалуйста, обновите страницу.');
+    }
+}
+
+// Показать предупреждающее модальное окно
+function showWarningModal() {
+    warningModal.style.display = 'block';
+}
+
+understandBtn.addEventListener('click', function() {
+    warningModal.style.display = 'none';
+    // Сохраняем в localStorage, что пользователь принял предупреждение
+    localStorage.setItem('warningAccepted', 'true');
+});
+
+// Автосохранение состояния
+function saveState() {
+    const state = {
+        targets: targets.map(target => ({
+            id: target.id,
+            lat: target.lat,
+            lng: target.lng,
+            course: target.course,
+            speed: target.speed,
+            type: target.type
+        }))
+    };
+    localStorage.setItem('airTargetsState', JSON.stringify(state));
+}
+
+// Загрузка сохраненного состояния
+function loadState() {
+    const savedState = localStorage.getItem('airTargetsState');
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            state.targets.forEach(targetData => {
+                createTarget(targetData.lat, targetData.lng, targetData.course, targetData.speed, targetData.type, targetData.id);
+            });
+        } catch (e) {
+            console.error('Ошибка загрузки состояния:', e);
         }
     }
-    
-    form.style.display = 'flex';
 }
-
-function hideTargetForm() {
-    document.getElementById('targetForm').style.display = 'none';
-    if (clickMarker) {
-        map.removeLayer(clickMarker);
-        clickMarker = null;
+        // Создание новой цели
+function createTarget(lat, lng, course, speed, type = 'unknown', id = null) {
+    if (!lat || !lng) {
+        const center = map.getCenter();
+        lat = center.lat;
+        lng = center.lng;
     }
-    addMode = false;
-    document.getElementById('addModeBtn').textContent = '📍 Додати ціль кліком';
-    document.getElementById('addModeBtn').style.background = '#a38d6d';
-}
 
-function saveTarget() {
-    const id = document.getElementById('targetId').value;
-    const name = document.getElementById('targetName').value;
-    const speed = parseFloat(document.getElementById('targetSpeed').value);
-    const course = parseFloat(document.getElementById('targetCourse').value);
-    const type = document.getElementById('targetType').value;
-    
-    if (id) {
-        // Редактирование существующей цели
-        const target = targets.find(t => t.id === parseInt(id));
-        if (target) {
-            target.name = name;
-            target.speed = speed;
-            target.course = course;
-            target.type = type;
-        }
-    } else {
-        // Добавление новой цели
-        let lat, lng;
-        if (window.newTargetLatLng) {
-            lat = window.newTargetLatLng.lat;
-            lng = window.newTargetLatLng.lng;
-        } else {
-            const center = map.getCenter();
-            lat = center.lat + (Math.random() - 0.5);
-            lng = center.lng + (Math.random() - 0.5);
-        }
-        
-        const newTarget = {
-            id: nextId++,
-            name: name,
-            type: type,
-            speed: speed,
-            course: course,
-            lat: lat,
-            lng: lng
-        };
-        
-        targets.push(newTarget);
-        targetHistory[newTarget.id] = [[lat, lng]];
-    }
-    
-    // Сохраняем в LocalStorage
-    saveTargetsToStorage();
-    
-    updateMapMarkers();
-    updateTargetsList();
-    hideTargetForm();
-}
+    const targetId = id || targetIdCounter++;
+    const courseNum = parseInt(course) || 0;
+    const speedNum = parseInt(speed) || 100;
 
-function deleteTarget() {
-    const id = document.getElementById('targetId').value;
-    if (!id) return;
-    
-    if (confirm('Ви впевнені, що хочете видалити цю ціль?')) {
-        const index = targets.findIndex(t => t.id === parseInt(id));
-        if (index !== -1) {
-            targets.splice(index, 1);
-            if (targetTrails[id]) {
-                map.removeLayer(targetTrails[id]);
-                delete targetTrails[id];
-            }
-            if (targetHistory[id]) {
-                delete targetHistory[id];
-            }
-            if (hiddenTargets.has(parseInt(id))) {
-                hiddenTargets.delete(parseInt(id));
-            }
-            
-            // Сохраняем в LocalStorage
-            saveTargetsToStorage();
-            
-            updateMapMarkers();
-            updateTargetsList();
-        }
-    }
-    hideTargetForm();
-}
-
-// Поиск населенных пунктов
-function searchLocation(query) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=uk`;
-    
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            const results = document.getElementById('searchResults');
-            results.innerHTML = '';
-            
-            if (data.length > 0) {
-                data.forEach(place => {
-                    const div = document.createElement('div');
-                    div.className = 'search-result';
-                    div.textContent = place.display_name;
-                    div.onclick = () => {
-                        map.setView([parseFloat(place.lat), parseFloat(place.lon)], 12);
-                        results.style.display = 'none';
-                        document.getElementById('searchInput').value = '';
-                    };
-                    results.appendChild(div);
-                });
-                results.style.display = 'block';
-            }
-        });
-}
-
-function loadTargets() {
-    loadTargetsFromStorage();
-    updateTargetsList();
-    updateMapMarkers();
-}
-
-// Создание иконки (треугольники для всех, кроме дрона - PNG)
-function createCustomIcon(type, course) {
-    // Для дрона используем PNG иконку с поворотом
-    if (type === 'дрон') {
-        return L.icon({
+    // Создаем иконку в зависимости от типа цели
+    let icon;
+    if (type === 'drone') {
+        // Иконка дрона с поворотом
+        icon = L.icon({
             iconUrl: 'icons/shahed.png',
             iconSize: [30, 30],
             iconAnchor: [15, 15],
-            popupAnchor: [0, -15],
-            className: 'rotated-icon'
+            className: 'drone-icon'
+        });
+    } else {
+        // Стандартная иконка-треугольник
+        icon = L.divIcon({
+            html: `<div style="transform: rotate(${courseNum}deg); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 15px solid red;"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            className: 'triangle-icon'
         });
     }
-    
-    // Для остальных типов - треугольники
-    const colors = {
-        'винищувач': '#3498db',
-        'ракета': '#f39c12',
-        'бомба': '#95a5a6',
-        'корабль': '#9b59b6'
+
+    // Создаем маркер
+    const marker = L.marker([lat, lng], { icon: icon, rotationAngle: courseNum })
+        .addTo(map)
+        .bindPopup(`
+            <div class="marker-menu">
+                <p>Ціль #${targetId}</p>
+                <p>Курс: ${courseNum}°</p>
+                <p>Швидкість: ${speedNum} км/год</p>
+                <button onclick="removeTarget(${targetId})">Видалити</button>
+            </div>
+        `);
+
+    // Добавляем цель в массив
+    const target = {
+        id: targetId,
+        lat: lat,
+        lng: lng,
+        course: courseNum,
+        speed: speedNum,
+        type: type,
+        marker: marker,
+        trail: L.polyline([], {color: 'red'}).addTo(map)
     };
-
-    const color = colors[type] || '#3498db';
-    const rotation = course - 90;
-
-    return L.divIcon({
-        className: 'target-icon',
-        html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg); transform-origin: center;"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10]
-    });
+    
+    targets.push(target);
+    updateTargetsList();
+    saveState();
+    
+    return target;
 }
 
-function updateMapMarkers() {
-    const bounds = map.getBounds();
+// Правильный расчет новой позиции
+function calculateNewPosition(lat, lng, course, speed, elapsedTime) {
+    const R = 6371000; // радиус Земли в метрах
+    const distance = (speed * elapsedTime) / 3600; // пройденное расстояние в км (speed km/h * time h)
+    const angularDistance = distance / (R / 1000); // угловое расстояние в радианах
+
+    // КОНВЕРТИРУЕМ НАВИГАЦИОННЫЙ КУРС В МАТЕМАТИЧЕСКИЙ УГОЛ:
+    // 0° = Север -> 90° математический
+    // 90° = Восток -> 0° математический
+    const bearingRad = (90 - course) * Math.PI / 180;
+
+    const latRad = lat * Math.PI / 180;
+    const lngRad = lng * Math.PI / 180;
+
+    const newLatRad = Math.asin(Math.sin(latRad) * Math.cos(angularDistance) +
+                    Math.cos(latRad) * Math.sin(angularDistance) * Math.cos(bearingRad));
+
+    const newLngRad = lngRad + Math.atan2(Math.sin(bearingRad) * Math.sin(angularDistance) * Math.cos(latRad),
+                                   Math.cos(angularDistance) - Math.sin(latRad) * Math.sin(newLatRad));
+
+    const newLat = newLatRad * 180 / Math.PI;
+    const newLng = newLngRad * 180 / Math.PI;
+
+    return { lat: newLat, lng: newLng };
+}
+
+// Обновление позиции и поворота маркера
+function updateMarkerPositionAndRotation(marker, latlng, course) {
+    marker.setLatLng(latlng);
     
-    for (const id in markers) {
-        map.removeLayer(markers[id]);
+    if (marker.options.icon.options && marker.options.icon.options.iconUrl) {
+        // Это PNG иконка дрона - обновляем поворот через CSS трансформацию
+        const iconElement = marker.getElement();
+        if (iconElement) {
+            iconElement.style.transform = `rotate(${course}deg)`;
+        }
+    } else {
+        // Это треугольник - обновляем HTML
+        marker.setIcon(L.divIcon({
+            html: `<div style="transform: rotate(${course}deg); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 15px solid red;"></div>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            className: 'triangle-icon'
+        }));
     }
-    for (const id in targetTrails) {
-        if (targetTrails[id]) map.removeLayer(targetTrails[id]);
-    }
-    markers = {};
-    targetTrails = {};
-    hiddenTargets.clear();
-    
-    targets.forEach(target => {
-        const icon = createCustomIcon(target.type, target.course);
-        const marker = L.marker([target.lat, target.lng], {icon: icon})
-            .bindPopup(`
-                <b>${target.name}</b><br>
-                Тип: ${target.type}<br>
-                Швидкість: ${target.speed} км/год<br>
-                Курс: ${target.course}°<br>
-                <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
-                <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
-            `)
-            .on('click', function() {
-                if (courseMode) {
-                    selectTargetForCourse(target.id);
-                }
-            });
-        
-        // Добавляем маркер на карту только если он в пределах видимости
-        if (bounds.contains([target.lat, target.lng])) {
-            marker.addTo(map);
-            // Поворачиваем PNG иконку дрона
-            if (target.type === 'дрон' && marker._icon) {
-                marker._icon.style.transform = `rotate(${target.course}deg)`;
+}
+        // Главный цикл обновления симуляции
+function updateSimulation(timestamp) {
+    if (!isSimulationRunning) return;
+
+    if (!lastUpdateTime) lastUpdateTime = timestamp;
+    const elapsedTime = timestamp - lastUpdateTime;
+
+    if (elapsedTime > updateInterval) {
+        targets.forEach(target => {
+            if (target.speed > 0) {
+                const newPos = calculateNewPosition(
+                    target.lat, 
+                    target.lng, 
+                    target.course, 
+                    target.speed, 
+                    elapsedTime / 1000 // конвертируем в секунды
+                );
+                
+                target.lat = newPos.lat;
+                target.lng = newPos.lng;
+                
+                // Обновляем позицию и поворот маркера
+                updateMarkerPositionAndRotation(target.marker, [target.lat, target.lng], target.course);
+                
+                // Обновляем трек
+                target.trail.addLatLng([target.lat, target.lng]);
             }
-        } else {
-            hiddenTargets.add(target.id);
-        }
-        
-        markers[target.id] = marker;
-        
-        // Траектории (только для видимых целей)
-        if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
-            targetTrails[target.id] = L.polyline(targetHistory[target.id], {
-                color: 'red',
-                weight: 1,
-                opacity: 0.7
-            }).addTo(map);
-        }
-    });
+        });
+
+        lastUpdateTime = timestamp;
+        saveState();
+    }
+
+    requestAnimationFrame(updateSimulation);
 }
 
+// Обновление списка целей
 function updateTargetsList() {
-    const container = document.getElementById('targetsList');
-    container.innerHTML = '';
-    
+    targetsList.innerHTML = '';
     targets.forEach(target => {
-        const div = document.createElement('div');
-        div.className = 'target-item';
-        const isHidden = hiddenTargets.has(target.id);
-        div.innerHTML = `
-            <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
-            Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
-            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
-            ${isHidden ? '<br><small>поза межами карти</small>' : ''}
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <div class="target-info">
+                Ціль #${target.id} | Курс: ${target.course}° | Швидк.: ${target.speed}км/год
+            </div>
+            <div class="target-actions">
+                <button onclick="focusTarget(${target.id})">📌</button>
+                <button onclick="removeTarget(${target.id})">❌</button>
+            </div>
         `;
-        div.onclick = () => showTargetForm(target.id);
-        container.appendChild(div);
+        targetsList.appendChild(li);
     });
-        }
-                function startAnimation() {
-            if (animationInterval) clearInterval(animationInterval);
-            lastFrameTime = performance.now();
-            animationInterval = setInterval(moveTargets, 50);
-        }
+}
 
-        function moveTargets() {
-            if (animationPaused) return;
+// Фокусировка на цели
+function focusTarget(id) {
+    const target = targets.find(t => t.id === id);
+    if (target) {
+        map.setView([target.lat, target.lng], 10);
+        target.marker.openPopup();
+    }
+}
 
-            const now = performance.now();
-            const deltaTime = (now - lastFrameTime) / 1000;
-            lastFrameTime = now;
+// Удаление цели
+function removeTarget(id) {
+    const index = targets.findIndex(t => t.id === id);
+    if (index !== -1) {
+        const target = targets[index];
+        map.removeLayer(target.marker);
+        map.removeLayer(target.trail);
+        targets.splice(index, 1);
+        updateTargetsList();
+        saveState();
+    }
+}
 
-            targets.forEach(target => {
-                if (target.speed > 0) {
-                    // Движение целей
-                    const speedKmPerSecond = target.speed / 3600;
-                    const latDegreesPerKm = 1 / 111.0;
-                    const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
-                    
-                    const speedDegreesPerSecond = speedKmPerSecond * latDegreesPerKm;
-                    const courseRad = target.course * Math.PI / 180;
-                    
-                    const deltaLat = -Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
-                    const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime * 
-                                    (latDegreesPerKm / lngDegreesPerKm);
-                    
-                    target.lat += deltaLat;
-                    target.lng += deltaLng;
-                    
-                    if (!targetHistory[target.id]) targetHistory[target.id] = [];
-                    targetHistory[target.id].push([target.lat, target.lng]);
-                    
-                    // Обновляем маркер
-                    if (markers[target.id]) {
-                        markers[target.id].setLatLng([target.lat, target.lng]);
-                        updateMarkerRotation(target.id);
-                    }
-                }
-            });
-            
-            updateTargetsList();
-        }
+// Обработчики событий
+addTargetBtn.addEventListener('click', function() {
+    const course = parseInt(courseInput.value) || 0;
+    const speed = parseInt(speedInput.value) || 100;
+    createTarget(null, null, course, speed, 'drone');
+});
 
-        // Функция обновления поворота маркера
-        function updateMarkerRotation(targetId) {
-            const target = targets.find(t => t.id === targetId);
-            if (!target || !markers[targetId]) return;
-            
-            if (target.type === 'дрон') {
-                // Для дрона поворачиваем PNG
-                if (markers[targetId]._icon) {
-                    markers[targetId]._icon.style.transform = `rotate(${target.course}deg)`;
-                }
-            } else {
-                // Для остальных создаем новую иконку
-                const newIcon = createCustomIcon(target.type, target.course);
-                markers[targetId].setIcon(newIcon);
-            }
-        }
+startBtn.addEventListener('click', function() {
+    if (!isSimulationRunning) {
+        isSimulationRunning = true;
+        lastUpdateTime = 0;
+        requestAnimationFrame(updateSimulation);
+    }
+});
 
-        function selectTargetForCourse(targetId) {
-            courseMode = true;
-            selectedTargetId = targetId;
-            alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту для встановлення курсу.`);
-        }
+pauseBtn.addEventListener('click', function() {
+    isSimulationRunning = false;
+});
 
-        // Простая и правильная формула курса
-        function updateTargetCourse(e) {
-            if (!selectedTargetId) return;
-            
-            const target = targets.find(t => t.id === selectedTargetId);
-            if (!target) return;
-            
-            const dx = e.latlng.lng - target.lng;
-            const dy = e.latlng.lat - target.lat;
-            
-            // Простая и правильная формула
-            let angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            let newCourse = (angle + 360) % 360;
-            target.course = Math.round(newCourse);
-            
-            // Немедленно обновляем отображение
-            updateMarkerRotation(target.id);
-            saveTargetsToStorage();
-            
-            alert(`Курс змінено на: ${target.course}°`);
-            courseMode = false;
-            selectedTargetId = null;
-        }
+resetBtn.addEventListener('click', function() {
+    isSimulationRunning = false;
+    targets.forEach(target => {
+        map.removeLayer(target.marker);
+        map.removeLayer(target.trail);
+    });
+    targets.length = 0;
+    targetIdCounter = 1;
+    updateTargetsList();
+    localStorage.removeItem('airTargetsState');
+});
 
-        function toggleTrails() {
-            trailsVisible = !trailsVisible;
-            const btn = document.getElementById('trailsBtn');
-            btn.textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
-            updateMapMarkers();
-        }
-
-        function togglePause() {
-            animationPaused = !animationPaused;
-            const btn = document.getElementById('pauseBtn');
-            btn.textContent = animationPaused ? '▶️ Відтворити' : '⏸️ Пауза';
-            btn.style.background = animationPaused ? '#27ae60' : '#a38d6d';
-            if (!animationPaused) {
-                lastFrameTime = performance.now();
-            }
-        }
-
-        function toggleMapView() {
-            if (currentMapView === 'street') {
-                map.removeLayer(baseLayers.street);
-                baseLayers.satellite.addTo(map);
-                currentMapView = 'satellite';
-                document.getElementById('mapViewBtn').textContent = '🗺️ Мапа';
-            } else {
-                map.removeLayer(baseLayers.satellite);
-                baseLayers.street.addTo(map);
-                currentMapView = 'street';
-                document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
-            }
-            updateVisibleTargets();
-        }
-
-        function centerMap() {
-            map.setView([50.4501, 30.5234], 6);
-            updateVisibleTargets();
-        }
-
-        window.onload = initMap;
-    </script>
+// Инициализация при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    loadState();
+    
+    // Показываем предупреждение, если пользователь еще не принял его
+    if (!localStorage.getItem('warningAccepted')) {
+        showWarningModal();
+    }
+});
+            </script>
 </body>
 </html>
         
