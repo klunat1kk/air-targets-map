@@ -24,21 +24,30 @@
             margin: 5px; 
             cursor: pointer; 
             font-size: 14px;
+            transition: all 0.3s;
         }
-        .btn:hover { background: #8a7559; }
+        .btn:hover { background: #8a7559; transform: translateY(-2px); }
+        .btn-active { background: #27ae60; }
+        .btn-danger { background: #e74c3c; }
         .controls { margin: 10px 0; display: flex; flex-wrap: wrap; }
         
         .target-item {
-            padding: 10px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             background: #2c3e50;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s;
+            border-left: 4px solid #3498db;
         }
         .target-item:hover {
             background: #34495e;
+            transform: translateX(5px);
         }
+        .target-item.drone { border-left-color: #e74c3c; }
+        .target-item.rocket { border-left-color: #f39c12; }
+        .target-item.bomb { border-left-color: #95a5a6; }
+        .target-item.ship { border-left-color: #9b59b6; }
         
         .modal {
             display: none;
@@ -52,61 +61,102 @@
         }
         .modal-content {
             background: #2c3e50;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 25px;
+            border-radius: 12px;
             border: 2px solid #a38d6d;
-            width: 300px;
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .modal input, .modal select {
             width: 100%;
-            padding: 10px;
-            margin: 5px 0;
+            padding: 12px;
+            margin: 8px 0;
             border: 1px solid #a38d6d;
-            border-radius: 5px;
+            border-radius: 6px;
             background: #1a1f2d;
             color: white;
+            font-size: 14px;
         }
         
         .status-bar {
             background: #2c3e50;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .target-counter {
             background: #27ae60;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: 5px;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .target-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .action-btn {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
             font-size: 12px;
+        }
+        .edit-btn { background: #3498db; color: white; }
+        .delete-btn { background: #e74c3c; color: white; }
+        
+        .speed-control {
+            margin: 10px 0;
+        }
+        .speed-slider {
+            width: 100%;
+            margin: 5px 0;
         }
     </style>
 </head>
 <body>
     <div class="status-bar">
-        <h1>🗺️ Карта повітряних цілей <span class="target-counter" id="targetCounter">0</span></h1>
-        <div id="syncInfo">💾 Локальний режим | Статус: ⏸️ Стоп</div>
+        <div>
+            <h1 style="margin: 0;">🗺️ Карта повітряних цілей <span class="target-counter" id="targetCounter">0</span></h1>
+            <div id="syncInfo">💾 Локальний режим | Статус: ⏸️ Стоп</div>
+        </div>
+        <div>
+            <span style="color: #95a5a6; font-size: 12px;">v1.0</span>
+        </div>
     </div>
 
     <div class="controls">
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
         <button class="btn" onclick="showAddForm()">📍 Додати ціль</button>
-        <button class="btn" onclick="toggleMovement()" id="movementBtn">▶️ Пуск</button>
-        <button class="btn" onclick="clearAllTargets()">🗑️ Очистити</button>
+        <button class="btn" id="movementBtn" onclick="toggleMovement()">▶️ Пуск</button>
+        <button class="btn" onclick="showAllTargets()">👁️ Показати всі</button>
+        <button class="btn" id="trailsBtn" onclick="toggleTrails()">🔴 Траєкторії</button>
         <button class="btn" onclick="saveToLocalStorage()">💾 Зберегти</button>
-        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
+        <button class="btn btn-danger" onclick="clearAllTargets()">🗑️ Очистити</button>
+    </div>
+
+    <div class="speed-control">
+        <label>🚀 Швидкість симуляції:</label>
+        <input type="range" id="speedSlider" class="speed-slider" min="1" max="10" value="5" onchange="changeSimulationSpeed()">
+        <span id="speedValue">5x</span>
     </div>
 
     <div id="map"></div>
 
-    <h3>🎯 Активні цілі (подвійний клік для видалення):</h3>
+    <h3>🎯 Активні ціли:</h3>
     <div id="targetsList">Завантаження...</div>
 
-    <!-- Форма добавления цели -->
+    <!-- Форма добавления/редактирования цели -->
     <div id="targetForm" class="modal">
         <div class="modal-content">
-            <h3>➕ Додати нову ціль</h3>
+            <h3 id="formTitle">➕ Додати нову ціль</h3>
+            <input type="hidden" id="targetId">
             <input type="text" id="targetName" placeholder="Назва цілі" value="Ціль">
             <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" value="100">
             <input type="number" id="targetCourse" placeholder="Курс (0-360°)" value="90" min="0" max="360">
@@ -117,9 +167,10 @@
                 <option value="бомба">💣 Бомба</option>
                 <option value="корабль">⛴️ Корабель</option>
             </select>
-            <div style="margin-top:15px;">
-                <button class="btn" onclick="addTarget()">✅ Додати</button>
-                <button class="btn" onclick="hideAddForm()" style="background:#e74c3c;">❌ Скасувати</button>
+            <div style="margin-top:20px; display: flex; gap: 10px;">
+                <button class="btn" onclick="saveTarget()" id="saveBtn">✅ Додати</button>
+                <button class="btn btn-danger" onclick="deleteTarget()" id="deleteBtn" style="display:none;">🗑️ Видалити</button>
+                <button class="btn" onclick="hideTargetForm()" style="background:#95a5a6;">❌ Скасувати</button>
             </div>
         </div>
     </div>
@@ -136,6 +187,8 @@ let isMoving = false;
 let movementInterval;
 let lastUpdateTime = Date.now();
 let trailsVisible = false;
+let simulationSpeed = 5;
+let editingTargetId = null;
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function initMap() {
@@ -157,7 +210,7 @@ function initMap() {
         
     } catch (error) {
         console.error("❌ Помилка ініціалізації:", error);
-        document.getElementById('syncInfo').textContent = "❌ Помилка карти, але дані завантажено";
+        document.getElementById('syncInfo').textContent = "❌ Помилка карти";
         loadFromLocalStorage();
         updateTargetsList();
     }
@@ -197,17 +250,42 @@ function saveToLocalStorage() {
     console.log("💾 Дані збережено");
 }
 
-// ==================== РАБОТА С ЦЕЛЯМИ ====================
+// ==================== ФОРМА ЦЕЛЕЙ ====================
 function showAddForm() {
-    document.getElementById('targetForm').style.display = 'flex';
+    document.getElementById('formTitle').textContent = '➕ Додати нову ціль';
+    document.getElementById('targetId').value = '';
     document.getElementById('targetName').value = 'Ціль ' + nextId;
+    document.getElementById('targetSpeed').value = '100';
+    document.getElementById('targetCourse').value = '90';
+    document.getElementById('targetType').value = 'винищувач';
+    document.getElementById('saveBtn').textContent = '✅ Додати';
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('targetForm').style.display = 'flex';
 }
 
-function hideAddForm() {
+function showEditForm(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    editingTargetId = targetId;
+    document.getElementById('formTitle').textContent = '✏️ Редагувати ціль';
+    document.getElementById('targetId').value = targetId;
+    document.getElementById('targetName').value = target.name;
+    document.getElementById('targetSpeed').value = target.speed;
+    document.getElementById('targetCourse').value = target.course;
+    document.getElementById('targetType').value = target.type;
+    document.getElementById('saveBtn').textContent = '💾 Зберегти';
+    document.getElementById('deleteBtn').style.display = 'inline-block';
+    document.getElementById('targetForm').style.display = 'flex';
+}
+
+function hideTargetForm() {
     document.getElementById('targetForm').style.display = 'none';
+    editingTargetId = null;
 }
 
-function addTarget() {
+function saveTarget() {
+    const id = document.getElementById('targetId').value;
     const name = document.getElementById('targetName').value;
     const speed = parseInt(document.getElementById('targetSpeed').value) || 100;
     const course = parseInt(document.getElementById('targetCourse').value) || 90;
@@ -218,25 +296,42 @@ function addTarget() {
         return;
     }
     
-    const center = map.getCenter();
-    const newTarget = {
-        id: nextId++,
-        name: name,
-        type: type,
-        speed: speed,
-        course: course,
-        lat: center.lat,
-        lng: center.lng
-    };
+    if (id) {
+        // Редактирование существующей цели
+        const target = targets.find(t => t.id === parseInt(id));
+        if (target) {
+            target.name = name;
+            target.speed = speed;
+            target.course = course;
+            target.type = type;
+            updateMarker(target);
+        }
+    } else {
+        // Добавление новой цели
+        const center = map.getCenter();
+        const newTarget = {
+            id: nextId++,
+            name: name,
+            type: type,
+            speed: speed,
+            course: course,
+            lat: center.lat,
+            lng: center.lng
+        };
+        targets.push(newTarget);
+        addMarkerToMap(newTarget);
+    }
     
-    targets.push(newTarget);
-    addMarkerToMap(newTarget);
     updateTargetsList();
     saveToLocalStorage();
-    hideAddForm();
+    hideTargetForm();
 }
 
-function deleteTarget(targetId) {
+function deleteTarget() {
+    const id = document.getElementById('targetId').value;
+    if (!id) return;
+    
+    const targetId = parseInt(id);
     const targetIndex = targets.findIndex(t => t.id === targetId);
     if (targetIndex !== -1) {
         const targetName = targets[targetIndex].name;
@@ -246,18 +341,8 @@ function deleteTarget(targetId) {
             targets.splice(targetIndex, 1);
             updateTargetsList();
             saveToLocalStorage();
+            hideTargetForm();
         }
-    }
-}
-
-function clearAllTargets() {
-    if (targets.length === 0) return;
-    if (confirm("⚠️ Видалити ВСІ цілі?")) {
-        for (const id in markers) map.removeLayer(markers[id]);
-        for (const id in trails) map.removeLayer(trails[id]);
-        markers = {}; trails = {}; targets = []; nextId = 1;
-        updateTargetsList();
-        saveToLocalStorage();
     }
 }
 
@@ -282,17 +367,14 @@ function addMarkerToMap(target) {
             🛩️ Тип: ${target.type}<br>
             🚀 Швидкість: ${target.speed} км/год<br>
             🧭 Курс: ${target.course}°<br>
-            <button onclick="deleteTarget(${target.id})" style="
-                background: #e74c3c; color: white; border: none; 
-                padding: 5px 10px; border-radius: 3px; cursor: pointer;
-                margin-top: 5px;">
-                🗑️ Видалити
-            </button>
+            <div class="target-actions">
+                <button class="action-btn edit-btn" onclick="showEditForm(${target.id})">✏️</button>
+                <button class="action-btn delete-btn" onclick="deleteTargetFromPopup(${target.id})">🗑️</button>
+            </div>
         `);
     
     markers[target.id] = marker;
     
-    // Создаем траекторию
     if (trailsVisible) {
         trails[target.id] = L.polyline([[target.lat, target.lng]], {
             color: getColorForType(target.type),
@@ -302,24 +384,29 @@ function addMarkerToMap(target) {
     }
 }
 
+function updateMarker(target) {
+    if (markers[target.id]) {
+        map.removeLayer(markers[target.id]);
+        delete markers[target.id];
+    }
+    addMarkerToMap(target);
+}
+
 function addMarkersToMap() {
     for (const id in markers) map.removeLayer(markers[id]);
     for (const id in trails) map.removeLayer(trails[id]);
     markers = {}; trails = {};
     
-    targets.forEach(target => {
-        addMarkerToMap(target);
-    });
+    targets.forEach(target => addMarkerToMap(target));
 }
 
 function toggleTrails() {
     trailsVisible = !trailsVisible;
     const btn = document.getElementById('trailsBtn');
     btn.textContent = trailsVisible ? '⚫ Траєкторії' : '🔴 Траєкторії';
-    btn.style.background = trailsVisible ? '#27ae60' : '#a38d6d';
+    btn.classList.toggle('btn-active', trailsVisible);
     
     if (trailsVisible) {
-        // Показываем траектории
         targets.forEach(target => {
             if (!trails[target.id]) {
                 trails[target.id] = L.polyline([[target.lat, target.lng]], {
@@ -330,10 +417,7 @@ function toggleTrails() {
             }
         });
     } else {
-        // Скрываем траектории
-        for (const id in trails) {
-            map.removeLayer(trails[id]);
-        }
+        for (const id in trails) map.removeLayer(trails[id]);
         trails = {};
     }
 }
@@ -359,6 +443,7 @@ function toggleMovement() {
 function startMovement() {
     isMoving = true;
     document.getElementById('movementBtn').textContent = '⏸️ Стоп';
+    document.getElementById('movementBtn').classList.add('btn-active');
     lastUpdateTime = Date.now();
     movementInterval = setInterval(moveTargets, 100);
     updateStatus();
@@ -368,6 +453,7 @@ function startMovement() {
 function stopMovement() {
     isMoving = false;
     document.getElementById('movementBtn').textContent = '▶️ Пуск';
+    document.getElementById('movementBtn').classList.remove('btn-active');
     clearInterval(movementInterval);
     updateStatus();
     console.log("⏸️ Зупинка руху");
@@ -383,7 +469,7 @@ function moveTargets() {
     targets.forEach(target => {
         if (target.speed > 0) {
             // Реалистичное движение с учетом курса
-            const distance = (target.speed * deltaTime) / 3600; // км
+            const distance = (target.speed * deltaTime * simulationSpeed) / 3600; // км
             const latChange = distance * Math.cos(target.course * Math.PI / 180) / 111;
             const lngChange = distance * Math.sin(target.course * Math.PI / 180) / (111 * Math.cos(target.lat * Math.PI / 180));
             
@@ -405,6 +491,12 @@ function moveTargets() {
     updateTargetsList();
 }
 
+function changeSimulationSpeed() {
+    simulationSpeed = parseInt(document.getElementById('speedSlider').value);
+    document.getElementById('speedValue').textContent = simulationSpeed + 'x';
+    console.log("🚀 Швидкість симуляції: " + simulationSpeed + "x");
+}
+
 // ==================== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ====================
 function updateTargetsList() {
     const container = document.getElementById('targetsList');
@@ -420,10 +512,14 @@ function updateTargetsList() {
     let html = '';
     targets.forEach(target => {
         html += `
-            <div class="target-item" ondblclick="deleteTarget(${target.id})">
+            <div class="target-item ${target.type}" ondblclick="deleteTargetFromList(${target.id})">
                 <strong>${target.name}</strong> (${target.type})<br>
                 🚀 ${target.speed} км/год | 🧭 ${target.course}°<br>
                 📍 ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+                <div class="target-actions">
+                    <button class="action-btn edit-btn" onclick="showEditForm(${target.id})">✏️ Редагувати</button>
+                    <button class="action-btn delete-btn" onclick="deleteTargetFromList(${target.id})">🗑️ Видалити</button>
+                </div>
             </div>
         `;
     });
@@ -432,12 +528,54 @@ function updateTargetsList() {
 }
 
 function updateStatus() {
-    const status = `💾 Локальний режим | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'}`;
+    const status = `💾 Локальний режим | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'} | Цілей: ${targets.length}`;
     document.getElementById('syncInfo').textContent = status;
 }
 
 function centerMap() {
     if (map) map.setView([50.4501, 30.5234], 6);
+}
+
+function showAllTargets() {
+    if (targets.length > 0 && map) {
+        const bounds = new L.LatLngBounds();
+        targets.forEach(target => {
+            bounds.extend([target.lat, target.lng]);
+        });
+        map.fitBounds(bounds);
+    }
+}
+
+function clearAllTargets() {
+    if (targets.length === 0) return;
+    if (confirm("⚠️ Видалити ВСІ цілі? Цю дію не можна скасувати!")) {
+        for (const id in markers) map.removeLayer(markers[id]);
+        for (const id in trails) map.removeLayer(trails[id]);
+        markers = {}; trails = {}; targets = []; nextId = 1;
+        updateTargetsList();
+        saveToLocalStorage();
+        console.log("✅ Всі цілі видалені");
+    }
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+function deleteTargetFromList(targetId) {
+    const targetIndex = targets.findIndex(t => t.id === targetId);
+    if (targetIndex !== -1) {
+        const targetName = targets[targetIndex].name;
+        if (confirm(`🗑️ Видалити ціль "${targetName}"?`)) {
+            if (markers[targetId]) map.removeLayer(markers[targetId]);
+            if (trails[targetId]) map.removeLayer(trails[targetId]);
+            targets.splice(targetIndex, 1);
+            updateTargetsList();
+            saveToLocalStorage();
+        }
+    }
+}
+
+function deleteTargetFromPopup(targetId) {
+    deleteTargetFromList(targetId);
+    if (map._popup) map.closePopup();
 }
 
 // ==================== ЗАПУСК ====================
@@ -448,14 +586,20 @@ window.addEventListener('load', function() {
 
 // Глобальные функции
 window.deleteTarget = deleteTarget;
+window.deleteTargetFromList = deleteTargetFromList;
+window.deleteTargetFromPopup = deleteTargetFromPopup;
 window.addTarget = addTarget;
+window.saveTarget = saveTarget;
 window.showAddForm = showAddForm;
-window.hideAddForm = hideAddForm;
+window.showEditForm = showEditForm;
+window.hideTargetForm = hideTargetForm;
 window.toggleMovement = toggleMovement;
 window.centerMap = centerMap;
+window.showAllTargets = showAllTargets;
 window.clearAllTargets = clearAllTargets;
 window.saveToLocalStorage = saveToLocalStorage;
 window.toggleTrails = toggleTrails;
+window.changeSimulationSpeed = changeSimulationSpeed;
             </script>
 </body>
 </html>
