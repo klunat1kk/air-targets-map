@@ -18,7 +18,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0a0a1a;
+            background: #050510;
             color: #e6e6e6;
             height: 100vh;
             overflow: hidden;
@@ -31,21 +31,23 @@
         }
 
         .header {
-            background: linear-gradient(90deg, #0d8bf2 0%, #0456a8 100%);
+            background: linear-gradient(90deg, #0a5cb0 0%, #083a7a 100%);
             padding: 12px 20px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
             z-index: 1000;
             position: relative;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #1a3b66;
         }
 
         .header h1 {
             font-size: 22px;
             font-weight: 700;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+            color: #ffffff;
         }
 
         .header-controls {
@@ -54,39 +56,27 @@
             align-items: center;
         }
 
-        .login-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
+        .header-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
             padding: 8px 15px;
-            border-radius: 20px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s ease;
+            font-size: 14px;
         }
 
-        .login-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .toggle-panel-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .toggle-panel-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .header-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
         }
 
         .map-container {
             flex: 1;
             position: relative;
+            background: #0a0a1a;
         }
 
         #map {
@@ -95,13 +85,13 @@
         }
 
         .control-panel {
-            background: rgba(26, 26, 46, 0.98);
-            border-top: 2px solid #0d8bf2;
+            background: rgba(20, 20, 35, 0.98);
+            border-top: 2px solid #0a5cb0;
             padding: 15px;
             height: auto;
             max-height: 40vh;
             overflow-y: auto;
-            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.5);
             position: relative;
             transition: max-height 0.3s ease;
         }
@@ -114,31 +104,37 @@
         .tabs {
             display: flex;
             margin-bottom: 15px;
-            background: rgba(34, 40, 49, 0.8);
-            border-radius: 10px;
+            background: rgba(25, 30, 40, 0.9);
+            border-radius: 8px;
             overflow: hidden;
+            border: 1px solid #2a3550;
         }
 
         .tab {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             text-align: center;
-            background: rgba(13, 139, 242, 0.2);
+            background: rgba(10, 92, 176, 0.25);
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
             color: #e6e6e6;
             font-weight: 600;
             font-size: 14px;
+            border-right: 1px solid #2a3550;
+        }
+
+        .tab:last-child {
+            border-right: none;
         }
 
         .tab.active {
-            background: #0d8bf2;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.2);
+            background: #0a5cb0;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
         }
 
         .tab:hover {
-            background: #1a9bff;
+            background: #1a7ae0;
         }
 
         .tab-content {
@@ -150,164 +146,187 @@
         }
 
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             font-weight: 600;
-            color: #0d8bf2;
+            color: #4da6ff;
             font-size: 14px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         input, select, button {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border: none;
             border-radius: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #e6e6e6;
+            background: rgba(40, 45, 60, 0.8);
+            color: #ffffff;
             font-size: 14px;
             transition: all 0.3s ease;
+            border: 1px solid #3a455a;
         }
 
         input:focus, select:focus {
             outline: none;
-            background: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 0 0 2px #0d8bf2;
+            background: rgba(50, 55, 70, 0.9);
+            box-shadow: 0 0 0 2px #0a5cb0;
+            border-color: #0a5cb0;
+        }
+
+        input::placeholder {
+            color: #8899aa;
         }
 
         button {
-            background: linear-gradient(90deg, #0d8bf2 0%, #0456a8 100%);
+            background: linear-gradient(90deg, #0a5cb0 0%, #083a7a 100%);
             color: white;
             font-weight: 600;
             cursor: pointer;
-            border: none;
-            margin-top: 4px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid #1a5c9e;
+            margin-top: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         button:hover {
-            background: linear-gradient(90deg, #1a9bff 0%, #0d6efd 100%);
+            background: linear-gradient(90deg, #1a7ae0 0%, #0a5cb0 100%);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
         button:active {
             transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
         .targets-list {
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
-            background: rgba(34, 40, 49, 0.8);
+            background: rgba(25, 30, 40, 0.8);
             border-radius: 8px;
-            padding: 8px;
+            padding: 10px;
+            border: 1px solid #2a3550;
         }
 
         .target-item {
-            background: rgba(13, 139, 242, 0.15);
-            padding: 10px;
-            margin-bottom: 8px;
+            background: rgba(10, 92, 176, 0.2);
+            padding: 12px;
+            margin-bottom: 10px;
             border-radius: 6px;
-            border-left: 3px solid #0d8bf2;
+            border-left: 4px solid #0a5cb0;
             transition: all 0.3s ease;
+            border: 1px solid #2a4580;
         }
 
         .target-item:hover {
-            background: rgba(13, 139, 242, 0.25);
+            background: rgba(10, 92, 176, 0.3);
+            transform: translateX(2px);
         }
 
         .target-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
         .target-name {
             font-weight: 700;
-            color: #0d8bf2;
-            font-size: 14px;
+            color: #4da6ff;
+            font-size: 15px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
         }
 
         .target-type {
-            background: rgba(13, 139, 242, 0.3);
-            padding: 3px 6px;
+            background: rgba(10, 92, 176, 0.4);
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
+            color: #ffffff;
         }
 
         .target-details {
-            font-size: 12px;
-            color: #b8b8b8;
+            font-size: 13px;
+            color: #a8b5c8;
+            line-height: 1.4;
         }
 
         .target-actions {
             display: flex;
-            gap: 6px;
-            margin-top: 6px;
+            gap: 8px;
+            margin-top: 8px;
         }
 
         .target-actions button {
             flex: 1;
-            padding: 6px;
+            padding: 8px;
             font-size: 12px;
+            margin-top: 0;
         }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 12px;
+            gap: 12px;
+            margin-top: 15px;
         }
 
         .stat-card {
-            background: rgba(13, 139, 242, 0.15);
-            padding: 12px;
+            background: rgba(10, 92, 176, 0.2);
+            padding: 15px;
             border-radius: 8px;
             text-align: center;
-            border: 1px solid rgba(13, 139, 242, 0.3);
+            border: 1px solid #2a4580;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .stat-value {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
-            color: #0d8bf2;
-            margin: 6px 0;
+            color: #4da6ff;
+            margin: 8px 0;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .stat-label {
-            font-size: 12px;
-            color: #b8b8b8;
+            font-size: 13px;
+            color: #8899aa;
+            font-weight: 600;
         }
 
         .status-bar {
-            background: rgba(34, 40, 49, 0.95);
-            padding: 8px 15px;
+            background: rgba(25, 30, 40, 0.95);
+            padding: 10px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid #0d8bf2;
-            font-size: 12px;
+            border-top: 1px solid #2a3550;
+            font-size: 13px;
+            margin-top: 15px;
+            border-radius: 6px;
         }
 
         .status-item {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
 
         .status-indicator {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #4caf50;
+            background: #27ae60;
+            box-shadow: 0 0 8px rgba(39, 174, 96, 0.5);
         }
 
         .status-indicator.offline {
-            background: #f44336;
+            background: #e74c3c;
+            box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
         }
 
         /* Модальні вікна */
@@ -319,23 +338,31 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
         }
 
         .modal-content {
-            background: #1a1a2e;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             margin: 15% auto;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
+            padding: 25px;
+            border-radius: 12px;
+            width: 320px;
             text-align: center;
-            border: 2px solid #0d8bf2;
+            border: 2px solid #0a5cb0;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content h3 {
+            color: #4da6ff;
+            margin-bottom: 20px;
+            font-size: 18px;
         }
 
         .modal-buttons {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 12px;
+            margin-top: 20px;
         }
 
         .modal-buttons button {
@@ -349,10 +376,10 @@
             }
             
             .header-controls {
-                gap: 5px;
+                gap: 6px;
             }
             
-            .login-btn, .toggle-panel-btn {
+            .header-btn {
                 padding: 6px 12px;
                 font-size: 12px;
             }
@@ -361,42 +388,87 @@
                 flex-direction: column;
             }
             
+            .tab {
+                border-right: none;
+                border-bottom: 1px solid #2a3550;
+            }
+            
+            .tab:last-child {
+                border-bottom: none;
+            }
+            
             .stats-grid {
                 grid-template-columns: 1fr;
             }
             
             .status-bar {
                 flex-direction: column;
-                gap: 8px;
+                gap: 10px;
                 text-align: center;
             }
             
             .control-panel {
                 max-height: 50vh;
             }
+            
+            .modal-content {
+                width: 90%;
+                margin: 20% auto;
+            }
         }
 
-        /* Анімації */
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        /* Специфічні стилі для кнопок */
+        .btn-danger {
+            background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%) !important;
+            border-color: #a93226 !important;
         }
 
-        .pulse {
-            animation: pulse 2s infinite;
+        .btn-danger:hover {
+            background: linear-gradient(90deg, #ff6b6b 0%, #e74c3c 100%) !important;
         }
 
-        /* Іконки маркерів */
-        .target-marker {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        .btn-success {
+            background: linear-gradient(90deg, #27ae60 0%, #229954 100%) !important;
+            border-color: #1e8449 !important;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%) !important;
+        }
+
+        .btn-warning {
+            background: linear-gradient(90deg, #f39c12 0%, #e67e22 100%) !important;
+            border-color: #d35400 !important;
+        }
+
+        .btn-warning:hover {
+            background: linear-gradient(90deg, #f1c40f 0%, #f39c12 100%) !important;
+        }
+
+        /* Стилі для скроллбара */
+        .targets-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .targets-list::-webkit-scrollbar-track {
+            background: rgba(40, 45, 60, 0.5);
+            border-radius: 3px;
+        }
+
+        .targets-list::-webkit-scrollbar-thumb {
+            background: #0a5cb0;
+            border-radius: 3px;
+        }
+
+        .targets-list::-webkit-scrollbar-thumb:hover {
+            background: #1a7ae0;
         }
 
         .admin-only {
+            display: none;
+        }
+
+        .logout-btn {
             display: none;
         }
     </style>
@@ -406,11 +478,14 @@
         <div class="header">
             <h1><i class="fas fa-crosshairs"></i> Карта Повітряних Цілей</h1>
             <div class="header-controls">
-                <button class="toggle-panel-btn" onclick="togglePanel()">
+                <button class="header-btn toggle-panel-btn" onclick="togglePanel()">
                     <i class="fas fa-eye-slash"></i> Панель
                 </button>
-                <button class="login-btn" onclick="showLoginModal()">
+                <button class="header-btn login-btn" onclick="showLoginModal()">
                     <i class="fas fa-user"></i> Увійти
+                </button>
+                <button class="header-btn logout-btn" onclick="logout()" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i> Вийти
                 </button>
             </div>
         </div>
@@ -429,7 +504,7 @@
                     <div id="add-target" class="tab-content active">
             <div class="form-group">
                 <label for="targetName">Назва цілі:</label>
-                <input type="text" id="targetName" placeholder="Введіть назву цілі">
+                <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
             </div>
             <div class="form-group">
                 <label for="targetType">Тип цілі:</label>
@@ -444,7 +519,7 @@
             </div>
             <div class="form-group">
                 <label for="targetSpeed">Швидкість (км/год):</label>
-                <input type="number" id="targetSpeed" placeholder="Швидкість" value="150">
+                <input type="number" id="targetSpeed" placeholder="Швидкість" value="150" min="0" max="5000">
             </div>
             <div class="form-group">
                 <label for="targetCourse">Курс (0-360°):</label>
@@ -502,6 +577,9 @@
             <button onclick="clearAllTargets()" style="background: linear-gradient(90deg, #ff6b6b 0%, #c0392b 100%);" class="admin-only">
                 <i class="fas fa-trash"></i> Очистити всі цілі
             </button>
+            <button onclick="logout()" style="background: linear-gradient(90deg, #95a5a6 0%, #7f8c8d 100%);" class="admin-only">
+                <i class="fas fa-sign-out-alt"></i> Вийти з акаунта
+            </button>
         </div>
         
         <div class="status-bar">
@@ -519,18 +597,18 @@
             </div>
         </div>
     </div>
-    </div>
-    <!-- Модальне вікно логіну -->
+                </div>
+                <!-- Модальне вікно логіну -->
 <div id="loginModal" class="modal">
     <div class="modal-content">
         <h3><i class="fas fa-user-shield"></i> Вхід для адміністратора</h3>
         <div class="form-group">
             <label for="loginUsername">Логін:</label>
-            <input type="text" id="loginUsername" placeholder="Введіть логін">
+            <input type="text" id="loginUsername" placeholder="Введіть логін" value="admin123450">
         </div>
         <div class="form-group">
             <label for="loginPassword">Пароль:</label>
-            <input type="password" id="loginPassword" placeholder="Введіть пароль">
+            <input type="password" id="loginPassword" placeholder="Введіть пароль" value="password123450">
         </div>
         <div class="modal-buttons">
             <button onclick="attemptLogin()">Увійти</button>
@@ -622,6 +700,8 @@ function initApp() {
         
         // Запускаємо анімаційний цикл
         startAnimationLoop();
+        
+        console.log("Додаток успішно ініціалізовано");
     } catch (error) {
         console.error('Помилка ініціалізації:', error);
     }
@@ -643,6 +723,8 @@ function initMap() {
             setTargetCourseFromMap(e.latlng);
         }
     });
+    
+    console.log("Карта успішно ініціалізована");
 }
 
 // Ініціалізація Firebase
@@ -682,7 +764,157 @@ function debouncedSave() {
         saveTargets();
     }, 1000);
 }
-    // Функція для отримання іконки за типом цілі
+    // Налаштування слухачів Firebase
+function setupRealtimeListeners() {
+    if (!isOnline) return;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        
+        // Слухач змін цілей
+        targetsRef.on('value', (snapshot) => {
+            const firebaseTargets = snapshot.val() || {};
+            
+            // Ігноруємо власні зміни
+            if (isSyncing) {
+                isSyncing = false;
+                return;
+            }
+            
+            if (shouldSyncWithFirebase(firebaseTargets)) {
+                console.log("Отримуємо оновлення з Firebase");
+                targets = Object.values(firebaseTargets);
+                updateMap();
+                saveTargetsToLocalStorage();
+                updateStats();
+                updateTargetsList();
+            }
+        });
+        
+        // Лічильник онлайн-користувачів
+        const usersRef = db.ref('onlineUsers');
+        const userRef = usersRef.push();
+        
+        userRef.set({
+            connected: true,
+            lastSeen: Date.now(),
+            isAdmin: isAdmin,
+            userAgent: navigator.userAgent
+        });
+        
+        userRef.onDisconnect().remove();
+        
+        usersRef.on('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const activeUsers = Object.values(users).filter(user => 
+                user.connected && Date.now() - user.lastSeen < 30000
+            );
+            
+            document.getElementById('onlineUsers').textContent = `Онлайн: ${activeUsers.length}`;
+        });
+    } catch (error) {
+        console.error('Помилка Firebase:', error);
+        isOnline = false;
+        updateStatus();
+    }
+}
+
+// Функції для роботи з цілями
+function addTarget() {
+    console.log("Спроба додати ціль...");
+    
+    if (!isAdmin) {
+        alert('Лише адміністратор може додавати цілі');
+        return;
+    }
+    
+    const name = document.getElementById('targetName').value.trim();
+    const type = document.getElementById('targetType').value;
+    const speed = parseInt(document.getElementById('targetSpeed').value);
+    const course = parseInt(document.getElementById('targetCourse').value);
+    
+    if (!name) {
+        alert('Будь ласка, введіть назву цілі');
+        return;
+    }
+    
+    if (isNaN(speed) || speed < 0 || speed > 5000) {
+        alert('Швидкість повинна бути від 0 до 5000 км/год');
+        return;
+    }
+    
+    if (isNaN(course) || course < 0 || course > 360) {
+        alert('Курс повинен бути від 0 до 360 градусів');
+        return;
+    }
+    
+    const target = {
+        id: Date.now().toString(),
+        name: name,
+        type: type,
+        speed: speed,
+        course: course,
+        latitude: map.getCenter().lat,
+        longitude: map.getCenter().lng,
+        distance: 0,
+        maxSpeed: speed,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastTrajectoryUpdate: Date.now()
+    };
+    
+    targets.push(target);
+    addTargetToMap(target);
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+    
+    // Очистити форму
+    document.getElementById('targetName').value = 'Ціль-' + (targets.length + 1);
+    
+    console.log("Ціль успішно додана:", target);
+}
+
+function addRandomTarget() {
+    if (!isAdmin) return;
+    
+    const types = ['дрон', 'ракета', 'винищувач', 'бомба', 'корабль', 'вертоліт'];
+    const names = {
+        'дрон': ['Shahed-136', 'Orlan-10', 'Bayraktar', 'Ланцюг'],
+        'ракета': ['Іскандер', 'Калібр', 'Точка-У', 'Х-101'],
+        'винищувач': ['Су-27', 'МиГ-29', 'F-16', 'F-35'],
+        'бомба': ['ФАБ-250', 'ФАБ-500', 'КАБ-500'],
+        'корабль': ['Москва', 'Адмірал', 'Фрегат'],
+        'вертоліт': ['Ка-52', 'Мі-8', 'Мі-24', 'Apache']
+    };
+    
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    const randomName = names[randomType][Math.floor(Math.random() * names[randomType].length)];
+    
+    const target = {
+        id: Date.now().toString(),
+        name: `${randomName}-${Math.floor(Math.random() * 1000)}`,
+        type: randomType,
+        speed: Math.floor(Math.random() * 500) + 100,
+        course: Math.floor(Math.random() * 360),
+        latitude: map.getCenter().lat + (Math.random() - 0.5) * 2,
+        longitude: map.getCenter().lng + (Math.random() - 0.5) * 4,
+        distance: 0,
+        maxSpeed: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastTrajectoryUpdate: Date.now()
+    };
+    
+    targets.push(target);
+    addTargetToMap(target);
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+// Функція для отримання іконки за типом цілі
 function getIconForType(type) {
     // Для дрона і ракети використовуємо PNG іконки
     if (type === 'дрон' || type === 'ракета') {
@@ -914,7 +1146,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
-                    }
+}
     // СИСТЕМА АВТОРИЗАЦІЇ
 function showLoginModal() {
     document.getElementById('loginModal').style.display = 'block';
@@ -922,8 +1154,8 @@ function showLoginModal() {
 
 function closeLoginModal() {
     document.getElementById('loginModal').style.display = 'none';
-    document.getElementById('loginUsername').value = '';
-    document.getElementById('loginPassword').value = '';
+    document.getElementById('loginUsername').value = 'admin123450';
+    document.getElementById('loginPassword').value = 'password123450';
 }
 
 function attemptLogin() {
@@ -951,21 +1183,38 @@ function attemptLogin() {
     }
 }
 
+function logout() {
+    if (!isAdmin) return;
+    
+    if (confirm('Вийти з акаунта адміністратора?')) {
+        isAdmin = false;
+        updateUIForUserRole();
+        alert('Ви вийшли з акаунта адміністратора');
+        
+        if (isOnline) {
+            const db = firebase.database();
+            const usersRef = db.ref('onlineUsers');
+            // Користувач автоматично видаляється через onDisconnect
+        }
+    }
+}
+
 function updateUIForUserRole() {
     const loginBtn = document.querySelector('.login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
     const addTargetBtn = document.getElementById('addTargetBtn');
     const tabs = document.querySelectorAll('.tab');
     const adminButtons = document.querySelectorAll('.admin-only');
     
     if (isAdmin) {
-        loginBtn.innerHTML = '<i class="fas fa-user-shield"></i> Адмін';
-        loginBtn.style.background = 'linear-gradient(90deg, #ff6b6b 0%, #c0392b 100%)';
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
         addTargetBtn.disabled = false;
         tabs.forEach(tab => tab.style.display = 'flex');
         adminButtons.forEach(btn => btn.style.display = 'block');
     } else {
-        loginBtn.innerHTML = '<i class="fas fa-user"></i> Увійти';
-        loginBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
         addTargetBtn.disabled = true;
         tabs[0].style.display = 'none';
         tabs[3].style.display = 'none';
@@ -1062,408 +1311,3 @@ function saveTargets() {
     }
 }
 
-function saveTargetsToLocalStorage() {
-    localStorage.setItem('airTargets', JSON.stringify(targets));
-    localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
-    localStorage.setItem('showTrajectories', showTrajectories.toString());
-    localStorage.setItem('isAdmin', isAdmin.toString());
-}
-
-function loadTargetsFromLocalStorage() {
-    try {
-        const savedTargets = localStorage.getItem('airTargets');
-        const savedHistory = localStorage.getItem('targetHistory');
-        const savedTrajectories = localStorage.getItem('showTrajectories');
-        const savedAdmin = localStorage.getItem('isAdmin');
-        
-        if (savedTargets) {
-            targets = JSON.parse(savedTargets);
-        }
-        
-        if (savedHistory) {
-            targetHistory = JSON.parse(savedHistory);
-        }
-        
-        if (savedTrajectories) {
-            showTrajectories = savedTrajectories === 'true';
-            updateTrajectoriesButton();
-        }
-        
-        if (savedAdmin) {
-            isAdmin = savedAdmin === 'true';
-            updateUIForUserRole();
-        }
-        
-        updateMap();
-        updateStats();
-        updateTargetsList();
-    } catch (error) {
-        console.error('Помилка завантаження з LocalStorage:', error);
-    }
-}
-
-function syncWithFirebase() {
-    if (!isOnline) return;
-    
-    isSyncing = true;
-    
-    try {
-        const db = firebase.database();
-        const targetsRef = db.ref('targets');
-        
-        const targetsDict = {};
-        targets.forEach(target => {
-            targetsDict[target.id] = {
-                ...target,
-                marker: undefined,
-                polyline: undefined
-            };
-        });
-        
-        targetsRef.set(targetsDict)
-            .then(() => {
-                console.log("Дані успішно синхронізовано з Firebase");
-                lastSyncTime = Date.now();
-            })
-            .catch(error => {
-                console.error("Помилка синхронізації з Firebase:", error);
-            })
-            .finally(() => {
-                isSyncing = false;
-            });
-    } catch (error) {
-        console.error('Помилка синхронізації:', error);
-        isSyncing = false;
-    }
-}
-
-function shouldSyncWithFirebase(firebaseTargets) {
-    if (Object.keys(firebaseTargets).length === 0) return false;
-    if (targets.length === 0) return true;
-
-    const localLastUpdate = Math.max(...targets.map(t => t.updatedAt || t.createdAt));
-    const remoteLastUpdate = Math.max(...Object.values(firebaseTargets).map(t => t.updatedAt || t.createdAt));
-
-    return remoteLastUpdate > localLastUpdate;
-}
-        // Управління інтерфейсом
-    function toggleTrajectories() {
-        showTrajectories = !showTrajectories;
-        
-        Object.keys(polylines).forEach(id => {
-            if (polylines[id]) {
-                if (showTrajectories) {
-                    map.addLayer(polylines[id]);
-                } else {
-                    map.removeLayer(polylines[id]);
-                }
-            }
-        });
-        
-        updateTrajectoriesButton();
-        saveTargetsToLocalStorage();
-    }
-
-    function updateTrajectoriesButton() {
-        const btn = document.getElementById('trajectoriesBtn');
-        if (showTrajectories) {
-            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Вимкнути траєкторії';
-        } else {
-            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Увімкнути траєкторії';
-        }
-    }
-
-    function togglePanel() {
-        const panel = document.getElementById('controlPanel');
-        const btn = document.querySelector('.toggle-panel-btn');
-        
-        isPanelExpanded = !isPanelExpanded;
-        
-        if (isPanelExpanded) {
-            panel.classList.remove('collapsed');
-            btn.innerHTML = '<i class="fas fa-eye-slash"></i> Панель';
-        } else {
-            panel.classList.add('collapsed');
-            btn.innerHTML = '<i class="fas fa-eye"></i> Панель';
-        }
-    }
-
-    function clearAllTargets() {
-        if (!isAdmin) return;
-        
-        if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
-        
-        Object.values(markers).forEach(marker => map.removeLayer(marker));
-        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
-        
-        targets = [];
-        markers = {};
-        polylines = {};
-        targetHistory = {};
-        
-        saveTargets();
-        updateStats();
-        updateTargetsList();
-    }
-
-    function centerMap() {
-        if (targets.length > 0) {
-            const group = new L.featureGroup(Object.values(markers));
-            map.fitBounds(group.getBounds().pad(0.1));
-        } else {
-            map.setView([50.4500, 30.5233], 6);
-        }
-    }
-
-    // Оновлення інтерфейсу
-    function updateMap() {
-        Object.values(markers).forEach(marker => map.removeLayer(marker));
-        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
-        
-        markers = {};
-        polylines = {};
-        
-        targets.forEach(target => {
-            addTargetToMap(target);
-        });
-    }
-
-    function updateStats() {
-        document.getElementById('totalTargets').textContent = targets.length;
-        document.getElementById('activeTargets').textContent = targets.length;
-
-        const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
-        const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
-
-        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
-        document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
-    }
-
-    function updateTargetsList() {
-        const container = document.getElementById('targetsListContainer');
-        container.innerHTML = '';
-
-        targets.forEach(target => {
-            const targetElement = document.createElement('div');
-            targetElement.className = 'target-item';
-            targetElement.innerHTML = `
-                <div class="target-header">
-                    <span class="target-name">${target.name}</span>
-                    <span class="target-type">${target.type}</span>
-                </div>
-                <div class="target-details">
-                    Швидкість: ${target.speed} км/год<br>
-                    Курс: ${target.course}°<br>
-                    Відстань: ${target.distance.toFixed(1)} км
-                </div>
-                ${isAdmin ? `
-                <div class="target-actions">
-                    <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
-                    <button onclick="enableCourseSelectionForTarget('${target.id}')" style="background: #1dd1a1;">
-                        <i class="fas fa-route"></i>
-                    </button>
-                    <button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-                ` : ''}
-            `;
-            container.appendChild(targetElement);
-        });
-    }
-
-    function deleteTarget(id) {
-        if (!isAdmin) return;
-        
-        if (!confirm('Видалити цю ціль?')) return;
-
-        targets = targets.filter(t => t.id !== id);
-
-        if (markers[id]) {
-            map.removeLayer(markers[id]);
-            delete markers[id];
-        }
-
-        if (polylines[id]) {
-            map.removeLayer(polylines[id]);
-            delete polylines[id];
-        }
-
-        delete targetHistory[id];
-
-        saveTargets();
-        updateStats();
-        updateTargetsList();
-    }
-
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-
-        document.getElementById(tabName).classList.add('active');
-        
-        // Знаходимо кнопку табу, яка відповідає цьому табу
-        const tabButtons = document.querySelectorAll('.tab');
-        tabButtons.forEach(button => {
-            if (button.getAttribute('onclick') === `switchTab('${tabName}')`) {
-                button.classList.add('active');
-            }
-        });
-
-        if (tabName === 'targets-list') {
-            updateTargetsList();
-        }
-    }
-
-    function exportData() {
-        if (!isAdmin) return;
-        
-        const data = {
-            targets: targets,
-            exportDate: new Date().toISOString(),
-            version: '3.0'
-        };
-
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    function importData() {
-        if (!isAdmin) return;
-        
-        document.getElementById('importFile').click();
-    }
-
-    function handleFileImport(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-
-                if (data.targets && Array.isArray(data.targets)) {
-                    // Зберігаємо поточний стан для відновлення у разі помилки
-                    const backupTargets = [...targets];
-                    const backupHistory = {...targetHistory};
-                    
-                    try {
-                        clearAllTargets();
-                        targets = data.targets;
-                        
-                        // Оновлюємо історію для нових цілей
-                        targets.forEach(target => {
-                            if (!targetHistory[target.id]) {
-                                targetHistory[target.id] = [[target.latitude, target.longitude]];
-                            }
-                        });
-                        
-                        updateMap();
-                        saveTargets();
-                        updateStats();
-                        updateTargetsList();
-                        alert(`Успішно імпортовано ${targets.length} цілей`);
-                    } catch (error) {
-                        // Відновлюємо попередній стан у разі помилки
-                        targets = backupTargets;
-                        targetHistory = backupHistory;
-                        updateMap();
-                        throw error;
-                    }
-                } else {
-                    throw new Error('Невірний формат файлу');
-                }
-            } catch (error) {
-                alert('Помилка при імпорті даних: ' + error.message);
-            }
-        };
-        reader.readAsText(file);
-        event.target.value = '';
-    }
-
-    function updateStatus() {
-        const indicator = document.getElementById('statusIndicator');
-        const statusText = document.getElementById('statusText');
-        const updateTime = document.getElementById('updateTime');
-
-        if (isOnline) {
-            indicator.className = 'status-indicator';
-            statusText.textContent = 'Підключено до Firebase';
-        } else {
-            indicator.className = 'status-indicator offline';
-            statusText.textContent = 'Автономний режим';
-        }
-
-        updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
-    }
-
-    function checkConnection() {
-        if (isOnline && Date.now() - lastSyncTime > 30000) {
-            syncWithFirebase();
-        }
-    }
-
-    function setupEventListeners() {
-        document.getElementById('importFile').addEventListener('change', handleFileImport);
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (isCourseSelectionMode) {
-                    isCourseSelectionMode = false;
-                    selectedTargetForCourse = null;
-                    alert('Режим вибору курсу вимкнено');
-                } else {
-                    centerMap();
-                }
-            }
-        });
-
-        setInterval(updateStatus, 60000);
-        setInterval(checkConnection, 30000);
-        
-        // Додаємо обробник для закриття модальних вікон по кліку на затемнений фон
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-    }
-
-    // Ініціалізація при завантаженні
-    document.addEventListener('DOMContentLoaded', function() {
-        try {
-            initApp();
-            updateTrajectoriesButton();
-
-            window.addEventListener('beforeunload', function() {
-                if (autoSaveInterval) {
-                    clearInterval(autoSaveInterval);
-                }
-                if (animationFrameId) {
-                    cancelAnimationFrame(animationFrameId);
-                }
-            });
-        } catch (error) {
-            console.error('Помилка ініціалізації:', error);
-        }
-    });
-    </script>
-</body>
-</html>
