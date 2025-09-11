@@ -110,7 +110,6 @@
         
         .speed-control { display: none; }
         
-        /* Новые стили для статистики */
         .stats-panel {
             background: #2c3e50;
             padding: 15px;
@@ -130,7 +129,6 @@
         <div id="syncInfo">💾 Локальний режим | Статус: ⏸️ Стоп</div>
     </div>
 
-    <!-- Панель статистики -->
     <div class="stats-panel" id="statsPanel" style="display: none;">
         <h3>📊 Статистика:</h3>
         <div class="stat-item">
@@ -155,6 +153,8 @@
         <button class="btn" id="trailsBtn" onclick="toggleTrails()">🔴 Траєкторії</button>
         <button class="btn" onclick="saveToLocalStorage()">💾 Зберегти</button>
         <button class="btn" onclick="showStats()">📊 Статистика</button>
+        <button class="btn" onclick="exportData()">📤 Експорт</button>
+        <button class="btn" onclick="importData()">📥 Імпорт</button>
         <button class="btn btn-danger" onclick="clearAllTargets()">🗑️ Очистити</button>
     </div>
 
@@ -199,13 +199,12 @@ let movementInterval;
 let lastUpdateTime = Date.now();
 let trailsVisible = false;
 let editingTargetId = null;
-let targetHistory = {}; // Для хранения истории перемещений
+let targetHistory = {};
 
-// Константы для реалистичного движения
 const EARTH_RADIUS_KM = 6371;
 const DEGREES_PER_KM = 1 / 111;
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+// ==================== ОСНОВНЫЕ ФУНКЦИИ ====================
 function initMap() {
     console.log("🔄 Ініціалізація карти...");
     
@@ -221,8 +220,6 @@ function initMap() {
         updateTargetsList();
         updateStatus();
         
-        console.log("✅ Карта успішно ініціалізована");
-        
     } catch (error) {
         console.error("❌ Помилка ініціалізації:", error);
         document.getElementById('syncInfo').textContent = "❌ Помилка карти";
@@ -231,7 +228,6 @@ function initMap() {
     }
 }
 
-// ==================== РАБОТА С ДАННЫМИ ====================
 function loadFromLocalStorage() {
     const savedData = localStorage.getItem('airTargetsData');
     if (savedData) {
@@ -240,7 +236,6 @@ function loadFromLocalStorage() {
             targets = data.targets || [];
             nextId = data.nextId || 1;
             targetHistory = data.targetHistory || {};
-            console.log(`📁 Завантажено ${targets.length} цілей`);
             addMarkersToMap();
         } catch (error) {
             console.error("❌ Помилка завантаження:", error);
@@ -256,83 +251,132 @@ function loadDefaultTargets() {
         {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
         {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
     ];
-    
-    // Инициализируем историю для каждой цели
     targets.forEach(target => {
-        if (!targetHistory[target.id]) {
-            targetHistory[target.id] = [[target.lat, target.lng]];
-        }
+        if (!targetHistory[target.id]) targetHistory[target.id] = [[target.lat, target.lng]];
     });
-    
     saveToLocalStorage();
 }
 
 function saveToLocalStorage() {
-    const data = { 
-        targets: targets, 
-        nextId: nextId, 
-        targetHistory: targetHistory,
-        lastUpdate: Date.now() 
-    };
+    const data = { targets: targets, nextId: nextId, targetHistory: targetHistory };
     localStorage.setItem('airTargetsData', JSON.stringify(data));
     updateStatus();
-    console.log("💾 Дані збережено");
 }
 
-// ==================== ФУНКЦИИ ТРАЕКТОРИЙ ====================
-function toggleTrails() {
-    trailsVisible = !trailsVisible;
-    const btn = document.getElementById('trailsBtn');
-    btn.textContent = trailsVisible ? '⚫ Траєкторії' : '🔴 Траєкторії';
-    btn.classList.toggle('btn-active', trailsVisible);
-    
-    if (trailsVisible) {
-        showTrails();
-    } else {
-        hideTrails();
-    }
+// ==================== УПРАВЛЕНИЕ ЦЕЛЯМИ ====================
+function showAddForm() {
+    document.getElementById('formTitle').textContent = '➕ Додати нову ціль';
+    document.getElementById('targetId').value = '';
+    document.getElementById('targetName').value = 'Ціль ' + nextId;
+    document.getElementById('targetSpeed').value = '150';
+    document.getElementById('targetCourse').value = '90';
+    document.getElementById('targetType').value = 'винищувач';
+    document.getElementById('saveBtn').textContent = '✅ Додати';
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('targetForm').style.display = 'flex';
 }
 
-function showTrails() {
-    // Удаляем старые траектории
-    for (const id in trails) {
-        map.removeLayer(trails[id]);
-    }
-    trails = {};
+function hideTargetForm() {
+    document.getElementById('targetForm').style.display = 'none';
+}
+
+function saveTarget() {
+    const id = document.getElementById('targetId').value;
+    const name = document.getElementById('targetName').value;
+    const speed = parseInt(document.getElementById('targetSpeed').value) || 150;
+    const course = parseInt(document.getElementById('targetCourse').value) || 90;
+    const type = document.getElementById('targetType').value;
     
-    // Создаем новые траектории для всех целей
-    targets.forEach(target => {
-        if (targetHistory[target.id] && targetHistory[target.id].length > 0) {
-            trails[target.id] = L.polyline(targetHistory[target.id], {
-                color: getColorForType(target.type),
-                weight: 3,
-                opacity: 0.7,
-                smoothFactor: 1
-            }).addTo(map);
+    if (!name) {
+        alert("⚠️ Будь ласка, введіть назву цілі");
+        return;
+    }
+    
+    if (id) {
+        const target = targets.find(t => t.id === parseInt(id));
+        if (target) {
+            target.name = name;
+            target.speed = speed;
+            target.course = course;
+            target.type = type;
+            updateMarker(target);
         }
-    });
-}
-
-function hideTrails() {
-    for (const id in trails) {
-        map.removeLayer(trails[id]);
+    } else {
+        const center = map.getCenter();
+        const newTarget = {
+            id: nextId++,
+            name: name,
+            type: type,
+            speed: speed,
+            course: course,
+            lat: center.lat,
+            lng: center.lng
+        };
+        targets.push(newTarget);
+        targetHistory[newTarget.id] = [[center.lat, center.lng]];
+        addMarkerToMap(newTarget);
     }
-    trails = {};
+    
+    updateTargetsList();
+    saveToLocalStorage();
+    hideTargetForm();
 }
 
-function updateTrail(targetId) {
-    if (trailsVisible && trails[targetId] && targetHistory[targetId]) {
-        // Полностью обновляем траекторию
-        map.removeLayer(trails[targetId]);
-        trails[targetId] = L.polyline(targetHistory[targetId], {
-            color: getColorForType(targets.find(t => t.id === targetId)?.type || '#3498db'),
-            weight: 3,
-            opacity: 0.7
-        }).addTo(map);
+function deleteTarget() {
+    const id = document.getElementById('targetId').value;
+    if (!id) return;
+    
+    const targetId = parseInt(id);
+    const targetIndex = targets.findIndex(t => t.id === targetId);
+    if (targetIndex !== -1) {
+        const targetName = targets[targetIndex].name;
+        if (confirm(`🗑️ Видалити ціль "${targetName}"?`)) {
+            if (markers[targetId]) map.removeLayer(markers[targetId]);
+            if (trails[targetId]) map.removeLayer(trails[targetId]);
+            targets.splice(targetIndex, 1);
+            delete targetHistory[targetId];
+            updateTargetsList();
+            saveToLocalStorage();
+            hideTargetForm();
+        }
     }
 }
 
-// ==================== ДВИЖЕНИЕ ЦЕЛЕЙ ====================
+function clearAllTargets() {
+    if (targets.length === 0) return;
+    if (confirm("⚠️ Видалити ВСІ цілі?")) {
+        for (const id in markers) map.removeLayer(markers[id]);
+        for (const id in trails) map.removeLayer(trails[id]);
+        markers = {}; trails = {}; targets = []; targetHistory = {}; nextId = 1;
+        updateTargetsList();
+        saveToLocalStorage();
+    }
+}
+
+// ==================== ДВИЖЕНИЕ И ТРАЕКТОРИИ ====================
+function toggleMovement() {
+    if (isMoving) {
+        stopMovement();
+    } else {
+        startMovement();
+    }
+}
+
+function startMovement() {
+    isMoving = true;
+    document.getElementById('movementBtn').textContent = '⏸️ Стоп';
+    lastUpdateTime = Date.now();
+    movementInterval = setInterval(moveTargets, 100);
+    updateStatus();
+}
+
+function stopMovement() {
+    isMoving = false;
+    document.getElementById('movementBtn').textContent = '▶️ Пуск';
+    clearInterval(movementInterval);
+    updateStatus();
+}
+
 function moveTargets() {
     if (!isMoving || targets.length === 0) return;
     
@@ -342,11 +386,6 @@ function moveTargets() {
     
     targets.forEach(target => {
         if (target.speed > 0) {
-            // Сохраняем предыдущую позицию для истории
-            const prevLat = target.lat;
-            const prevLng = target.lng;
-            
-            // Реалистичное движение
             const distanceKm = (target.speed * deltaTime) / 3600;
             const distanceDegrees = distanceKm * DEGREES_PER_KM;
             const courseRad = target.course * Math.PI / 180;
@@ -357,22 +396,13 @@ function moveTargets() {
             target.lat += latChange;
             target.lng += lngChange;
             
-            // Добавляем в историю
             if (!targetHistory[target.id]) targetHistory[target.id] = [];
             targetHistory[target.id].push([target.lat, target.lng]);
             
-            // Ограничиваем длину истории (последние 100 точек)
-            if (targetHistory[target.id].length > 100) {
-                targetHistory[target.id].shift();
-            }
+            if (targetHistory[target.id].length > 100) targetHistory[target.id].shift();
             
-            // Обновляем маркер
-            if (markers[target.id]) {
-                markers[target.id].setLatLng([target.lat, target.lng]);
-            }
-            
-            // Обновляем траекторию
-            updateTrail(target.id);
+            if (markers[target.id]) markers[target.id].setLatLng([target.lat, target.lng]);
+            if (trailsVisible) updateTrail(target.id);
         }
     });
     
@@ -380,91 +410,53 @@ function moveTargets() {
     updateStats();
 }
 
-// ==================== НОВЫЕ ФУНКЦИИ ====================
-function showStats() {
-    const statsPanel = document.getElementById('statsPanel');
-    statsPanel.style.display = statsPanel.style.display === 'none' ? 'block' : 'none';
-    updateStats();
+function toggleTrails() {
+    trailsVisible = !trailsVisible;
+    const btn = document.getElementById('trailsBtn');
+    btn.textContent = trailsVisible ? '⚫ Траєкторії' : '🔴 Траєкторії';
+    
+    if (trailsVisible) {
+        showTrails();
+    } else {
+        hideTrails();
+    }
 }
 
-function updateStats() {
-    if (targets.length === 0) return;
-    
-    let totalDistance = 0;
-    let totalSpeed = 0;
-    let maxSpeed = 0;
+function showTrails() {
+    for (const id in trails) map.removeLayer(trails[id]);
+    trails = {};
     
     targets.forEach(target => {
-        totalSpeed += target.speed;
-        if (target.speed > maxSpeed) maxSpeed = target.speed;
-        
-        // Расчет общего расстояния (примерно)
-        if (targetHistory[target.id] && targetHistory[target.id].length > 1) {
-            for (let i = 1; i < targetHistory[target.id].length; i++) {
-                const [lat1, lng1] = targetHistory[target.id][i-1];
-                const [lat2, lng2] = targetHistory[target.id][i];
-                totalDistance += calculateDistance(lat1, lng1, lat2, lng2);
-            }
+        if (targetHistory[target.id] && targetHistory[target.id].length > 0) {
+            trails[target.id] = L.polyline(targetHistory[target.id], {
+                color: getColorForType(target.type),
+                weight: 3,
+                opacity: 0.7
+            }).addTo(map);
         }
     });
-    
-    document.getElementById('totalDistance').textContent = totalDistance.toFixed(1) + ' км';
-    document.getElementById('averageSpeed').textContent = (totalSpeed / targets.length).toFixed(0) + ' км/год';
-    document.getElementById('maxSpeed').textContent = maxSpeed + ' км/год';
 }
 
-function calculateDistance(lat1, lng1, lat2, lng2) {
-    // Простой расчет расстояния между точками
-    const dLat = (lat2 - lat1) * 111;
-    const dLng = (lng2 - lng1) * 111 * Math.cos((lat1 + lat2) * Math.PI / 360);
-    return Math.sqrt(dLat * dLat + dLng * dLng);
+function hideTrails() {
+    for (const id in trails) map.removeLayer(trails[id]);
+    trails = {};
 }
 
-function exportData() {
-    const data = {
-        targets: targets,
-        history: targetHistory,
-        exported: new Date().toISOString()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-        a.download = 'targets-export-' + new Date().toISOString().split('T')[0] + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
-            if (data.targets) {
-                targets = data.targets;
-                targetHistory = data.history || {};
-                nextId = Math.max(...targets.map(t => t.id), 0) + 1;
-                
-                // Обновляем карту и интерфейс
-                addMarkersToMap();
-                updateTargetsList();
-                saveToLocalStorage();
-                
-                alert('✅ Дані успішно імпортовано!');
-            }
-        } catch (error) {
-            alert('❌ Помилка імпорту даних: ' + error.message);
+function updateTrail(targetId) {
+    if (trailsVisible && trails[targetId] && targetHistory[targetId]) {
+        map.removeLayer(trails[targetId]);
+        const target = targets.find(t => t.id === targetId);
+        if (target) {
+            trails[targetId] = L.polyline(targetHistory[targetId], {
+                color: getColorForType(target.type),
+                weight: 3,
+                opacity: 0.7
+            }).addTo(map);
         }
-    };
-    reader.readAsText(file);
+    }
 }
 
-// ==================== ОСТАЛЬНЫЕ ФУНКЦИИ ====================
+// ==================== МАРКЕРЫ И ИНТЕРФЕЙС ====================
 function addMarkerToMap(target) {
     const icon = L.divIcon({
         className: 'target-marker',
@@ -493,7 +485,6 @@ function addMarkerToMap(target) {
     
     markers[target.id] = marker;
     
-    // Создаем траекторию если включены
     if (trailsVisible) {
         updateTrail(target.id);
     }
@@ -505,10 +496,17 @@ function addMarkersToMap() {
     
     targets.forEach(target => addMarkerToMap(target));
     
-    // Обновляем траектории если они включены
     if (trailsVisible) {
         showTrails();
     }
+}
+
+function updateMarker(target) {
+    if (markers[target.id]) {
+        map.removeLayer(markers[target.id]);
+        delete markers[target.id];
+    }
+    addMarkerToMap(target);
 }
 
 function getColorForType(type) {
@@ -520,6 +518,7 @@ function getColorForType(type) {
     return colors[type] || '#3498db';
 }
 
+// ==================== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ====================
 function updateTargetsList() {
     const container = document.getElementById('targetsList');
     const counter = document.getElementById('targetCounter');
@@ -554,16 +553,152 @@ function updateStatus() {
     document.getElementById('syncInfo').textContent = status;
 }
 
+function showStats() {
+    const statsPanel = document.getElementById('statsPanel');
+    statsPanel.style.display = statsPanel.style.display === 'none' ? 'block' : 'none';
+    updateStats();
+}
+
+function updateStats() {
+    if (targets.length === 0) return;
+    
+    let totalDistance = 0;
+    let totalSpeed = 0;
+    let maxSpeed = 0;
+    
+    targets.forEach(target => {
+        totalSpeed += target.speed;
+        if (target.speed > maxSpeed) maxSpeed = target.speed;
+        
+        if (targetHistory[target.id] && targetHistory[target.id].length > 1) {
+            for (let i = 1; i < targetHistory[target.id].length; i++) {
+                const [lat1, lng1] = targetHistory[target.id][i-1];
+                const [lat2, lng2] = targetHistory[target.id][i];
+                totalDistance += calculateDistance(lat1, lng1, lat2, lng2);
+            }
+        }
+    });
+    
+    document.getElementById('totalDistance').textContent = totalDistance.toFixed(1) + ' км';
+    document.getElementById('averageSpeed').textContent = (totalSpeed / targets.length).toFixed(0) + ' км/год';
+    document.getElementById('maxSpeed').textContent = maxSpeed + ' км/год';
+}
+
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const dLat = (lat2 - lat1) * 111;
+    const dLng = (lng2 - lng1) * 111 * Math.cos((lat1 + lat2) * Math.PI / 360);
+    return Math.sqrt(dLat * dLat + dLng * dLng);
+}
+
+// ==================== ЭКСПОРТ/ИМПОРТ ====================
+function exportData() {
+    const data = {
+        targets: targets,
+        history: targetHistory,
+        exported: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'targets-export-' + new Date().toISOString().split('T')[0] + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.targets) {
+                    targets = data.targets;
+                    targetHistory = data.history || {};
+                    nextId = Math.max(...targets.map(t => t.id), 0) + 1;
+                    
+                    addMarkersToMap();
+                    updateTargetsList();
+                    saveToLocalStorage();
+                    
+                    alert('✅ Дані успішно імпортовано!');
+                }
+            } catch (error) {
+                alert('❌ Помилка імпорту даних: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+function centerMap() {
+    if (map) map.setView([50.4501, 30.5234], 6);
+}
+
+function showAllTargets() {
+    if (targets.length > 0 && map) {
+        const bounds = new L.LatLngBounds();
+        targets.forEach(target => {
+            bounds.extend([target.lat, target.lng]);
+        });
+        map.fitBounds(bounds);
+    }
+}
+
+function showEditForm(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    editingTargetId = targetId;
+    document.getElementById('formTitle').textContent = '✏️ Редагувати ціль';
+    document.getElementById('targetId').value = targetId;
+    document.getElementById('targetName').value = target.name;
+    document.getElementById('targetSpeed').value = target.speed;
+    document.getElementById('targetCourse').value = target.course;
+    document.getElementById('targetType').value = target.type;
+    document.getElementById('saveBtn').textContent = '💾 Зберегти';
+    document.getElementById('deleteBtn').style.display = 'inline-block';
+    document.getElementById('targetForm').style.display = 'flex';
+}
+
+function deleteTargetFromList(targetId) {
+    const targetIndex = targets.findIndex(t => t.id === targetId);
+    if (targetIndex !== -1) {
+        const targetName = targets[targetIndex].name;
+        if (confirm(`🗑️ Видалити ціль "${targetName}"?`)) {
+            if (markers[targetId]) map.removeLayer(markers[targetId]);
+            if (trails[targetId]) map.removeLayer(trails[targetId]);
+            targets.splice(targetIndex, 1);
+            delete targetHistory[targetId];
+            updateTargetsList();
+            saveToLocalStorage();
+        }
+    }
+}
+
+function deleteTargetFromPopup(targetId) {
+    deleteTargetFromList(targetId);
+    if (map._popup) map.closePopup();
+}
+
 // ==================== ЗАПУСК ====================
 window.addEventListener('load', function() {
     initMap();
     setInterval(updateStatus, 2000);
-    
-    // Скрываем статистику по умолчанию
     document.getElementById('statsPanel').style.display = 'none';
 });
 
-// Глобальные функции
+// ==================== ГЛОБАЛЬНЫЕ ФУНКЦИИ ====================
 window.deleteTarget = deleteTarget;
 window.deleteTargetFromList = deleteTargetFromList;
 window.deleteTargetFromPopup = deleteTargetFromPopup;
@@ -580,19 +715,7 @@ window.saveToLocalStorage = saveToLocalStorage;
 window.toggleTrails = toggleTrails;
 window.showStats = showStats;
 window.exportData = exportData;
-
-// Создаем скрытый input для импорта
-const importInput = document.createElement('input');
-importInput.type = 'file';
-importInput.accept = '.json';
-importInput.style.display = 'none';
-importInput.onchange = importData;
-document.body.appendChild(importInput);
-
-// Функция для вызова импорта
-window.importData = function() {
-    importInput.click();
-};
+window.importData = importData;
             </script>
 </body>
 </html>
