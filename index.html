@@ -34,6 +34,13 @@
     <!-- Main Map Container -->
     <div id="map"></div>
 
+    <!-- Control Buttons -->
+    <div class="map-controls">
+        <button id="add-by-click-btn" class="control-btn" title="Додати ціль кліком">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
     <!-- Collapsible Control Panel -->
     <div class="control-panel">
         <button class="panel-toggle" onclick="togglePanel()">
@@ -76,9 +83,14 @@
                         <input type="number" id="target-course" placeholder="Курс (0-360)" min="0" max="360" class="form-input">
                         <input type="number" id="target-speed" placeholder="Швидкість (км/год)" min="0" class="form-input">
                     </div>
-                    <button onclick="addTargetFromForm()" class="btn btn-primary">
-                        <i class="fas fa-plus"></i> Додати ціль
-                    </button>
+                    <div class="button-group">
+                        <button onclick="addTargetFromForm()" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Додати ціль
+                        </button>
+                        <button id="add-by-click-toggle" class="btn btn-secondary">
+                            <i class="fas fa-mouse-pointer"></i> Додати кліком
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Targets List Tab -->
