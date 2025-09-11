@@ -611,7 +611,7 @@ function updateTargetsList() {
         container.appendChild(div);
     });
 }
-                function startAnimation() {
+            function startAnimation() {
             if (animationInterval) clearInterval(animationInterval);
             lastFrameTime = performance.now();
             animationInterval = setInterval(moveTargets, 50);
@@ -626,25 +626,21 @@ function updateTargetsList() {
 
             targets.forEach(target => {
                 if (target.speed > 0) {
-                    // Конвертируем скорость
-                    const speedDegreesPerSecond = (target.speed / 3600) / 111.0;
-                    const courseRad = target.course * Math.PI / 180;
+                    // Простое и точное движение
+                    const speedDegrees = (target.speed / 3600) / 111.0;
+                    const rad = target.course * Math.PI / 180;
                     
-                    // Движение по курсу
-                    const deltaLat = -Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
-                    const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime / Math.cos(target.lat * Math.PI / 180);
+                    target.lat += -Math.cos(rad) * speedDegrees * deltaTime;
+                    target.lng += Math.sin(rad) * speedDegrees * deltaTime / Math.cos(target.lat * Math.PI / 180);
                     
-                    target.lat += deltaLat;
-                    target.lng += deltaLng;
-                    
-                    // Сохраняем историю
+                    // История
                     if (!targetHistory[target.id]) targetHistory[target.id] = [];
                     targetHistory[target.id].push([target.lat, target.lng]);
                     
                     // Обновляем маркер
                     if (markers[target.id]) {
                         markers[target.id].setLatLng([target.lat, target.lng]);
-                        updateMarkerRotation(target.id, target.course);
+                        updateMarkerIcon(target.id);
                     }
                 }
             });
@@ -652,17 +648,19 @@ function updateTargetsList() {
             updateTargetsList();
         }
 
-        // Функция поворота маркера
-        function updateMarkerRotation(targetId, course) {
+        // Обновление иконки маркера
+        function updateMarkerIcon(targetId) {
             const target = targets.find(t => t.id === targetId);
             if (!target || !markers[targetId]) return;
             
             if (target.type === 'дрон') {
+                // Для дрона - поворачиваем PNG
                 if (markers[targetId]._icon) {
-                    markers[targetId]._icon.style.transform = `rotate(${course}deg)`;
+                    markers[targetId]._icon.style.transform = `rotate(${target.course}deg)`;
                 }
             } else {
-                const newIcon = createCustomIcon(target.type, course);
+                // Для остальных - создаем новую иконку
+                const newIcon = createCustomIcon(target.type, target.course);
                 markers[targetId].setIcon(newIcon);
             }
         }
@@ -673,30 +671,22 @@ function updateTargetsList() {
             alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту для встановлення курсу.`);
         }
 
-        // ПРОСТАЯ И ПРАВИЛЬНАЯ ФОРМУЛА КУРСА
+        // САМАЯ ПРОСТАЯ И РАБОЧАЯ ФОРМУЛА КУРСА
         function updateTargetCourse(e) {
             if (!selectedTargetId) return;
             
             const target = targets.find(t => t.id === selectedTargetId);
             if (!target) return;
             
-            const startLat = target.lat;
-            const startLng = target.lng;
-            const endLat = e.latlng.lat;
-            const endLng = e.latlng.lng;
+            const dx = e.latlng.lng - target.lng;
+            const dy = e.latlng.lat - target.lat;
             
-            // ПРОСТОЙ И ТОЧНЫЙ РАСЧЕТ
-            const dLng = endLng - startLng;
-            const dLat = endLat - startLat;
+            // СУПЕР-ПРОСТОЙ РАСЧЕТ
+            let angle = Math.atan2(dx, dy) * 180 / Math.PI;
+            target.course = Math.round((360 - angle) % 360);
             
-            let angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
-            let newCourse = (360 - angle) % 360;
-            
-            // Округляем до целого
-            target.course = Math.round(newCourse);
-            
-            // Сразу обновляем отображение
-            updateMarkerRotation(target.id, target.course);
+            // Мгновенное обновление
+            updateMarkerIcon(target.id);
             saveTargetsToStorage();
             
             alert(`Курс встановлено: ${target.course}°`);
@@ -735,21 +725,22 @@ function updateTargetsList() {
             map.setView([50.4501, 30.5234], 6);
         }
 
-        // Пересоздаем все маркеры при загрузке
-        function reloadAllMarkers() {
-            for (const id in markers) {
-                map.removeLayer(markers[id]);
+        // Принудительное обновление всех маркеров
+        function refreshAllMarkers() {
+            for (let id in markers) {
+                if (markers[id]) map.removeLayer(markers[id]);
             }
             markers = {};
+            targetTrails = {};
             updateMapMarkers();
         }
 
         window.onload = function() {
             initMap();
-            setTimeout(reloadAllMarkers, 1000);
+            // Двойное обновление чтобы гарантировать работу
+            setTimeout(refreshAllMarkers, 500);
+            setTimeout(refreshAllMarkers, 1000);
         }
     </script>
 </body>
 </html>
-
-        
