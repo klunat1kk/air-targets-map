@@ -494,20 +494,28 @@ function loadTargets() {
     updateMapMarkers();
 }
 
-// Создание треугольного маркера с правильным поворотом
-function createTriangleIcon(type, course) {
+// Создание иконки (треугольники для всех, кроме дрона - PNG)
+function createCustomIcon(type, course) {
+    // Для дрона используем PNG иконку
+    if (type === 'дрон') {
+        return L.icon({
+            iconUrl: 'icons/shahed.png',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            popupAnchor: [0, -15],
+            className: 'target-icon'
+        });
+    }
+    
+    // Для остальных типов - треугольники
     const colors = {
         'винищувач': '#3498db',
-        'дрон': '#e74c3c',
         'ракета': '#f39c12',
         'бомба': '#95a5a6',
         'корабль': '#9b59b6'
     };
 
     const color = colors[type] || '#3498db';
-    
-    // Правильный поворот: 0° = на север, 90° = на восток
-    // В Leaflet 0° = направо, поэтому вычитаем 90°
     const rotation = course - 90;
 
     return L.divIcon({
@@ -532,7 +540,7 @@ function updateMapMarkers() {
     hiddenTargets.clear();
     
     targets.forEach(target => {
-        const icon = createTriangleIcon(target.type, target.course);
+        const icon = createCustomIcon(target.type, target.course);
         const marker = L.marker([target.lat, target.lng], {icon: icon})
             .bindPopup(`
                 <b>${target.name}</b><br>
@@ -626,8 +634,11 @@ function updateTargetsList() {
                     // Обновляем маркер если он видимый
                     if (markers[target.id] && map.hasLayer(markers[target.id])) {
                         markers[target.id].setLatLng([newLat, newLng]);
-                        const newIcon = createTriangleIcon(target.type, target.course);
-                        markers[target.id].setIcon(newIcon);
+                        // Для треугольников обновляем иконку с новым курсом
+                        if (target.type !== 'дрон') {
+                            const newIcon = createCustomIcon(target.type, target.course);
+                            markers[target.id].setIcon(newIcon);
+                        }
                     }
                     
                     // Обновляем видимость
@@ -663,21 +674,31 @@ function updateTargetsList() {
             alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
         }
 
+        // ПРАВИЛЬНЫЙ расчет курса к точке клика
         function updateTargetCourse(e) {
             if (!selectedTargetId) return;
             
             const target = targets.find(t => t.id === selectedTargetId);
             if (!target) return;
             
+            // Правильный расчет курса (0° = север, 90° = восток)
             const dx = e.latlng.lng - target.lng;
             const dy = e.latlng.lat - target.lat;
-            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+            
+            // Правильный расчет угла в радианах (0 = север)
+            let angleRad = Math.atan2(dx, dy);
+            
+            // Конвертируем в градусы и нормализуем (0-360)
+            let newCourse = (angleRad * 180 / Math.PI + 360) % 360;
             
             target.course = newCourse;
             
             if (markers[target.id]) {
-                const newIcon = createTriangleIcon(target.type, newCourse);
-                markers[target.id].setIcon(newIcon);
+                // Для треугольников обновляем иконку с новым курсом
+                if (target.type !== 'дрон') {
+                    const newIcon = createCustomIcon(target.type, newCourse);
+                    markers[target.id].setIcon(newIcon);
+                }
             }
             
             // Сохраняем изменения
@@ -730,4 +751,5 @@ function updateTargetsList() {
     </script>
 </body>
 </html>
+        
         
