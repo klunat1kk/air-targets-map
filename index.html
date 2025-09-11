@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Карта повітряних цілей</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Добавляем Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { padding: 20px; background: #1a1f2d; color: white; font-family: Arial, sans-serif; }
@@ -121,6 +124,16 @@
             justify-content: space-between;
             margin: 5px 0;
         }
+        
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+        }
+        .online { background: #27ae60; }
+        .offline { background: #e74c3c; }
     </style>
 </head>
 <body>
@@ -201,8 +214,96 @@ let trailsVisible = false;
 let editingTargetId = null;
 let targetHistory = {};
 
+// Firebase конфигурация (ЗАМЕНИТЕ НА СВОЮ!)
+const firebaseConfig = {
+    apiKey: "your-api-key-here",
+    authDomain: "your-project-id.firebaseapp.com",
+    databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
+    projectId: "your-project-id",
+    storageBucket: "your-project-id.appspot.com",
+    messagingSenderId: "123456789000",
+    appId: "your-app-id-here"
+};
+
+let db = null;
+let isOnline = false;
+let onlineUsers = 0;
+
 const EARTH_RADIUS_KM = 6371;
 const DEGREES_PER_KM = 1 / 111;
+
+// ==================== FIREBASE ====================
+function initFirebase() {
+    try {
+        if (typeof firebase !== 'undefined') {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            setupRealtimeListeners();
+            isOnline = true;
+            updateStatus();
+            console.log("✅ Firebase подключен");
+        }
+    } catch (error) {
+        console.log("⚠️ Firebase не подключен (работаем локально)");
+        isOnline = false;
+    }
+}
+
+function setupRealtimeListeners() {
+    if (!db) return;
+    
+    db.ref('targets').on('value', (snapshot) => {
+        const firebaseTargets = snapshot.val() || {};
+        mergeTargets(firebaseTargets);
+    });
+    
+    db.ref('online_count').on('value', (snapshot) => {
+        onlineUsers = snapshot.val() || 0;
+        updateStatus();
+    });
+}
+
+function mergeTargets(firebaseTargets) {
+    const firebaseTargetsArray = Object.values(firebaseTargets);
+    
+    firebaseTargetsArray.forEach(fbTarget => {
+        const existingTarget = targets.find(t => t.id === fbTarget.id);
+        if (existingTarget) {
+            if (fbTarget.lastUpdate > (existingTarget.lastUpdate || 0)) {
+                Object.assign(existingTarget, fbTarget);
+                updateMarker(existingTarget);
+            }
+        } else {
+            targets.push(fbTarget);
+            if (!targetHistory[fbTarget.id]) {
+                targetHistory[fbTarget.id] = [[fbTarget.lat, fbTarget.lng]];
+            }
+            addMarkerToMap(fbTarget);
+        }
+    });
+    
+    updateTargetsList();
+}
+
+function saveToFirebase() {
+    if (!db || !isOnline) return;
+    
+    try {
+        const targetsObj = {};
+        targets.forEach(target => {
+            targetsObj[target.id] = {
+                ...target,
+                lastUpdate: Date.now()
+            };
+        });
+        
+        db.ref('targets').set(targetsObj);
+        db.ref('online_count').set(onlineUsers);
+        
+    } catch (error) {
+        console.error("❌ Ошибка Firebase:", error);
+    }
+}
 
 // ==================== ОСНОВНЫЕ ФУНКЦИИ ====================
 function initMap() {
@@ -217,6 +318,7 @@ function initMap() {
         }).addTo(map);
         
         loadFromLocalStorage();
+        initFirebase();
         updateTargetsList();
         updateStatus();
         
@@ -260,6 +362,11 @@ function loadDefaultTargets() {
 function saveToLocalStorage() {
     const data = { targets: targets, nextId: nextId, targetHistory: targetHistory };
     localStorage.setItem('airTargetsData', JSON.stringify(data));
+    
+    if (isOnline) {
+        saveToFirebase();
+    }
+    
     updateStatus();
 }
 
@@ -299,6 +406,7 @@ function saveTarget() {
             target.speed = speed;
             target.course = course;
             target.type = type;
+            target.lastUpdate = Date.now();
             updateMarker(target);
         }
     } else {
@@ -310,7 +418,8 @@ function saveTarget() {
             speed: speed,
             course: course,
             lat: center.lat,
-            lng: center.lng
+            lng: center.lng,
+            lastUpdate: Date.now()
         };
         targets.push(newTarget);
         targetHistory[newTarget.id] = [[center.lat, center.lng]];
@@ -395,6 +504,7 @@ function moveTargets() {
             
             target.lat += latChange;
             target.lng += lngChange;
+            target.lastUpdate = Date.now();
             
             if (!targetHistory[target.id]) targetHistory[target.id] = [];
             targetHistory[target.id].push([target.lat, target.lng]);
@@ -408,6 +518,7 @@ function moveTargets() {
     
     updateTargetsList();
     updateStats();
+    saveToLocalStorage();
 }
 
 function toggleTrails() {
@@ -549,7 +660,10 @@ function updateTargetsList() {
 }
 
 function updateStatus() {
-    const status = `💾 Локальний режим | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'} | Цілей: ${targets.length}`;
+    let status = '💾 ';
+    status += isOnline ? `Онлайн | 👥 ${onlineUsers} користувачів` : 'Локальний режим';
+    status += ` | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'} | Цілей: ${targets.length}`;
+    
     document.getElementById('syncInfo').textContent = status;
 }
 
