@@ -1,4 +1,3 @@
-
 // Конфигурация Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyDqoW0Y4Uf-dsUcK6f2k2M2Z9Q6w6qZ6qQ",
@@ -24,16 +23,18 @@ let isOnline = true;
 let isAdmin = false;
 let movementInterval;
 let lastUpdateTime = Date.now();
+let isAddingByClick = false;
+let tempMarker = null;
 
 // Иконки для целей
 const droneIcon = L.icon({
-    iconUrl: './shahed.png',
+    iconUrl: 'shahed.png',
     iconSize: [30, 30],
     iconAnchor: [15, 15]
 });
 
 const rocketIcon = L.icon({
-    iconUrl: './raketa.png', 
+    iconUrl: 'raketa.png', 
     iconSize: [25, 25],
     iconAnchor: [12, 12]
 });
@@ -61,12 +62,27 @@ function initMap() {
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.attribution({ position: 'bottomright' }).addTo(map);
 
+    // Обработчик клика по карте для добавления целей
+    map.on('click', function(e) {
+        if (isAddingByClick) {
+            addTargetByClick(e.latlng);
+        }
+    });
+
     // Загрузка данных
     loadFromLocalStorage();
     initFirebase();
     startMovementInterval();
     updateStats();
     updateUI();
+    setupEventListeners();
+}
+
+// Настройка обработчиков событий
+function setupEventListeners() {
+    // Кнопка добавления кликом
+    document.getElementById('add-by-click-toggle').addEventListener('click', toggleAddByClick);
+    document.getElementById('add-by-click-btn').addEventListener('click', toggleAddByClick);
 }
 
 // Инициализация Firebase
@@ -132,6 +148,59 @@ function updateLastUpdateTime() {
     lastUpdateTime = Date.now();
 }
 
+// Переключение режима добавления кликом
+function toggleAddByClick() {
+    isAddingByClick = !isAddingByClick;
+    const btn = document.getElementById('add-by-click-btn');
+    const toggleBtn = document.getElementById('add-by-click-toggle');
+    
+    if (isAddingByClick) {
+        btn.classList.add('active');
+        toggleBtn.classList.add('active');
+        toggleBtn.innerHTML = '<i class="fas fa-times"></i> Скасувати';
+        map.getContainer().style.cursor = 'crosshair';
+    } else {
+        btn.classList.remove('active');
+        toggleBtn.classList.remove('active');
+        toggleBtn.innerHTML = '<i class="fas fa-mouse-pointer"></i> Додати кліком';
+        map.getContainer().style.cursor = '';
+        
+        if (tempMarker) {
+            map.removeLayer(tempMarker);
+            tempMarker = null;
+        }
+    }
+}
+
+// Добавление цели кликом по карте
+function addTargetByClick(latlng) {
+    if (!isAddingByClick) return;
+    
+    // Показываем временный маркер
+    if (tempMarker) {
+        map.removeLayer(tempMarker);
+    }
+    
+    tempMarker = L.marker(latlng, {
+        icon: L.divIcon({
+            className: 'temp-marker',
+            html: '<div style="background: #4299e1; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        })
+    }).addTo(map);
+    
+    // Заполняем форму координатами
+    document.getElementById('target-lat').value = latlng.lat.toFixed(6);
+    document.getElementById('target-lng').value = latlng.lng.toFixed(6);
+    
+    // Переходим на вкладку добавления
+    openTab('add-tab');
+    
+    // Фокусируемся на поле названия
+    document.getElementById('target-name').focus();
+}
+
 // Добавление цели с формы
 function addTargetFromForm() {
     const name = document.getElementById('target-name').value;
@@ -160,12 +229,16 @@ function addTargetFromForm() {
 
     addOrUpdateTarget(targetData);
     
-    // Очистка формы
+    // Очистка формы и выход из режима добавления
     document.getElementById('target-name').value = '';
     document.getElementById('target-lat').value = '';
     document.getElementById('target-lng').value = '';
     document.getElementById('target-course').value = '';
     document.getElementById('target-speed').value = '';
+    
+    if (isAddingByClick) {
+        toggleAddByClick();
+    }
 }
 
 // Добавление или обновление цели
@@ -631,3 +704,4 @@ window.togglePanel = togglePanel;
 window.openTab = openTab;
 window.toggleTrails = toggleTrails;
 window.showTargetActions = showTargetActions;
+window.toggleAddByClick = toggleAddByClick;
