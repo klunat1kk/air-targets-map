@@ -30,6 +30,7 @@
             border-radius: 10px; 
             border: 2px solid #a38d6d; 
             width: 300px; 
+            text-align: center;
         }
         .modal input, .modal select { 
             width: 100%; 
@@ -122,32 +123,50 @@
         </div>
     </div>
 
+    <!-- Модальное окно с предупреждением -->
+    <div id="disclaimerModal" class="modal">
+        <div class="modal-content">
+            <h3>⚠️ Увага!</h3>
+            <p>Сайт не є офіційним джерелом інформації, та не відноситься до військових технологій, дані беруться з відкритих джерел</p>
+            <button class="btn" onclick="hideDisclaimer()" style="margin-top: 15px;">Зрозуміло</button>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // Глобальные переменные
-        let map;
-        let markers = {};
-        let animationPaused = false;
-        let courseMode = false;
-        let addMode = false;
-        let trailsVisible = true;
-        let selectedTargetId = null;
-        let currentMapView = 'street';
-        let baseLayers = {};
-        let targets = [];
-        let animationInterval;
-        let nextId = 3;
-        let targetTrails = {};
-        let targetHistory = {};
-        let clickMarker = null;
-        let lastFrameTime = performance.now();
-        let hiddenTargets = new Set();
-        // Сохранение целей в LocalStorage
+let map;
+let markers = {};
+let animationPaused = false;
+let courseMode = false;
+let addMode = false;
+let trailsVisible = true;
+let selectedTargetId = null;
+let currentMapView = 'street';
+let baseLayers = {};
+let targets = [];
+let animationInterval;
+let nextId = 3;
+let targetTrails = {};
+let targetHistory = {};
+let clickMarker = null;
+let lastFrameTime = performance.now();
+let hiddenTargets = new Set();
+
+// Функции для работы с модальным окном предупреждения
+function showDisclaimer() {
+    document.getElementById('disclaimerModal').style.display = 'flex';
+}
+
+function hideDisclaimer() {
+    document.getElementById('disclaimerModal').style.display = 'none';
+}
+
+// Сохранение целей в LocalStorage (без всплывающего окна)
 function saveTargetsToStorage() {
     localStorage.setItem('airTargets', JSON.stringify(targets));
     localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
     localStorage.setItem('nextId', nextId.toString());
-    alert('Цілі збережено!');
 }
 
 // Загрузка целей из LocalStorage
@@ -183,6 +202,9 @@ function loadTargetsFromStorage() {
 // Инициализация карты
 function initMap() {
     console.log("Инициализация карты...");
+    
+    // Показываем предупреждение при загрузке
+    showDisclaimer();
     
     map = L.map('map').setView([50.4501, 30.5234], 6);
     
@@ -471,100 +493,100 @@ function loadTargets() {
     updateTargetsList();
     updateMapMarkers();
 }
-                // Создание треугольного маркера с правильным поворотом
-        function createTriangleIcon(type, course) {
-            const colors = {
-                'винищувач': '#3498db',
-                'дрон': '#e74c3c',
-                'ракета': '#f39c12',
-                'бомба': '#95a5a6',
-                'корабль': '#9b59b6'
-            };
 
-            const color = colors[type] || '#3498db';
-            
-            // Правильный поворот: 0° = на север, 90° = на восток
-            // В Leaflet 0° = направо, поэтому вычитаем 90°
-            const rotation = course - 90;
+// Создание треугольного маркера с правильным поворотом
+function createTriangleIcon(type, course) {
+    const colors = {
+        'винищувач': '#3498db',
+        'дрон': '#e74c3c',
+        'ракета': '#f39c12',
+        'бомба': '#95a5a6',
+        'корабль': '#9b59b6'
+    };
 
-            return L.divIcon({
-                className: 'target-icon',
-                html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg); transform-origin: center;"></div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-            });
-        }
+    const color = colors[type] || '#3498db';
+    
+    // Правильный поворот: 0° = на север, 90° = на восток
+    // В Leaflet 0° = направо, поэтому вычитаем 90°
+    const rotation = course - 90;
 
-        function updateMapMarkers() {
-            const bounds = map.getBounds();
-            
-            for (const id in markers) {
-                map.removeLayer(markers[id]);
-            }
-            for (const id in targetTrails) {
-                if (targetTrails[id]) map.removeLayer(targetTrails[id]);
-            }
-            markers = {};
-            targetTrails = {};
-            hiddenTargets.clear();
-            
-            targets.forEach(target => {
-                const icon = createTriangleIcon(target.type, target.course);
-                const marker = L.marker([target.lat, target.lng], {icon: icon})
-                    .bindPopup(`
-                        <b>${target.name}</b><br>
-                        Тип: ${target.type}<br>
-                        Швидкість: ${target.speed} км/год<br>
-                        Курс: ${target.course}°<br>
-                        <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
-                        <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
-                    `)
-                    .on('click', function() {
-                        if (courseMode) {
-                            selectTargetForCourse(target.id);
-                        }
-                    });
-                
-                // Добавляем маркер на карту только если он в пределах видимости
-                if (bounds.contains([target.lat, target.lng])) {
-                    marker.addTo(map);
-                } else {
-                    hiddenTargets.add(target.id);
-                }
-                
-                markers[target.id] = marker;
-                
-                // Траектории (только для видимых целей)
-                if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
-                    targetTrails[target.id] = L.polyline(targetHistory[target.id], {
-                        color: 'red',
-                        weight: 1,
-                        opacity: 0.7
-                    }).addTo(map);
+    return L.divIcon({
+        className: 'target-icon',
+        html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg); transform-origin: center;"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+}
+
+function updateMapMarkers() {
+    const bounds = map.getBounds();
+    
+    for (const id in markers) {
+        map.removeLayer(markers[id]);
+    }
+    for (const id in targetTrails) {
+        if (targetTrails[id]) map.removeLayer(targetTrails[id]);
+    }
+    markers = {};
+    targetTrails = {};
+    hiddenTargets.clear();
+    
+    targets.forEach(target => {
+        const icon = createTriangleIcon(target.type, target.course);
+        const marker = L.marker([target.lat, target.lng], {icon: icon})
+            .bindPopup(`
+                <b>${target.name}</b><br>
+                Тип: ${target.type}<br>
+                Швидкість: ${target.speed} км/год<br>
+                Курс: ${target.course}°<br>
+                <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
+                <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
+            `)
+            .on('click', function() {
+                if (courseMode) {
+                    selectTargetForCourse(target.id);
                 }
             });
+        
+        // Добавляем маркер на карту только если он в пределах видимости
+        if (bounds.contains([target.lat, target.lng])) {
+            marker.addTo(map);
+        } else {
+            hiddenTargets.add(target.id);
         }
-
-        function updateTargetsList() {
-            const container = document.getElementById('targetsList');
-            container.innerHTML = '';
-            
-            targets.forEach(target => {
-                const div = document.createElement('div');
-                div.className = 'target-item';
-                const isHidden = hiddenTargets.has(target.id);
-                div.innerHTML = `
-                    <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
-                    Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
-                    Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
-                    ${isHidden ? '<br><small>поза межами карти</small>' : ''}
-                `;
-                div.onclick = () => showTargetForm(target.id);
-                container.appendChild(div);
-            });
+        
+        markers[target.id] = marker;
+        
+        // Траектории (только для видимых целей)
+        if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
+            targetTrails[target.id] = L.polyline(targetHistory[target.id], {
+                color: 'red',
+                weight: 1,
+                opacity: 0.7
+            }).addTo(map);
         }
+    });
+}
 
-        function startAnimation() {
+function updateTargetsList() {
+    const container = document.getElementById('targetsList');
+    container.innerHTML = '';
+    
+    targets.forEach(target => {
+        const div = document.createElement('div');
+        div.className = 'target-item';
+        const isHidden = hiddenTargets.has(target.id);
+        div.innerHTML = `
+            <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
+            Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
+            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+            ${isHidden ? '<br><small>поза межами карти</small>' : ''}
+        `;
+        div.onclick = () => showTargetForm(target.id);
+        container.appendChild(div);
+    });
+}
+                function startAnimation() {
             if (animationInterval) clearInterval(animationInterval);
             lastFrameTime = performance.now();
             animationInterval = setInterval(moveTargets, 50);
@@ -627,7 +649,7 @@ function loadTargets() {
                 }
             });
             
-            // Автосохранение каждые 30 секунд
+            // Автосохранение каждые 30 секунд (без всплывающего окна)
             if (Math.random() < 0.01) {
                 saveTargetsToStorage();
             }
@@ -708,5 +730,4 @@ function loadTargets() {
     </script>
 </body>
 </html>
-        
         
