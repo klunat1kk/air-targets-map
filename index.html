@@ -89,6 +89,7 @@
         <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
         <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
         <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
+        <button class="btn" onclick="saveTargetsToStorage()" title="Зберегти всі цілі">💾 Зберегти</button>
         <a href="/" class="btn">← На головну</a>
         <a href="/targets" class="btn">📋 Список цілей</a>
     </div>
@@ -141,7 +142,45 @@
         let clickMarker = null;
         let lastFrameTime = performance.now();
         let hiddenTargets = new Set();
-        // Инициализация карты
+        // Сохранение целей в LocalStorage
+function saveTargetsToStorage() {
+    localStorage.setItem('airTargets', JSON.stringify(targets));
+    localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
+    localStorage.setItem('nextId', nextId.toString());
+    alert('Цілі збережено!');
+}
+
+// Загрузка целей из LocalStorage
+function loadTargetsFromStorage() {
+    const savedTargets = localStorage.getItem('airTargets');
+    const savedHistory = localStorage.getItem('targetHistory');
+    const savedNextId = localStorage.getItem('nextId');
+    
+    if (savedTargets) {
+        targets = JSON.parse(savedTargets);
+    }
+    if (savedHistory) {
+        targetHistory = JSON.parse(savedHistory);
+    }
+    if (savedNextId) {
+        nextId = parseInt(savedNextId);
+    }
+    
+    // Если нет сохраненных целей, создаем демо-цели
+    if (targets.length === 0) {
+        targets = [
+            {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 0, lat: 50.45, lng: 30.52},
+            {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 90, lat: 49.0, lng: 31.0}
+        ];
+        
+        targets.forEach(target => {
+            targetHistory[target.id] = [[target.lat, target.lng]];
+        });
+        nextId = 3;
+    }
+}
+
+// Инициализация карты
 function initMap() {
     console.log("Инициализация карты...");
     
@@ -267,7 +306,7 @@ function toggleAddMode() {
             clickMarker = null;
         }
     }
-        }
+}
         // Показать форму для добавления/редактирования
 function showTargetForm(targetId, latlng = null) {
     const form = document.getElementById('targetForm');
@@ -297,7 +336,7 @@ function showTargetForm(targetId, latlng = null) {
         idField.value = '';
         nameField.value = 'Ціль ' + nextId;
         speedField.value = 800;
-        courseField.value = 90;
+        courseField.value = 0;
         typeField.value = 'винищувач';
         deleteBtn.style.display = 'none';
         
@@ -363,6 +402,9 @@ function saveTarget() {
         targetHistory[newTarget.id] = [[lat, lng]];
     }
     
+    // Сохраняем в LocalStorage
+    saveTargetsToStorage();
+    
     updateMapMarkers();
     updateTargetsList();
     hideTargetForm();
@@ -386,6 +428,10 @@ function deleteTarget() {
             if (hiddenTargets.has(parseInt(id))) {
                 hiddenTargets.delete(parseInt(id));
             }
+            
+            // Сохраняем в LocalStorage
+            saveTargetsToStorage();
+            
             updateMapMarkers();
             updateTargetsList();
         }
@@ -421,19 +467,11 @@ function searchLocation(query) {
 }
 
 function loadTargets() {
-    targets = [
-        {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
-        {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
-    ];
-    
-    targets.forEach(target => {
-        targetHistory[target.id] = [[target.lat, target.lng]];
-    });
-    
+    loadTargetsFromStorage();
     updateTargetsList();
     updateMapMarkers();
 }
-                // Создание треугольного маркера
+                // Создание треугольного маркера с правильным поворотом
         function createTriangleIcon(type, course) {
             const colors = {
                 'винищувач': '#3498db',
@@ -444,11 +482,14 @@ function loadTargets() {
             };
 
             const color = colors[type] || '#3498db';
-            const rotation = course;
+            
+            // Правильный поворот: 0° = на север, 90° = на восток
+            // В Leaflet 0° = направо, поэтому вычитаем 90°
+            const rotation = course - 90;
 
             return L.divIcon({
                 className: 'target-icon',
-                html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg);"></div>`,
+                html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg); transform-origin: center;"></div>`,
                 iconSize: [20, 20],
                 iconAnchor: [10, 10]
             });
@@ -545,10 +586,10 @@ function loadTargets() {
                     const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
                     
                     const speedDegreesPerSecond = speedKmPerSecond * latDegreesPerKm;
-                    const courseRad = (target.course - 90) * Math.PI / 180;
+                    const courseRad = (target.course) * Math.PI / 180; // 0° = север
                     
-                    const deltaLat = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime;
-                    const deltaLng = Math.cos(courseRad) * speedDegreesPerSecond * deltaTime * 
+                    const deltaLat = -Math.cos(courseRad) * speedDegreesPerSecond * deltaTime;
+                    const deltaLng = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime * 
                                     (latDegreesPerKm / lngDegreesPerKm);
                     
                     const newLat = target.lat + deltaLat;
@@ -586,6 +627,11 @@ function loadTargets() {
                 }
             });
             
+            // Автосохранение каждые 30 секунд
+            if (Math.random() < 0.01) {
+                saveTargetsToStorage();
+            }
+            
             updateTargetsList();
         }
 
@@ -603,7 +649,7 @@ function loadTargets() {
             
             const dx = e.latlng.lng - target.lng;
             const dy = e.latlng.lat - target.lat;
-            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
             
             target.course = newCourse;
             
@@ -611,6 +657,9 @@ function loadTargets() {
                 const newIcon = createTriangleIcon(target.type, newCourse);
                 markers[target.id].setIcon(newIcon);
             }
+            
+            // Сохраняем изменения
+            saveTargetsToStorage();
             
             alert(`Курс змінено на: ${Math.round(newCourse)}°`);
             
@@ -659,3 +708,5 @@ function loadTargets() {
     </script>
 </body>
 </html>
+        
+        
