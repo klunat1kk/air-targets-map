@@ -33,6 +33,10 @@
             margin: 5px 0;
             background: #2c3e50;
             border-radius: 5px;
+            cursor: pointer;
+        }
+        .target-item:hover {
+            background: #34495e;
         }
         
         .modal {
@@ -61,79 +65,97 @@
             background: #1a1f2d;
             color: white;
         }
+        
+        .status-bar {
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>🗺️ Карта повітряних цілей</h1>
-    <div id="syncInfo">Локальний режим</div>
+    <div class="status-bar">
+        <h1>🗺️ Карта повітряних цілей</h1>
+        <div id="syncInfo">💾 Локальний режим | Цілей: 0</div>
+    </div>
 
     <div class="controls">
         <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
-        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль</button>
-        <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
-        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
-        <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
-        <button class="btn" onclick="forceSync()">💾 Зберегти</button>
+        <button class="btn" onclick="showAddForm()">📍 Додати ціль</button>
+        <button class="btn" onclick="startMovement()">▶️ Пуск</button>
+        <button class="btn" onclick="clearAllTargets()">🗑️ Очистити</button>
+        <button class="btn" onclick="saveToLocalStorage()">💾 Зберегти</button>
     </div>
 
     <div id="map"></div>
 
-    <h3>🎯 Активні цілі:</h3>
+    <h3>🎯 Активні цілі (подвійний клік для видалення):</h3>
     <div id="targetsList">Завантаження...</div>
 
     <!-- Форма добавления цели -->
     <div id="targetForm" class="modal">
         <div class="modal-content">
-            <h3>➕ Додати ціль</h3>
+            <h3>➕ Додати нову ціль</h3>
             <input type="text" id="targetName" placeholder="Назва цілі" value="Ціль">
             <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" value="100">
             <input type="number" id="targetCourse" placeholder="Курс (0-360°)" value="90" min="0" max="360">
             <select id="targetType">
-                <option value="винищувач">Винищувач</option>
-                <option value="дрон">Дрон</option>
-                <option value="ракета">Ракета</option>
+                <option value="винищувач">🛩️ Винищувач</option>
+                <option value="дрон">🚁 Дрон</option>
+                <option value="ракета">🚀 Ракета</option>
+                <option value="бомба">💣 Бомба</option>
+                <option value="корабль">⛴️ Корабель</option>
             </select>
             <div style="margin-top:15px;">
-                <button class="btn" onclick="addTarget()">💾 Додати</button>
-                <button class="btn" onclick="hideTargetForm()" style="background:#e74c3c;">❌ Скасувати</button>
+                <button class="btn" onclick="addTarget()">✅ Додати</button>
+                <button class="btn" onclick="hideAddForm()" style="background:#e74c3c;">❌ Скасувати</button>
             </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-// Глобальные переменные
+// ==================== КОНФИГУРАЦИЯ ====================
 let map;
 let targets = [];
+let markers = [];
 let nextId = 1;
-let animationPaused = false;
+let isMoving = false;
+let movementInterval;
 
-// Инициализация карты
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 function initMap() {
-    console.log("Ініціалізація карти...");
+    console.log("🔄 Ініціалізація карти...");
     
     try {
+        // Создаем карту
         map = L.map('map').setView([50.4501, 30.5234], 6);
         
+        // Добавляем tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
         }).addTo(map);
         
         // Загружаем сохраненные данные
         loadFromLocalStorage();
-        updateTargetsList();
         
-        console.log("Карта успішно завантажена");
+        // Обновляем интерфейс
+        updateTargetsList();
+        updateStatus();
+        
+        console.log("✅ Карта успішно ініціалізована");
         
     } catch (error) {
-        console.error("Помилка завантаження карти:", error);
-        document.getElementById('syncInfo').textContent = "Помилка карти, але дані завантажено";
+        console.error("❌ Помилка ініціалізації:", error);
+        document.getElementById('syncInfo').textContent = "❌ Помилка карти, але дані завантажено";
         loadFromLocalStorage();
         updateTargetsList();
     }
 }
 
-// Загрузка из LocalStorage
+// ==================== РАБОТА С ДАННЫМИ ====================
 function loadFromLocalStorage() {
     const savedData = localStorage.getItem('airTargetsData');
     if (savedData) {
@@ -141,16 +163,26 @@ function loadFromLocalStorage() {
             const data = JSON.parse(savedData);
             targets = data.targets || [];
             nextId = data.nextId || 1;
-            console.log("Завантажено цілей:", targets.length);
+            console.log(`📁 Завантажено ${targets.length} цілей`);
+            
+            // Добавляем маркеры на карту
+            addMarkersToMap();
+            
         } catch (error) {
-            console.error("Помилка завантаження даних:", error);
+            console.error("❌ Помилка завантаження:", error);
             targets = [];
             nextId = 1;
         }
+    } else {
+        // Тестовые данные при первом запуске
+        targets = [
+            {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
+            {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
+        ];
+        saveToLocalStorage();
     }
 }
 
-// Сохранение в LocalStorage
 function saveToLocalStorage() {
     const data = {
         targets: targets,
@@ -158,26 +190,25 @@ function saveToLocalStorage() {
         lastUpdate: Date.now()
     };
     localStorage.setItem('airTargetsData', JSON.stringify(data));
-    document.getElementById('syncInfo').textContent = "Збережено: " + new Date().toLocaleTimeString();
+    updateStatus();
+    console.log("💾 Дані збережено");
 }
 
-// Показать/скрыть форму добавления
-function toggleAddMode() {
-    const form = document.getElementById('targetForm');
-    if (form.style.display === 'flex') {
-        form.style.display = 'none';
-    } else {
-        form.style.display = 'flex';
-        // Автозаполнение полей
-        document.getElementById('targetName').value = 'Ціль ' + nextId;
-    }
+function updateStatus() {
+    const status = `💾 Локальний режим | Цілей: ${targets.length} | Статус: ${isMoving ? '▶️ Рух' : '⏸️ Стоп'}`;
+    document.getElementById('syncInfo').textContent = status;
 }
 
-function hideTargetForm() {
+// ==================== РАБОТА С ЦЕЛЯМИ ====================
+function showAddForm() {
+    document.getElementById('targetForm').style.display = 'flex';
+    document.getElementById('targetName').value = 'Ціль ' + nextId;
+}
+
+function hideAddForm() {
     document.getElementById('targetForm').style.display = 'none';
 }
 
-// Добавление новой цели
 function addTarget() {
     const name = document.getElementById('targetName').value;
     const speed = parseInt(document.getElementById('targetSpeed').value) || 100;
@@ -185,7 +216,7 @@ function addTarget() {
     const type = document.getElementById('targetType').value;
     
     if (!name) {
-        alert("Будь ласка, введіть назву цілі");
+        alert("⚠️ Будь ласка, введіть назву цілі");
         return;
     }
     
@@ -201,110 +232,196 @@ function addTarget() {
     };
     
     targets.push(newTarget);
+    addMarkerToMap(newTarget);
     updateTargetsList();
     saveToLocalStorage();
-    hideTargetForm();
+    hideAddForm();
     
-    // Добавляем маркер на карту
-    addMarkerToMap(newTarget);
+    console.log(`✅ Додано нову ціль: ${name}`);
 }
 
-// Добавление маркера на карту
+function deleteTarget(targetId) {
+    const targetIndex = targets.findIndex(t => t.id === targetId);
+    if (targetIndex !== -1) {
+        const targetName = targets[targetIndex].name;
+        if (confirm(`🗑️ Видалити ціль "${targetName}"?`)) {
+            // Удаляем маркер с карты
+            if (markers[targetId]) {
+                map.removeLayer(markers[targetId]);
+                delete markers[targetId];
+            }
+            
+            // Удаляем из массива
+            targets.splice(targetIndex, 1);
+            
+            updateTargetsList();
+            saveToLocalStorage();
+            console.log(`✅ Видалено ціль: ${targetName}`);
+        }
+    }
+}
+
+function clearAllTargets() {
+    if (targets.length === 0) return;
+    
+    if (confirm("⚠️ Видалити ВСІ цілі? Цю дію не можна скасувати!")) {
+        // Удаляем все маркеры
+        for (const id in markers) {
+            map.removeLayer(markers[id]);
+        }
+        markers = {};
+        
+        // Очищаем массив
+        targets = [];
+        nextId = 1;
+        
+        updateTargetsList();
+        saveToLocalStorage();
+        console.log("✅ Всі цілі видалені");
+    }
+}
+
+// ==================== МАРКЕРЫ НА КАРТЕ ====================
 function addMarkerToMap(target) {
-    const marker = L.marker([target.lat, target.lng])
+    const icon = L.divIcon({
+        className: 'target-marker',
+        html: `<div style="
+            width: 20px; height: 20px; 
+            background: ${getColorForType(target.type)};
+            border: 2px solid white; 
+            border-radius: 50%;
+            transform: rotate(${target.course}deg);
+        "></div>`,
+        iconSize: [24, 24]
+    });
+    
+    const marker = L.marker([target.lat, target.lng], {icon: icon})
         .addTo(map)
         .bindPopup(`
             <b>${target.name}</b><br>
-            Тип: ${target.type}<br>
-            Швидкість: ${target.speed} км/год<br>
-            Курс: ${target.course}°
+            🛩️ Тип: ${target.type}<br>
+            🚀 Швидкість: ${target.speed} км/год<br>
+            🧭 Курс: ${target.course}°<br>
+            <button onclick="deleteTarget(${target.id})" style="
+                background: #e74c3c; color: white; border: none; 
+                padding: 5px 10px; border-radius: 3px; cursor: pointer;
+                margin-top: 5px;">
+                🗑️ Видалити
+            </button>
         `);
+    
+    markers[target.id] = marker;
 }
 
-// Обновление списка целей
+function addMarkersToMap() {
+    // Очищаем старые маркеры
+    for (const id in markers) {
+        map.removeLayer(markers[id]);
+    }
+    markers = {};
+    
+    // Добавляем новые
+    targets.forEach(target => {
+        addMarkerToMap(target);
+    });
+}
+
+function getColorForType(type) {
+    const colors = {
+        'винищувач': '#3498db',
+        'дрон': '#e74c3c',
+        'ракета': '#f39c12',
+        'бомба': '#95a5a6',
+        'корабль': '#9b59b6'
+    };
+    return colors[type] || '#3498db';
+}
+
+// ==================== ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ====================
 function updateTargetsList() {
     const container = document.getElementById('targetsList');
-    container.innerHTML = '';
     
     if (targets.length === 0) {
-        container.innerHTML = '<div class="target-item">Немає активних цілей</div>';
+        container.innerHTML = '<div class="target-item">📭 Немає активних цілей</div>';
         return;
     }
     
+    let html = '';
     targets.forEach(target => {
-        const div = document.createElement('div');
-        div.className = 'target-item';
-        div.innerHTML = `
-            <strong>${target.name}</strong> (${target.type})<br>
-            Швидкість: ${target.speed} км/год, Курс: ${target.course}°<br>
-            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+        html += `
+            <div class="target-item" ondblclick="deleteTarget(${target.id})">
+                <strong>${target.name}</strong> (${target.type})<br>
+                🚀 ${target.speed} км/год | 🧭 ${target.course}°<br>
+                📍 ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+            </div>
         `;
-        container.appendChild(div);
     });
+    
+    container.innerHTML = html;
 }
 
-// Функции для кнопок
+// ==================== УПРАВЛЕНИЕ ДВИЖЕНИЕМ ====================
+function startMovement() {
+    if (isMoving) {
+        stopMovement();
+    } else {
+        isMoving = true;
+        document.querySelector('button[onclick="startMovement()"]').textContent = '⏸️ Стоп';
+        console.log("▶️ Початок руху цілей");
+        updateStatus();
+        
+        // Запускаем движение (упрощенная версия)
+        movementInterval = setInterval(moveTargets, 1000);
+    }
+}
+
+function stopMovement() {
+    isMoving = false;
+    document.querySelector('button[onclick="startMovement()"]').textContent = '▶️ Пуск';
+    console.log("⏸️ Зупинка руху");
+    updateStatus();
+    
+    if (movementInterval) {
+        clearInterval(movementInterval);
+    }
+}
+
+function moveTargets() {
+    if (!isMoving) return;
+    
+    console.log("🔄 Оновлення позицій цілей...");
+    // Здесь будет логика движения
+    updateStatus();
+}
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 function centerMap() {
     if (map) {
         map.setView([50.4501, 30.5234], 6);
+        console.log("🎯 Карта відцентрована");
     }
 }
 
-function togglePause() {
-    animationPaused = !animationPaused;
-    const btn = document.getElementById('pauseBtn');
-    btn.textContent = animationPaused ? '▶️ Пуск' : '⏸️ Пауза';
-    btn.style.background = animationPaused ? '#27ae60' : '#a38d6d';
-}
-
-function toggleTrails() {
-    alert("Функція траєкторій буде реалізована пізніше");
-}
-
-function showAllTargets() {
-    if (targets.length > 0 && map) {
-        const group = new L.featureGroup(targets.map(t => L.marker([t.lat, t.lng])));
-        map.fitBounds(group.getBounds());
-    }
-}
-
-function forceSync() {
-    saveToLocalStorage();
-}
-
-// Удаление цели по двойному клику
-function setupTargetDeletion() {
-    document.getElementById('targetsList').addEventListener('dblclick', function(e) {
-        if (e.target.classList.contains('target-item')) {
-            const targetText = e.target.querySelector('strong').textContent;
-            if (confirm(`Видалити ціль "${targetText}"?`)) {
-                const targetName = targetText.split(' (')[0];
-                const index = targets.findIndex(t => t.name === targetName);
-                if (index !== -1) {
-                    targets.splice(index, 1);
-                    updateTargetsList();
-                    saveToLocalStorage();
-                    // TODO: удалить маркер с карты
-                }
-            }
-        }
-    });
-}
-
-// Запуск при загрузке страницы
+// ==================== ЗАПУСК ПРИ ЗАГРУЗКЕ ====================
 window.addEventListener('load', function() {
+    console.log("🚀 Завантаження додатку...");
     initMap();
-    setupTargetDeletion();
-    // Добавляем тестовые данные если нет сохраненных
-    if (targets.length === 0) {
-        targets = [
-            {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
-            {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
-        ];
-        updateTargetsList();
-        saveToLocalStorage();
-    }
+    
+    // Обновляем статус каждые 5 секунд
+    setInterval(updateStatus, 5000);
+    
+    console.log("✅ Додаток успішно завантажено!");
 });
+
+// Глобальные функции для HTML
+window.deleteTarget = deleteTarget;
+window.addTarget = addTarget;
+window.showAddForm = showAddForm;
+window.hideAddForm = hideAddForm;
+window.startMovement = startMovement;
+window.centerMap = centerMap;
+window.clearAllTargets = clearAllTargets;
+window.saveToLocalStorage = saveToLocalStorage;
     </script>
 </body>
 </html>
