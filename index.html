@@ -341,7 +341,7 @@ function toggleAddMode() {
             clickMarker = null;
         }
     }
-                                    }
+        }
         // Показать форму для добавления/редактирования
 function showTargetForm(targetId, latlng = null) {
     const form = document.getElementById('targetForm');
@@ -597,7 +597,21 @@ function updateTargetsList() {
     const container = document.getElementById('targetsList');
     container.innerHTML = '';
     
-    targets.forEac        function startAnimation() {
+    targets.forEach(target => {
+        const div = document.createElement('div');
+        div.className = 'target-item';
+        const isHidden = hiddenTargets.has(target.id);
+        div.innerHTML = `
+            <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
+            Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
+            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+            ${isHidden ? '<br><small>поза межами карти</small>' : ''}
+        `;
+        div.onclick = () => showTargetForm(target.id);
+        container.appendChild(div);
+    });
+        }
+                function startAnimation() {
             if (animationInterval) clearInterval(animationInterval);
             lastFrameTime = performance.now();
             animationInterval = setInterval(moveTargets, 50);
@@ -664,18 +678,19 @@ function updateTargetsList() {
             alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту для встановлення курсу.`);
         }
 
-        // СТАРАЯ РАБОЧАЯ ФОРМУЛА ИЗ ПЕРВОЙ ВЕРСИИ
+        // Простая и правильная формула курса
         function updateTargetCourse(e) {
             if (!selectedTargetId) return;
             
             const target = targets.find(t => t.id === selectedTargetId);
             if (!target) return;
             
-            // СТАРАЯ ПРОВЕРЕННАЯ ФОРМУЛА
             const dx = e.latlng.lng - target.lng;
             const dy = e.latlng.lat - target.lat;
             
-            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+            // Простая и правильная формула
+            let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            let newCourse = (angle + 360) % 360;
             target.course = Math.round(newCourse);
             
             // Немедленно обновляем отображение
@@ -724,36 +739,8 @@ function updateTargetsList() {
             updateVisibleTargets();
         }
 
-        // Принудительное обновление всех маркеров
-        function forceRefreshMarkers() {
-            for (let id in markers) {
-                if (markers[id]) {
-                    map.removeLayer(markers[id]);
-                }
-            }
-            markers = {};
-            updateMapMarkers();
-        }
-
-        window.onload = function() {
-            initMap();
-            // Гарантированное обновление после загрузки
-            setTimeout(forceRefreshMarkers, 1000);
-        }
+        window.onload = initMap;
     </script>
 </body>
-</html>h(target => {
-        const div = document.createElement('div');
-        div.className = 'target-item';
-        const isHidden = hiddenTargets.has(target.id);
-        div.innerHTML = `
-            <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
-            Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
-            Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
-            ${isHidden ? '<br><small>поза межами карти</small>' : ''}
-        `;
-        div.onclick = () => showTargetForm(target.id);
-        container.appendChild(div);
-    });
-}
-       
+</html>
+        
