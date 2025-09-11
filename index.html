@@ -1,4 +1,3 @@
-IREBASE
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -37,12 +36,32 @@ IREBASE
             text-align: center;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
             z-index: 1000;
+            position: relative;
         }
 
         .header h1 {
             font-size: 22px;
             font-weight: 700;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-btn {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .map-container {
@@ -298,24 +317,48 @@ IREBASE
             font-weight: bold;
         }
 
-        /* Стилі для редагування */
-        .edit-mode {
-            border: 2px solid #0d8bf2 !important;
+        /* Модальні вікна */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
         }
 
-        .course-marker {
-            background: rgba(255, 255, 255, 0.9);
+        .modal-content {
+            background: #1a1a2e;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
             border: 2px solid #0d8bf2;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
         }
 
         /* Адаптивність */
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 18px;
+            }
+            
+            .login-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+                right: 10px;
             }
             
             .tabs {
@@ -353,12 +396,28 @@ IREBASE
         .pulse {
             animation: pulse 2s infinite;
         }
+
+        /* Іконки маркерів */
+        .target-marker {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .admin-only {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="header">
             <h1><i class="fas fa-crosshairs"></i> Карта Повітряних Цілей</h1>
+            <button class="login-btn" onclick="showLoginModal()">
+                <i class="fas fa-user"></i> Увійти
+            </button>
         </div>
         
         <div class="map-container">
@@ -401,11 +460,11 @@ IREBASE
                     <label for="targetCourse">Курс (0-360°):</label>
                     <input type="number" id="targetCourse" placeholder="Курс" value="0" min="0" max="360">
                 </div>
-                <button onclick="addTarget()"><i class="fas fa-plus"></i> Додати ціль</button>
-                <button onclick="addRandomTarget()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+                <button onclick="addTarget()" id="addTargetBtn"><i class="fas fa-plus"></i> Додати ціль</button>
+                <button onclick="addRandomTarget()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);" class="admin-only">
                     <i class="fas fa-dice"></i> Випадкова ціль
                 </button>
-                <button onclick="enableCourseSelection()" style="background: linear-gradient(90deg, #1dd1a1 0%, #10ac84 100%);">
+                <button onclick="enableCourseSelection()" style="background: linear-gradient(90deg, #1dd1a1 0%, #10ac84 100%);" class="admin-only">
                     <i class="fas fa-route"></i> Обрати курс на карті
                 </button>
             </div>
@@ -435,10 +494,10 @@ IREBASE
                         <div class="stat-value" id="maxSpeed">0 км/год</div>
                     </div>
                 </div>
-                <button onclick="exportData()" style="margin-top: 10px;">
+                <button onclick="exportData()" style="margin-top: 10px;" class="admin-only">
                     <i class="fas fa-download"></i> Експорт даних
                 </button>
-                <button onclick="importData()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+                <button onclick="importData()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);" class="admin-only">
                     <i class="fas fa-upload"></i> Імпорт даних
                 </button>
             </div>
@@ -455,56 +514,111 @@ IREBASE
                 <button onclick="toggleSimulation()" id="simulationBtn">
                     <i class="fas fa-play"></i> Почати симуляцію
                 </button>
-                <button onclick="clearAllTargets()" style="background: linear-gradient(90deg, #ff6b6b 0%, #c0392b 100%);">
+                <button onclick="clearAllTargets()" style="background: linear-gradient(90deg, #ff6b6b 0%, #c0392b 100%);" class="admin-only">
                     <i class="fas fa-trash"></i> Очистити всі цілі
                 </button>
                 <button onclick="toggleTrajectories()" id="trajectoriesBtn">
-                    <i class="fas fa-project-diagram"></i> Вимкнути траєкторії
-                </button>
-                <button onclick="centerMap()">
-                    <i class="fas fa-crosshairs"></i> Центрувати карту
-                </button>
-            </div>
-            
-            <div class="status-bar">
-                <div class="status-item">
-                    <div class="status-indicator" id="statusIndicator"></div>
-                    <span id="statusText">Підключено до Firebase</span>
-                </div>
-                <div class="status-item">
-                    <i class="fas fa-users"></i>
-                    <span id="onlineUsers">Онлайн: 1</span>
-                </div>
-                <div class="status-item">
-                    <i class="fas fa-clock"></i>
-                    <span id="updateTime">Оновлено: --:--:--</span>
-                </div>
-            </div>
-        </div>
+    <i class="fas fa-project-diagram"></i> Вимкнути траєкторії
+</button>
+<button onclick="centerMap()">
+    <i class="fas fa-crosshairs"></i> Центрувати карту
+</button>
+</div>
+
+<div class="status-bar">
+    <div class="status-item">
+        <div class="status-indicator" id="statusIndicator"></div>
+        <span id="statusText">Підключено до Firebase</span>
     </div>
+    <div class="status-item">
+        <i class="fas fa-users"></i>
+        <span id="onlineUsers">Онлайн: 1</span>
+    </div>
+    <div class="status-item">
+        <i class="fas fa-clock"></i>
+        <span id="updateTime">Оновлено: --:--:--</span>
+    </div>
+</div>
+</div>
+</div>
 
-    <input type="file" id="importFile" style="display: none;" accept=".json">
+<!-- Модальне вікно логіну -->
+<div id="loginModal" class="modal">
+<div class="modal-content">
+    <h3><i class="fas fa-user-shield"></i> Вхід для адміністратора</h3>
+    <div class="form-group">
+        <label for="loginUsername">Логін:</label>
+        <input type="text" id="loginUsername" placeholder="Введіть логін">
+    </div>
+    <div class="form-group">
+        <label for="loginPassword">Пароль:</label>
+        <input type="password" id="loginPassword" placeholder="Введіть пароль">
+    </div>
+    <div class="modal-buttons">
+        <button onclick="attemptLogin()">Увійти</button>
+        <button onclick="closeLoginModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
+    </div>
+</div>
+</div>
 
-    <script>
-        // Глобальні змінні
-        let map;
-        let targets = [];
-        let markers = {};
-        let polylines = {};
-        let isSimulationRunning = false;
-        let simulationSpeed = 5;
-        let lastUpdateTime = 0;
-        let targetHistory = {};
-        let isOnline = false;
-        let showTrajectories = true;
-        let isPanelExpanded = true;
-        let isCourseSelectionMode = false;
-        let selectedTargetForCourse = null;
-        let autoSaveInterval = null;
+<!-- Модальне вікно редагування -->
+<div id="editModal" class="modal">
+<div class="modal-content">
+    <h3><i class="fas fa-edit"></i> Редагувати ціль</h3>
+    <div class="form-group">
+        <label for="editName">Назва цілі:</label>
+        <input type="text" id="editName">
+    </div>
+    <div class="form-group">
+        <label for="editType">Тип цілі:</label>
+        <select id="editType">
+            <option value="дрон">Дрон</option>
+            <option value="ракета">Ракета</option>
+            <option value="винищувач">Винищувач</option>
+            <option value="бомба">Бомба</option>
+            <option value="корабль">Корабель</option>
+            <option value="вертоліт">Вертоліт</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label for="editSpeed">Швидкість (км/год):</label>
+        <input type="number" id="editSpeed">
+    </div>
+    <div class="form-group">
+        <label for="editCourse">Курс (0-360°):</label>
+        <input type="number" id="editCourse" min="0" max="360">
+    </div>
+    <div class="modal-buttons">
+        <button onclick="saveTargetEdit()">Зберегти</button>
+        <button onclick="closeEditModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
+    </div>
+</div>
+</div>
 
-        // ВАШІ НАЛАШТУВАННЯ FIREBASE
-        const firebaseConfig = {
-            apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
+<input type="file" id="importFile" style="display: none;" accept=".json">
+
+<script>
+// Глобальні змінні
+let map;
+let targets = [];
+let markers = {};
+let polylines = {};
+let isSimulationRunning = false;
+let simulationSpeed = 5;
+let lastUpdateTime = 0;
+let targetHistory = {};
+let isOnline = false;
+let showTrajectories = true;
+let isPanelExpanded = true;
+let isCourseSelectionMode = false;
+let selectedTargetForCourse = null;
+let autoSaveInterval = null;
+let isAdmin = false;
+let currentEditTargetId = null;
+
+// ВАШІ НАЛАШТУВАННЯ FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
     authDomain: "air-tracking-site.firebaseapp.com",
     databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "air-tracking-site",
@@ -523,6 +637,7 @@ function initApp() {
     updateStats();
     updateStatus();
     startAutoSave();
+    updateUIForUserRole();
 }
 
 // Ініціалізація карти
@@ -560,8 +675,10 @@ function initFirebase() {
 // Автоматичне збереження кожні 5 секунд
 function startAutoSave() {
     autoSaveInterval = setInterval(function() {
-        saveTargets();
-        console.log("Автоматичне збереження виконано");
+        if (isSimulationRunning) {
+            saveTargets();
+            console.log("Автоматичне збереження виконано");
+        }
     }, 5000); // 5 секунд
 }
 
@@ -589,7 +706,8 @@ function setupRealtimeListeners() {
     const userRef = usersRef.push();
     userRef.set({
         connected: true,
-        lastSeen: Date.now()
+        lastSeen: Date.now(),
+        isAdmin: isAdmin
     });
     
     userRef.onDisconnect().remove();
@@ -602,6 +720,11 @@ function setupRealtimeListeners() {
 
 // Функції для роботи з цілями
 function addTarget() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може додавати цілі');
+        return;
+    }
+    
     const name = document.getElementById('targetName').value.trim();
     const type = document.getElementById('targetType').value;
     const speed = parseInt(document.getElementById('targetSpeed').value);
@@ -637,6 +760,8 @@ function addTarget() {
 }
 
 function addRandomTarget() {
+    if (!isAdmin) return;
+    
     const types = ['дрон', 'ракета', 'винищувач', 'бомба', 'корабль', 'вертоліт'];
     const names = {
         'дрон': ['Shahed-136', 'Orlan-10', 'Bayraktar', 'Ланцюг'],
@@ -671,22 +796,38 @@ function addRandomTarget() {
     updateTargetsList();
 }
 
-// ОНОВЛЕНА ФУНКЦІЯ: Використання PNG іконок з правильним поворотом
+// ОНОВЛЕНА ФУНКЦІЯ: PNG для дрона і ракети, кольорові точки для інших
 function getIconForType(type) {
-    const iconUrls = {
-        'дрон': 'icons/shahed.png',
-        'ракета': 'icons/raketa.png',
-        'винищувач': 'icons/aircraft.png',
-        'бомба': 'icons/bomb.png',
-        'корабль': 'icons/ship.png',
-        'вертоліт': 'icons/helicopter.png'
+    // Для дрона і ракети використовуємо PNG іконки
+    if (type === 'дрон' || type === 'ракета') {
+        const iconUrls = {
+            'дрон': 'icons/shahed.png',
+            'ракета': 'icons/raketa.png'
+        };
+        
+        return L.icon({
+            iconUrl: iconUrls[type],
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            popupAnchor: [0, -15]
+        });
+    }
+    
+    // Для інших типів - кольорові точки
+    const colors = {
+        'винищувач': '#48dbfb',
+        'бомба': '#ff9ff3',
+        'корабль': '#1dd1a1',
+        'вертоліт': '#f368e0'
     };
     
-    return L.icon({
-        iconUrl: iconUrls[type] || 'icons/marker.png',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-        popupAnchor: [0, -15]
+    const color = colors[type] || '#ffffff';
+    
+    return L.divIcon({
+        className: 'target-marker',
+        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
     });
 }
 
@@ -697,8 +838,8 @@ function addTargetToMap(target) {
     
     const icon = getIconForType(target.type);
     const marker = L.marker([target.latitude, target.longitude], { 
-        icon: icon, 
-        rotationAngle: target.course // ПОВОРОТ ІКОНКИ ЗА КУРСОМ
+        icon: icon,
+        rotationAngle: target.course
     })
     .addTo(map)
     .bindPopup(`
@@ -706,13 +847,16 @@ function addTargetToMap(target) {
         Тип: ${target.type}<br>
         Швидкість: ${target.speed} км/год<br>
         Курс: ${target.course}°<br>
-        Відстань: ${(target.distance).toFixed(1)} км<br>
+        Відстань: ${(target.distance).toFixed(1)} км
+        ${isAdmin ? `
+        <br>
         <button onclick="editTarget('${target.id}')" style="margin-top: 5px; padding: 5px;">
             <i class="fas fa-edit"></i> Редагувати
         </button>
         <button onclick="enableCourseSelectionForTarget('${target.id}')" style="margin-top: 5px; padding: 5px; background: #1dd1a1;">
             <i class="fas fa-route"></i> Змінити курс
         </button>
+        ` : ''}
     `);
     
     markers[target.id] = marker;
@@ -721,7 +865,7 @@ function addTargetToMap(target) {
     if (showTrajectories && !polylines[target.id]) {
         polylines[target.id] = L.polyline([], {
             color: getColorForType(target.type),
-            weight: 1, // Товщина 1 піксель
+            weight: 1,
             opacity: 0.7
         }).addTo(map);
     }
@@ -753,19 +897,22 @@ function getColorForType(type) {
 function updateTargetOnMap(target) {
     if (markers[target.id]) {
         markers[target.id].setLatLng([target.latitude, target.longitude]);
-        markers[target.id].setRotationAngle(target.course); // ОНОВЛЕННЯ ПОВОРОТУ
+        markers[target.id].setRotationAngle(target.course);
         markers[target.id].setPopupContent(`
             <strong>${target.name}</strong><br>
             Тип: ${target.type}<br>
             Швидкість: ${target.speed} км/год<br>
             Курс: ${target.course}°<br>
-            Відстань: ${(target.distance).toFixed(1)} км<br>
+            Відстань: ${(target.distance).toFixed(1)} км
+            ${isAdmin ? `
+            <br>
             <button onclick="editTarget('${target.id}')" style="margin-top: 5px; padding: 5px;">
                 <i class="fas fa-edit"></i> Редагувати
             </button>
             <button onclick="enableCourseSelectionForTarget('${target.id}')" style="margin-top: 5px; padding: 5px; background: #1dd1a1;">
                 <i class="fas fa-route"></i> Змінити курс
             </button>
+            ` : ''}
         `);
         
         // Оновлення траєкторії
@@ -776,7 +923,56 @@ function updateTargetOnMap(target) {
     }
 }
 
-// Функція для руху цілей
+// Функція для руху цілей з анімацією
+function moveTargets() {
+    const now = Date.now();
+    const deltaTime = lastUpdateTime ? (now - lastUpdateTime) * simulationSpeed : 0;
+    lastUpdateTime = now;
+    
+    if (deltaTime === 0) return;
+    
+    let totalDistance = 0;
+    let maxSpeed = 0;
+    let activeCount = 0;
+    let hasChanges = false;
+    
+    targets.forEach(target => {
+        const newPos = calculateNewPosition(target, deltaTime);
+        const distanceThisFrame = calculateDistance(
+            target.latitude, target.longitude,
+            newPos.latitude, newPos.longitude
+        );
+        
+        if (distanceThisFrame > 0) {
+            target.latitude = newPos.latitude;
+            target.longitude = newPos.longitude;
+            target.distance += distanceThisFrame;
+            target.maxSpeed = Math.max(target.maxSpeed, target.speed);
+            target.updatedAt = Date.now();
+            hasChanges = true;
+            }
+        
+        totalDistance += target.distance;
+        maxSpeed = Math.max(maxSpeed, target.speed);
+        activeCount++;
+        
+        updateTargetOnMap(target);
+    });
+    
+    if (hasChanges) {
+        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
+        document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
+        document.getElementById('activeTargets').textContent = activeCount;
+        
+        // Зберігаємо зміни в реальному часі
+        saveTargets();
+    }
+    
+    if (isSimulationRunning) {
+        requestAnimationFrame(moveTargets);
+    }
+}
+
 function calculateNewPosition(target, deltaTime) {
     const R = 6371; // Радіус Землі в км
     const distanceKm = (target.speed * deltaTime) / 3600; // Відстань у км
@@ -797,46 +993,6 @@ function calculateNewPosition(target, deltaTime) {
     };
 }
 
-function moveTargets() {
-    const now = Date.now();
-    const deltaTime = lastUpdateTime ? (now - lastUpdateTime) * simulationSpeed : 0;
-    lastUpdateTime = now;
-    
-    if (deltaTime === 0) return;
-    
-    let totalDistance = 0;
-    let maxSpeed = 0;
-    let activeCount = 0;
-    
-    targets.forEach(target => {
-        const newPos = calculateNewPosition(target, deltaTime);
-        const distanceThisFrame = calculateDistance(
-            target.latitude, target.longitude,
-            newPos.latitude, newPos.longitude
-        );
-        
-        target.latitude = newPos.latitude;
-        target.longitude = newPos.longitude;
-        target.distance += distanceThisFrame;
-        target.maxSpeed = Math.max(target.maxSpeed, target.speed);
-        target.updatedAt = Date.now();
-        
-        totalDistance += target.distance;
-        maxSpeed = Math.max(maxSpeed, target.speed);
-        activeCount++;
-        
-        updateTargetOnMap(target);
-    });
-    
-    document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
-    document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
-    document.getElementById('activeTargets').textContent = activeCount;
-    
-    if (isSimulationRunning) {
-        requestAnimationFrame(moveTargets);
-    }
-}
-
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -848,14 +1004,115 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
-// НОВІ ФУНКЦІЇ ДЛЯ РЕДАГУВАННЯ ТА ВИБОРУ КУРСУ
+// СИСТЕМА АВТОРИЗАЦІЇ
+function showLoginModal() {
+    document.getElementById('loginModal').style.display = 'block';
+}
+
+function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function attemptLogin() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (username === 'admin123450' && password === 'password123450') {
+        isAdmin = true;
+        closeLoginModal();
+        updateUIForUserRole();
+        alert('Успішний вхід як адміністратор!');
+        
+        // Оновлюємо статус в Firebase
+        if (isOnline) {
+            const db = firebase.database();
+            const userRef = db.ref('onlineUsers').push();
+            userRef.set({
+                connected: true,
+                lastSeen: Date.now(),
+                isAdmin: true
+            });
+            userRef.onDisconnect().remove();
+        }
+    } else {
+        alert('Невірний логін або пароль!');
+    }
+}
+
+function updateUIForUserRole() {
+    const loginBtn = document.querySelector('.login-btn');
+    const addTargetBtn = document.getElementById('addTargetBtn');
+    const tabs = document.querySelectorAll('.tab');
+    const adminButtons = document.querySelectorAll('.admin-only');
+    
+    if (isAdmin) {
+        loginBtn.innerHTML = '<i class="fas fa-user-shield"></i> Адмін';
+        loginBtn.style.background = 'linear-gradient(90deg, #ff6b6b 0%, #c0392b 100%)';
+        addTargetBtn.disabled = false;
+        tabs.forEach(tab => tab.style.display = 'flex');
+        adminButtons.forEach(btn => btn.style.display = 'block');
+    } else {
+        loginBtn.innerHTML = '<i class="fas fa-user"></i> Увійти';
+        loginBtn.style.background = 'rgba(255, 255, 255, 0.2)';
+        addTargetBtn.disabled = true;
+        tabs[0].style.display = 'none'; // Додати
+        tabs[3].style.display = 'none'; // Налаштування
+        adminButtons.forEach(btn => btn.style.display = 'none');
+    }
+}
+
+// РЕДАГУВАННЯ ЦІЛЕЙ
+function editTarget(targetId) {
+    if (!isAdmin) return;
+    
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    currentEditTargetId = targetId;
+    document.getElementById('editName').value = target.name;
+    document.getElementById('editType').value = target.type;
+    document.getElementById('editSpeed').value = target.speed;
+    document.getElementById('editCourse').value = target.course;
+    
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentEditTargetId = null;
+}
+
+function saveTargetEdit() {
+    if (!currentEditTargetId || !isAdmin) return;
+    
+    const target = targets.find(t => t.id === currentEditTargetId);
+    if (target) {
+        target.name = document.getElementById('editName').value;
+        target.type = document.getElementById('editType').value;
+        target.speed = parseInt(document.getElementById('editSpeed').value);
+        target.course = parseInt(document.getElementById('editCourse').value);
+        target.updatedAt = Date.now();
+        
+        updateTargetOnMap(target);
+        saveTargets();
+        updateTargetsList();
+        closeEditModal();
+    }
+}
+
 function enableCourseSelection() {
+    if (!isAdmin) return;
+    
     isCourseSelectionMode = true;
     selectedTargetForCourse = null;
     alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для нової цілі');
 }
 
 function enableCourseSelectionForTarget(targetId) {
+    if (!isAdmin) return;
+    
     const target = targets.find(t => t.id === targetId);
     if (target) {
         isCourseSelectionMode = true;
@@ -865,7 +1122,7 @@ function enableCourseSelectionForTarget(targetId) {
 }
 
 function setTargetCourseFromMap(latlng) {
-    if (!selectedTargetForCourse) return;
+    if (!selectedTargetForCourse || !isAdmin) return;
     
     const target = targets.find(t => t.id === selectedTargetForCourse);
     if (target) {
@@ -901,6 +1158,7 @@ function saveTargetsToLocalStorage() {
     localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
     localStorage.setItem('simulationSpeed', simulationSpeed.toString());
     localStorage.setItem('showTrajectories', showTrajectories.toString());
+    localStorage.setItem('isAdmin', isAdmin.toString());
 }
 
 function loadTargetsFromLocalStorage() {
@@ -908,9 +1166,40 @@ function loadTargetsFromLocalStorage() {
     const savedHistory = localStorage.getItem('targetHistory');
     const savedSpeed = localStorage.getItem('simulationSpeed');
     const savedTrajectories = localStorage.getItem('showTrajectories');
+    const savedAdmin = localStorage.getItem('isAdmin');
     
     if (savedTargets) {
         targets = JSON.parse(savedTargets);
+    } else {
+        // Тестові дані
+        targets = [
+            {
+                id: '1',
+                name: 'Shahed-136',
+                type: 'дрон',
+                speed: 150,
+                course: 45,
+                latitude: 50.45,
+                longitude: 30.52,
+                distance: 0,
+                maxSpeed: 150,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            },
+            {
+                id: '2',
+                name: 'Іскандер',
+                type: 'ракета',
+                speed: 300,
+                course: 90,
+                latitude: 49.0,
+                longitude: 32.0,
+                distance: 0,
+                maxSpeed: 300,
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            }
+        ];
     }
     
     if (savedHistory) {
@@ -925,6 +1214,11 @@ function loadTargetsFromLocalStorage() {
     if (savedTrajectories) {
         showTrajectories = savedTrajectories === 'true';
         updateTrajectoriesButton();
+    }
+    
+    if (savedAdmin) {
+        isAdmin = savedAdmin === 'true';
+        updateUIForUserRole();
     }
     
     updateMap();
@@ -1005,6 +1299,8 @@ function updateTrajectoriesButton() {
 }
 
 function clearAllTargets() {
+    if (!isAdmin) return;
+    
     if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
     
     // Видаляємо маркери
@@ -1088,6 +1384,7 @@ function updateTargetsList() {
                 Курс: ${target.course}°<br>
                 Відстань: ${target.distance.toFixed(1)} км
             </div>
+            ${isAdmin ? `
             <div class="target-actions">
                 <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
                 <button onclick="enableCourseSelectionForTarget('${target.id}')" style="background: #1dd1a1;">
@@ -1097,29 +1394,15 @@ function updateTargetsList() {
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
+            ` : ''}
         `;
         container.appendChild(targetElement);
     });
 }
 
-function editTarget(id) {
-    const target = targets.find(t => t.id === id);
-    if (!target) return;
-
-    // Заповнюємо форму даними цілі
-    document.getElementById('targetName').value = target.name;
-    document.getElementById('targetType').value = target.type;
-    document.getElementById('targetSpeed').value = target.speed;
-    document.getElementById('targetCourse').value = target.course;
-
-    // Видаляємо стару ціль
-    deleteTarget(id);
-
-    // Переходимо на вкладку додавання
-    switchTab('add-target');
-}
-
 function deleteTarget(id) {
+    if (!isAdmin) return;
+    
     if (!confirm('Видалити цю ціль?')) return;
 
     // Видаляємо з масиву
@@ -1169,10 +1452,12 @@ function switchTab(tabName) {
 }
 
 function exportData() {
+    if (!isAdmin) return;
+    
     const data = {
         targets: targets,
         exportDate: new Date().toISOString(),
-        version: '2.5'
+        version: '3.0'
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1188,6 +1473,8 @@ function exportData() {
 }
 
 function importData() {
+    if (!isAdmin) return;
+    
     document.getElementById('importFile').click();
 }
 
@@ -1203,14 +1490,14 @@ function handleFileImport(event) {
             if (data.targets && Array.isArray(data.targets)) {
                 // Видаляємо поточні цілі
                 clearAllTargets();
-
+                
                 // Додаємо імпортовані цілі
                 targets = data.targets;
                 updateMap();
                 saveTargets();
                 updateStats();
                 updateTargetsList();
-
+                
                 alert(`Успішно імпортовано ${targets.length} цілей`);
             } else {
                 throw new Error('Невірний формат файлу');
