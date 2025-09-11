@@ -73,6 +73,11 @@
         .target-icon.hidden {
             opacity: 0.3;
         }
+
+        /* Стиль для повернутых PNG иконок */
+        .rotated-icon {
+            transition: transform 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -329,6 +334,7 @@ function toggleAddMode() {
         }
     }
 }
+        
         // Показать форму для добавления/редактирования
 function showTargetForm(targetId, latlng = null) {
     const form = document.getElementById('targetForm');
@@ -496,14 +502,14 @@ function loadTargets() {
 
 // Создание иконки (треугольники для всех, кроме дрона - PNG)
 function createCustomIcon(type, course) {
-    // Для дрона используем PNG иконку
+    // Для дрона используем PNG иконку с поворотом
     if (type === 'дрон') {
         return L.icon({
             iconUrl: 'icons/shahed.png',
             iconSize: [30, 30],
             iconAnchor: [15, 15],
             popupAnchor: [0, -15],
-            className: 'target-icon'
+            className: 'rotated-icon'
         });
     }
     
@@ -559,6 +565,10 @@ function updateMapMarkers() {
         // Добавляем маркер на карту только если он в пределах видимости
         if (bounds.contains([target.lat, target.lng])) {
             marker.addTo(map);
+            // Поворачиваем PNG иконку дрона
+            if (target.type === 'дрон' && marker._icon) {
+                marker._icon.style.transform = `rotate(${target.course}deg)`;
+            }
         } else {
             hiddenTargets.add(target.id);
         }
@@ -593,7 +603,7 @@ function updateTargetsList() {
         div.onclick = () => showTargetForm(target.id);
         container.appendChild(div);
     });
-}
+        }
                 function startAnimation() {
             if (animationInterval) clearInterval(animationInterval);
             lastFrameTime = performance.now();
@@ -638,6 +648,11 @@ function updateTargetsList() {
                         if (target.type !== 'дрон') {
                             const newIcon = createCustomIcon(target.type, target.course);
                             markers[target.id].setIcon(newIcon);
+                        } else {
+                            // Для дрона поворачиваем PNG иконку
+                            if (markers[target.id]._icon) {
+                                markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
+                            }
                         }
                     }
                     
@@ -698,6 +713,11 @@ function updateTargetsList() {
                 if (target.type !== 'дрон') {
                     const newIcon = createCustomIcon(target.type, newCourse);
                     markers[target.id].setIcon(newIcon);
+                } else {
+                    // Для дрона поворачиваем PNG иконку
+                    if (markers[target.id]._icon) {
+                        markers[target.id]._icon.style.transform = `rotate(${newCourse}deg)`;
+                    }
                 }
             }
             
@@ -751,5 +771,3 @@ function updateTargetsList() {
     </script>
 </body>
 </html>
-        
-        
