@@ -5,602 +5,121 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Карта повітряних цілей</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
-        :root {
-            --primary: #3498db;
-            --fighter: #3498db;
-            --drone: #e74c3c;
-            --rocket: #f39c12;
-            --bomb: #95a5a6;
-            --ship: #9b59b6;
-            --helicopter: #2ecc71;
-            --transport: #f1c40f;
-            --success: #27ae60;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --dark-bg: linear-gradient(135deg, #1a1f2d 0%, #2c3e50 100%);
-            --card-bg: #2c3e50;
-            --border: #a38d6d;
-            --text: #ecf0f1;
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body { padding: 20px; background: #1a1f2d; color: white; font-family: Arial, sans-serif; }
+        #map { height: 600px; width: 100%; border: 2px solid #a38d6d; border-radius: 8px; margin-bottom: 20px; }
+        .btn { padding: 10px 15px; background: #a38d6d; color: white; border: none; border-radius: 5px; margin: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #8a7559; }
+        .controls { margin: 10px 0; display: flex; flex-wrap: wrap; }
+        
+        /* Стили для модальных окон */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); 
+            z-index: 1000; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .modal-content { 
+            background: #2c3e50; 
             padding: 20px; 
-            background: var(--dark-bg); 
-            color: var(--text); 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
+            border-radius: 10px; 
+            border: 2px solid #a38d6d; 
+            width: 300px; 
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--border);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .logo h1 {
-            font-size: 28px;
-            background: linear-gradient(45deg, var(--primary), var(--helicopter));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        #map { 
-            height: 700px; 
+        .modal input, .modal select { 
             width: 100%; 
-            border: 2px solid var(--border); 
-            border-radius: 12px; 
-            margin-bottom: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            padding: 10px; 
+            margin: 5px 0; 
+            border: 1px solid #a38d6d; 
+            border-radius: 5px; 
+            background: #1a1f2d; 
+            color: white; 
         }
-
-        .btn {
-            padding: 12px 18px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            margin: 5px;
+        
+        .target-item { 
+            padding: 10px; 
+            margin: 5px 0; 
+            background: #2c3e50; 
+            border-radius: 5px; 
             cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-            font-weight: 500;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        .target-item:hover { 
+            background: #34495e; 
         }
-
-        .btn i { font-size: 16px; }
-
-        .btn-danger { background: var(--danger); }
-        .btn-danger:hover { box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4); }
-
-        .btn-success { background: var(--success); }
-        .btn-success:hover { box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4); }
-
-        .btn-warning { background: var(--warning); }
-        .btn-warning:hover { box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4); }
-
-        .controls {
-            margin: 20px 0;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 4px solid var(--primary);
-        }
-
-        .stat-card h3 {
-            color: var(--primary);
-            margin-bottom: 10px;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        /* Модальные окна */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 10000;
-            justify-content: center;
-            align-items: center;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid var(--border);
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        }
-
-        .modal input, .modal select, .modal textarea {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            background: rgba(26, 31, 45, 0.8);
-            color: var(--text);
-            transition: all 0.3s ease;
-        }
-
-        .modal input:focus, .modal select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-        }
-
-        /* Стили для целей */
-        .targets-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 1024px) {
-            .targets-container {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .targets-section {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 12px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .target-item {
-            padding: 15px;
-            margin: 8px 0;
-            background: rgba(52, 73, 94, 0.6);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-left: 4px solid var(--primary);
-        }
-
-        .target-item:hover {
-            background: rgba(52, 73, 94, 0.9);
-            transform: translateX(5px);
-        }
-
-        .target-item.selected {
-            background: rgba(41, 128, 185, 0.3);
-            border-left-color: var(--success);
-        }
-
-        .target-type {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-left: 8px;
-        }
-
-        .type-fighter { background: var(--fighter); }
-        .type-drone { background: var(--drone); }
-        .type-rocket { background: var(--rocket); }
-        .type-bomb { background: var(--bomb); }
-        .type-ship { background: var(--ship); }
-        .type-helicopter { background: var(--helicopter); }
-        .type-transport { background: var(--transport); }
-
-        /* Треугольные маркеры */
+        
+        /* Стили для треугольных маркеров */
         .triangle-icon {
             width: 0;
             height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 20px solid;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 16px solid;
         }
+        
+        /* Стили для поиска */
+        .search-container { margin: 10px 0; position: relative; }
+        #searchInput { width: 300px; padding: 10px; border: 1px solid #a38d6d; border-radius: 5px; background: #2c3e50; color: white; }
+        #searchResults { position: absolute; background: #2c3e50; border: 1px solid #a38d6d; max-height: 200px; overflow-y: auto; width: 300px; display: none; z-index: 1000; }
+        .search-result { padding: 10px; cursor: pointer; border-bottom: 1px solid #a38d6d; }
+        .search-result:hover { background: #34495e; }
 
-        /* Поиск */
-        .search-container { 
-            margin: 15px 0; 
-            position: relative;
-            max-width: 400px;
-        }
-
-        #searchInput { 
-            width: 100%; 
-            padding: 12px 45px 12px 15px;
-            border: 1px solid var(--border); 
-            border-radius: 25px; 
-            background: var(--card-bg); 
-            color: var(--text);
-            transition: all 0.3s ease;
-        }
-
-        #searchInput:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-        }
-
-        .search-icon {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--primary);
-        }
-
-        #searchResults { 
-            position: absolute; 
-            background: var(--card-bg); 
-            border: 1px solid var(--border); 
-            max-height: 250px; 
-            overflow-y: auto; 
-            width: 100%; 
-            display: none; 
-            z-index: 1000;
-            border-radius: 0 0 8px 8px;
-            top: 100%;
-        }
-
-        .search-result { 
-            padding: 12px; 
-            cursor: pointer; 
-            border-bottom: 1px solid var(--border);
-            transition: all 0.2s ease;
-        }
-
-        .search-result:hover { 
-            background: rgba(52, 152, 219, 0.2);
-        }
-
-        /* Скрытые маркеры */
+        /* Стиль для скрытых маркеров */
         .target-icon.hidden {
-            opacity: 0.4;
-            filter: grayscale(0.8);
-        }
-
-        /* Статус бар */
-        .status-bar {
-            position: fixed;
-            bottom: 15px;
-            right: 15px;
-            background: var(--card-bg);
-            padding: 12px 20px;
-            border-radius: 25px;
-            border: 1px solid var(--border);
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            z-index: 1000;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        /* Уведомления */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-        }
-
-        .toast {
-            background: var(--card-bg);
-            color: white;
-            padding: 15px 20px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border-left: 4px solid;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            animation: slideIn 0.3s ease;
-        }
-
-        .toast.success { border-left-color: var(--success); }
-        .toast.warning { border-left-color: var(--warning); }
-        .toast.error { border-left-color: var(--danger); }
-        .toast.info { border-left-color: var(--primary); }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        /* Контекстное меню */
-        .context-menu {
-            position: fixed;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 10px 0;
-            z-index: 1000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: none;
-        }
-
-        .context-menu-item {
-            padding: 10px 20px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .context-menu-item:hover {
-            background: rgba(52, 152, 219, 0.2);
-        }
-
-        /* Групповое управление */
-        .group-controls {
-            display: none;
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            border-left: 4px solid var(--warning);
-        }
-
-        /* Адаптивность */
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            #map { height: 400px; }
-            .controls { flex-direction: column; }
-            .btn { width: 100%; margin: 5px 0; }
-            .stats-grid { grid-template-columns: 1fr; }
-            .status-bar { 
-                bottom: 10px;
-                right: 10px;
-                left: 10px;
-                flex-direction: column;
-                gap: 8px;
-            }
-        }
-
-        /* Анимации */
-        .fade-in {
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Прогресс бар */
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 5px 0;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--primary);
-            border-radius: 2px;
-            transition: width 0.3s ease;
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">
-                <i class="fas fa-radar fa-2x" style="color: var(--primary);"></i>
-                <h1>Система відстеження повітряних цілей</h1>
-            </div>
-            <div class="header-controls">
-                <button class="btn" onclick="showHelp()">
-                    <i class="fas fa-question-circle"></i>Довідка
-                </button>
-            </div>
-        </header>
+    <h1>🗺️ Карта повітряних цілей</h1>
 
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3><i class="fas fa-crosshairs"></i> Всього цілей</h3>
-                <div class="stat-value" id="totalTargets">0</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-eye"></i> Видимі цілі</h3>
-                <div class="stat-value" id="visibleTargets">0</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-tachometer-alt"></i> Середня швидкість</h3>
-                <div class="stat-value" id="avgSpeed">0 км/год</div>
-            </div>
-            <div class="stat-card">
-                <h3><i class="fas fa-clock"></i> Час роботи</h3>
-                <div class="stat-value" id="uptime">00:00:00</div>
-            </div>
-        </div>
-
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Пошук населеного пункту...">
-            <i class="fas fa-search search-icon"></i>
-            <div id="searchResults"></div>
-        </div>
-
-        <div class="controls">
-            <button class="btn" onclick="centerMap()">
-                <i class="fas fa-crosshairs"></i>Центрувати
-            </button>
-            <button class="btn" onclick="toggleAddMode()" id="addModeBtn">
-                <i class="fas fa-plus"></i>Додати ціль
-            </button>
-            <button class="btn" onclick="togglePause()" id="pauseBtn">
-                <i class="fas fa-pause"></i>Пауза
-            </button>
-            <button class="btn" onclick="toggleTrails()" id="trailsBtn">
-                <i class="fas fa-route"></i>Траєкторії
-            </button>
-            <button class="btn" onclick="toggleMapView()" id="mapViewBtn">
-                <i class="fas fa-satellite"></i>Супутник
-            </button>
-            <button class="btn" onclick="showAllTargets()">
-                <i class="fas fa-eye"></i>Показати всі
-            </button>
-            <button class="btn btn-warning" onclick="showGroupControls()">
-                <i class="fas fa-object-group"></i>Групове керування
-            </button>
-            <button class="btn btn-danger" onclick="clearAllTargets()">
-                <i class="fas fa-trash"></i>Очистити всі
-            </button>
-            <button class="btn btn-success" onclick="exportData()">
-                <i class="fas fa-download"></i>Експорт
-            </button>
-        </div>
-
-        <div class="group-controls" id="groupControls">
-            <h3><i class="fas fa-object-group"></i> Групове керування</h3>
-            <div style="display: flex; gap: 10px; margin: 10px 0;">
-                <input type="number" id="groupSpeed" placeholder="Швидкість" class="modal-input">
-                <input type="number" id="groupCourse" placeholder="Курс" min="0" max="360" class="modal-input">
-                <button class="btn btn-success" onclick="applyGroupSettings()">
-                    <i class="fas fa-check"></i>Застосувати
-                </button>
-            </div>
-            <div id="selectedCount">Вибрані цілі: 0</div>
-        </div>
-
-        <div id="map"></div>
-
-        <div class="targets-container">
-            <div class="targets-section">
-                <h3><i class="fas fa-list"></i> Активні цілі</h3>
-                <div id="targetsList">Завантаження...</div>
-            </div>
-            
-            <div class="targets-section">
-                <h3><i class="fas fa-chart-line"></i> Статистика руху</h3>
-                <div id="targetsStats">
-                    <p>Оберіть ціль для перегляду статистики</p>
-                </div>
-            </div>
-        </div>
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="🔍 Пошук населеного пункту...">
+        <div id="searchResults"></div>
     </div>
+
+    <div class="controls">
+        <button class="btn" onclick="centerMap()">🎯 Центрувати</button>
+        <button class="btn" onclick="toggleAddMode()" id="addModeBtn">📍 Додати ціль кліком</button>
+        <button class="btn" onclick="togglePause()" id="pauseBtn">⏸️ Пауза</button>
+        <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
+        <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
+        <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
+        <a href="/" class="btn">← На головну</a>
+        <a href="/targets" class="btn">📋 Список цілей</a>
+    </div>
+
+    <div id="map"></div>
+
+    <h3>🎯 Активні цілі:</h3>
+    <div id="targetsList">Завантаження...</div>
 
     <!-- Форма добавления/редактирования цели -->
     <div id="targetForm" class="modal">
         <div class="modal-content">
-            <h3 id="formTitle"><i class="fas fa-plus"></i> Додати ціль</h3>
+            <h3 id="formTitle">➕ Додати ціль</h3>
             <input type="hidden" id="targetId">
-            
-            <input type="text" id="targetName" placeholder="Назва цілі" class="modal-input">
-            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" min="0" max="5000" class="modal-input">
-            <input type="number" id="targetCourse" placeholder="Курс (0-360°)" min="0" max="360" class="modal-input">
-            
-            <select id="targetType" class="modal-input">
-                <option value="винищувач">🛩️ Винищувач</option>
-                <option value="дрон">🚁 Дрон (Shahed)</option>
-                <option value="ракета">🚀 Ракета</option>
-                <option value="бомба">💣 Бомба</option>
-                <option value="корабль">🚢 Корабель</option>
-                <option value="вертоліт">🚁 Вертоліт</option>
-                <option value="транспорт">✈️ Транспортний літак</option>
+            <input type="text" id="targetName" placeholder="Назва цілі">
+            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)">
+            <input type="number" id="targetCourse" placeholder="Курс (0-360°)" min="0" max="360">
+            <select id="targetType">
+                <option value="винищувач">Винищувач</option>
+                <option value="дрон">Дрон (Shahed)</option>
+                <option value="ракета">Ракета</option>
+                <option value="бомба">Бомба</option>
+                <option value="корабль">Корабель</option>
             </select>
-
-            <div style="margin-top:20px; display: flex; gap: 10px; justify-content: space-between;">
-                <button class="btn btn-success" onclick="saveTarget()">
-                    <i class="fas fa-save"></i>Зберегти
-                </button>
-                <button class="btn btn-danger" onclick="deleteTarget()" id="deleteBtn">
-                    <i class="fas fa-trash"></i>Видалити
-                </button>
-                <button class="btn" onclick="hideTargetForm()">
-                    <i class="fas fa-times"></i>Скасувати
-                </button>
+            <div style="margin-top:15px;">
+                <button class="btn" onclick="saveTarget()">💾 Зберегти</button>
+                <button class="btn" onclick="deleteTarget()" style="background:#ff0000;">🗑️ Видалити</button>
+                <button class="btn" onclick="hideTargetForm()" style="background:#e74c3c;">❌ Скасувати</button>
             </div>
         </div>
     </div>
-
-    <!-- Контекстное меню -->
-    <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" onclick="contextEdit()">
-            <i class="fas fa-edit"></i> Редагувати
-        </div>
-        <div class="context-menu-item" onclick="contextChangeCourse()">
-            <i class="fas fa-compass"></i> Змінити курс
-        </div>
-        <div class="context-menu-item" onclick="contextDelete()">
-            <i class="fas fa-trash"></i> Видалити
-        </div>
-    </div>
-
-    <!-- Статус бар -->
-    <div class="status-bar" id="statusBar">
-        <div class="status-item">
-            <i class="fas fa-circle" style="color: var(--success);"></i>
-            <span>Статус: Активний</span>
-        </div>
-        <div class="status-item">
-            <i class="fas fa-crosshairs"></i>
-            <span>Цілей: <span id="statusTargets">0</span></span>
-        </div>
-        <div class="status-item">
-            <i class="fas fa-clock"></i>
-            <span>Час: <span id="statusTime">00:00:00</span></span>
-        </div>
-    </div>
-
-    <!-- Контейнер для уведомлений -->
-    <div class="toast-container" id="toastContainer"></div>
-
-    <!-- Скрытый input для импорта -->
-    <input type="file" id="importFile" accept=".json" style="display:none">
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -616,241 +135,527 @@
         let baseLayers = {};
         let targets = [];
         let animationInterval;
+        let nextId = 3;
         let targetTrails = {};
         let targetHistory = {};
         let clickMarker = null;
         let lastFrameTime = performance.now();
-         hiddenTargets = new Set();
-        let nextId = 1;
-        let selectedTargets = new Set();
-        let startTime = Date.now();
-        let contextMenuTarget = null;
-
+        let hiddenTargets = new Set();
         // Инициализация карты
-        function initMap() {
-            console.log("Инициализация карты...");
-            map = L.map('map').setView([50.4501, 30.5234], 6);
-
-            // Слои карты
-            baseLayers.street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            });
-
-            baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: '© Esri',
-                maxZoom: 19
-            });
-
-            baseLayers.street.addTo(map);
-
-            // Инициализация поиска
-            initSearch();
-
-            // Обработчики событий
-            map.on('click', handleMapClick);
-            map.on('moveend', updateVisibleTargets);
-            map.on('contextmenu', handleContextMenu);
-
-            // Горячие клавиши
-            initHotkeys();
-
-            // Загрузка данных
-            loadTargets();
-            startAnimation();
-            updateStats();
-            startUptimeCounter();
-
-            showToast('Система ініціалізована успішно!', 'success');
+function initMap() {
+    console.log("Инициализация карты...");
+    
+    map = L.map('map').setView([50.4501, 30.5234], 6);
+    
+    baseLayers.street = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    });
+    
+    baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri',
+        maxZoom: 19
+    });
+    
+    baseLayers.street.addTo(map);
+    
+    // Инициализация поиска
+    initSearch();
+    
+    // Обработчик кликов по карте
+    map.on('click', function(e) {
+        if (addMode) {
+            handleAddClick(e);
+        } else if (courseMode && selectedTargetId !== null) {
+            updateTargetCourse(e);
         }
+    });
+    
+    // Обработчик перемещения карты
+    map.on('moveend', updateVisibleTargets);
+    
+    loadTargets();
+    startAnimation();
+}
 
-        // Обработчик кликов по карте
-        function handleMapClick(e) {
-            if (addMode) {
-                handleAddClick(e);
-            } else if (courseMode && selectedTargetId !== null) {
-                updateTargetCourse(e);
-            }
-        }
-
-        // Обработчик контекстного меню
-        function handleContextMenu(e) {
-            e.originalEvent.preventDefault();
-            hideContextMenu();
-        }
-
-        // Горячие клавиши
-        function initHotkeys() {
-            document.addEventListener('keydown', (e) => {
-                if (e.target.tagName === 'INPUT') return;
-
-                switch(e.code) {
-                    case 'Space':
-                        e.preventDefault();
-                        togglePause();
-                        break;
-                    case 'KeyC':
-                        if (e.ctrlKey) centerMap();
-                        break;
-                    case 'Delete':
-                        if (selectedTargets.size > 0) {
-                            deleteSelectedTargets();
-                        }
-                        break;
-                    case 'Escape':
-                        hideContextMenu();
-                        hideTargetForm();
-                        selectedTargets.clear();
-                        updateGroupControls();
-                        break;
+// Обновление видимости целей
+function updateVisibleTargets() {
+    const bounds = map.getBounds();
+    hiddenTargets.clear();
+    
+    targets.forEach(target => {
+        const targetLatLng = L.latLng(target.lat, target.lng);
+        const isVisible = bounds.contains(targetLatLng);
+        
+        if (markers[target.id]) {
+            if (isVisible) {
+                markers[target.id].addTo(map);
+                if (markers[target.id]._icon) {
+                    markers[target.id]._icon.classList.remove('hidden');
                 }
-            });
-        }
-
-        // Показать уведомление
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'exclamation' : 'info'}-circle"></i>
-                ${message}
-            `;
-            
-            document.getElementById('toastContainer').appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-
-        // Контекстное меню
-        function showContextMenu(e, targetId) {
-            e.preventDefault();
-            contextMenuTarget = targetId;
-            
-            const menu = document.getElementById('contextMenu');
-            menu.style.display = 'block';
-            menu.style.left = e.pageX + 'px';
-            menu.style.top = e.pageY + 'px';
-        }
-
-        function hideContextMenu() {
-            document.getElementById('contextMenu').style.display = 'none';
-            contextMenuTarget = null;
-        }
-
-        function contextEdit() {
-            if (contextMenuTarget) {
-                showTargetForm(contextMenuTarget);
+            } else {
+                markers[target.id].remove();
+                hiddenTargets.add(target.id);
             }
-            hideContextMenu();
         }
+    });
+}
 
-        function contextChangeCourse() {
-            if (contextMenuTarget) {
-                selectTargetForCourse(contextMenuTarget);
+// Показать все цели (даже вне экрана)
+function showAllTargets() {
+    targets.forEach(target => {
+        if (markers[target.id] && !map.hasLayer(markers[target.id])) {
+            markers[target.id].addTo(map);
+            if (markers[target.id]._icon) {
+                markers[target.id]._icon.classList.remove('hidden');
             }
-            hideContextMenu();
-        }
-
-        function contextDelete() {
-            if (contextMenuTarget) {
-                const target = targets.find(t => t.id === contextMenuTarget);
-                if (target && confirm(`Видалити ціль "${target.name}"?`)) {
-                    deleteTargetById(contextMenuTarget);
-                }
-            }
-            hideContextMenu();
-        }
-
-        // Групповое управление
-        function showGroupControls() {
-            document.getElementById('groupControls').style.display = 
-                document.getElementById('groupControls').style.display === 'block' ? 'none' : 'block';
-        }
-
-        function updateGroupControls() {
-            const count = selectedTargets.size;
-            document.getElementById('selectedCount').textContent = `Вибрані цілі: ${count}`;
-            document.getElementById('groupControls').style.display = count > 0 ? 'block' : 'none';
-        }
-
-        function applyGroupSettings() {
-            const speed = parseFloat(document.getElementById('groupSpeed').value);
-            const course = parseFloat(document.getElementById('groupCourse').value);
+            hiddenTargets.delete(target.id);
             
-            if (isNaN(speed) && isNaN(course)) {
-                showToast('Введіть швидкість або курс', 'warning');
-                return;
+            // Плавно перемещаем карту к цели, если она далеко
+            const targetBounds = L.latLngBounds([target.lat, target.lng]);
+            if (!map.getBounds().contains([target.lat, target.lng])) {
+                map.panTo([target.lat, target.lng], {animate: true, duration: 1});
             }
+        }
+    });
+}
 
-            selectedTargets.forEach(id => {
-                const target = targets.find(t => t.id === id);
-                if (target) {
-                    if (!isNaN(speed)) target.speed = speed;
-                    if (!isNaN(course)) target.course = course;
-                }
-            });
+// Инициализация поиска
+function initSearch() {
+    const searchInput = document.getElementById('searchInput');
+    
+    searchInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length > 2) {
+            searchLocation(query);
+        } else {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+    });
+}
 
+// Обработчик клика для добавления цели
+function handleAddClick(e) {
+    if (clickMarker) {
+        map.removeLayer(clickMarker);
+    }
+    
+    clickMarker = L.marker(e.latlng)
+        .addTo(map)
+        .bindPopup('Нова ціль тут')
+        .openPopup();
+    
+    showTargetForm(null, e.latlng);
+}
+
+function toggleAddMode() {
+    addMode = !addMode;
+    const btn = document.getElementById('addModeBtn');
+    
+    if (addMode) {
+        btn.textContent = '❌ Скасувати додавання';
+        btn.style.background = '#e74c3c';
+        alert('Режим додавання: клікніть на карту для вибору позиції цілі');
+        // Отключаем другие режимы
+        courseMode = false;
+        selectedTargetId = null;
+    } else {
+        btn.textContent = '📍 Додати ціль кліком';
+        btn.style.background = '#a38d6d';
+        if (clickMarker) {
+            map.removeLayer(clickMarker);
+            clickMarker = null;
+        }
+    }
+        }
+        // Показать форму для добавления/редактирования
+function showTargetForm(targetId, latlng = null) {
+    const form = document.getElementById('targetForm');
+    const title = document.getElementById('formTitle');
+    const idField = document.getElementById('targetId');
+    const nameField = document.getElementById('targetName');
+    const speedField = document.getElementById('targetSpeed');
+    const courseField = document.getElementById('targetCourse');
+    const typeField = document.getElementById('targetType');
+    const deleteBtn = document.querySelector('button[onclick="deleteTarget()"]');
+    
+    if (targetId) {
+        // Режим редактирования
+        const target = targets.find(t => t.id === targetId);
+        if (target) {
+            title.textContent = '✏️ Редагувати ціль';
+            idField.value = target.id;
+            nameField.value = target.name;
+            speedField.value = target.speed;
+            courseField.value = target.course;
+            typeField.value = target.type;
+            deleteBtn.style.display = 'inline-block';
+        }
+    } else {
+        // Режим добавления
+        title.textContent = '➕ Додати ціль';
+        idField.value = '';
+        nameField.value = 'Ціль ' + nextId;
+        speedField.value = 800;
+        courseField.value = 90;
+        typeField.value = 'винищувач';
+        deleteBtn.style.display = 'none';
+        
+        // Сохраняем координаты для новой цели
+        if (latlng) {
+            window.newTargetLatLng = latlng;
+        }
+    }
+    
+    form.style.display = 'flex';
+}
+
+function hideTargetForm() {
+    document.getElementById('targetForm').style.display = 'none';
+    if (clickMarker) {
+        map.removeLayer(clickMarker);
+        clickMarker = null;
+    }
+    addMode = false;
+    document.getElementById('addModeBtn').textContent = '📍 Додати ціль кліком';
+    document.getElementById('addModeBtn').style.background = '#a38d6d';
+}
+
+function saveTarget() {
+    const id = document.getElementById('targetId').value;
+    const name = document.getElementById('targetName').value;
+    const speed = parseFloat(document.getElementById('targetSpeed').value);
+    const course = parseFloat(document.getElementById('targetCourse').value);
+    const type = document.getElementById('targetType').value;
+    
+    if (id) {
+        // Редактирование существующей цели
+        const target = targets.find(t => t.id === parseInt(id));
+        if (target) {
+            target.name = name;
+            target.speed = speed;
+            target.course = course;
+            target.type = type;
+        }
+    } else {
+        // Добавление новой цели
+        let lat, lng;
+        if (window.newTargetLatLng) {
+            lat = window.newTargetLatLng.lat;
+            lng = window.newTargetLatLng.lng;
+        } else {
+            const center = map.getCenter();
+            lat = center.lat + (Math.random() - 0.5);
+            lng = center.lng + (Math.random() - 0.5);
+        }
+        
+        const newTarget = {
+            id: nextId++,
+            name: name,
+            type: type,
+            speed: speed,
+            course: course,
+            lat: lat,
+            lng: lng
+        };
+        
+        targets.push(newTarget);
+        targetHistory[newTarget.id] = [[lat, lng]];
+    }
+    
+    updateMapMarkers();
+    updateTargetsList();
+    hideTargetForm();
+}
+
+function deleteTarget() {
+    const id = document.getElementById('targetId').value;
+    if (!id) return;
+    
+    if (confirm('Ви впевнені, що хочете видалити цю ціль?')) {
+        const index = targets.findIndex(t => t.id === parseInt(id));
+        if (index !== -1) {
+            targets.splice(index, 1);
+            if (targetTrails[id]) {
+                map.removeLayer(targetTrails[id]);
+                delete targetTrails[id];
+            }
+            if (targetHistory[id]) {
+                delete targetHistory[id];
+            }
+            if (hiddenTargets.has(parseInt(id))) {
+                hiddenTargets.delete(parseInt(id));
+            }
             updateMapMarkers();
             updateTargetsList();
-            showToast(`Оновлено ${selectedTargets.size} цілей`, 'success');
+        }
+    }
+    hideTargetForm();
+}
+
+// Поиск населенных пунктов
+function searchLocation(query) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&accept-language=uk`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '';
+            
+            if (data.length > 0) {
+                data.forEach(place => {
+                    const div = document.createElement('div');
+                    div.className = 'search-result';
+                    div.textContent = place.display_name;
+                    div.onclick = () => {
+                        map.setView([parseFloat(place.lat), parseFloat(place.lon)], 12);
+                        results.style.display = 'none';
+                        document.getElementById('searchInput').value = '';
+                    };
+                    results.appendChild(div);
+                });
+                results.style.display = 'block';
+            }
+        });
+}
+
+function loadTargets() {
+    targets = [
+        {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
+        {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
+    ];
+    
+    targets.forEach(target => {
+        targetHistory[target.id] = [[target.lat, target.lng]];
+    });
+    
+    updateTargetsList();
+    updateMapMarkers();
+}
+                // Создание треугольного маркера
+        function createTriangleIcon(type, course) {
+            const colors = {
+                'винищувач': '#3498db',
+                'дрон': '#e74c3c',
+                'ракета': '#f39c12',
+                'бомба': '#95a5a6',
+                'корабль': '#9b59b6'
+            };
+
+            const color = colors[type] || '#3498db';
+            const rotation = course;
+
+            return L.divIcon({
+                className: 'target-icon',
+                html: `<div class="triangle-icon" style="border-bottom-color: ${color}; transform: rotate(${rotation}deg);"></div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
         }
 
-        // Остальные функции (loadTargets, saveTargetsToStorage, updateStats, и т.д.)
-        // ... [Здесь должен быть остальной код из предыдущей версии] ...
+        function updateMapMarkers() {
+            const bounds = map.getBounds();
+            
+            for (const id in markers) {
+                map.removeLayer(markers[id]);
+            }
+            for (const id in targetTrails) {
+                if (targetTrails[id]) map.removeLayer(targetTrails[id]);
+            }
+            markers = {};
+            targetTrails = {};
+            hiddenTargets.clear();
+            
+            targets.forEach(target => {
+                const icon = createTriangleIcon(target.type, target.course);
+                const marker = L.marker([target.lat, target.lng], {icon: icon})
+                    .bindPopup(`
+                        <b>${target.name}</b><br>
+                        Тип: ${target.type}<br>
+                        Швидкість: ${target.speed} км/год<br>
+                        Курс: ${target.course}°<br>
+                        <button onclick="showTargetForm(${target.id})">✏️ Редагувати</button>
+                        <button onclick="selectTargetForCourse(${target.id})">🔄 Змінити курс</button>
+                    `)
+                    .on('click', function() {
+                        if (courseMode) {
+                            selectTargetForCourse(target.id);
+                        }
+                    });
+                
+                // Добавляем маркер на карту только если он в пределах видимости
+                if (bounds.contains([target.lat, target.lng])) {
+                    marker.addTo(map);
+                } else {
+                    hiddenTargets.add(target.id);
+                }
+                
+                markers[target.id] = marker;
+                
+                // Траектории (только для видимых целей)
+                if (trailsVisible && targetHistory[target.id] && targetHistory[target.id].length > 1) {
+                    targetTrails[target.id] = L.polyline(targetHistory[target.id], {
+                        color: 'red',
+                        weight: 1,
+                        opacity: 0.7
+                    }).addTo(map);
+                }
+            });
+        }
 
-        // Добавляем обновление статистики в moveTargets
+        function updateTargetsList() {
+            const container = document.getElementById('targetsList');
+            container.innerHTML = '';
+            
+            targets.forEach(target => {
+                const div = document.createElement('div');
+                div.className = 'target-item';
+                const isHidden = hiddenTargets.has(target.id);
+                div.innerHTML = `
+                    <strong>${target.name}</strong> (${target.type}) ${isHidden ? '👁️‍🗨️' : ''}<br>
+                    Швидкість: ${target.speed} км/год, Курс: ${Math.round(target.course)}°<br>
+                    Координати: ${target.lat.toFixed(4)}, ${target.lng.toFixed(4)}
+                    ${isHidden ? '<br><small>поза межами карти</small>' : ''}
+                `;
+                div.onclick = () => showTargetForm(target.id);
+                container.appendChild(div);
+            });
+        }
+
+        function startAnimation() {
+            if (animationInterval) clearInterval(animationInterval);
+            lastFrameTime = performance.now();
+            animationInterval = setInterval(moveTargets, 50);
+        }
+
         function moveTargets() {
             if (animationPaused) return;
 
             const now = performance.now();
             const deltaTime = (now - lastFrameTime) / 1000;
             lastFrameTime = now;
+            const bounds = map.getBounds();
 
             targets.forEach(target => {
-                // ... [код движения] ...
+                if (target.speed > 0) {
+                    // РЕАЛИСТИЧНАЯ СКОРОСТЬ: км/ч -> градусы/секунду
+                    const speedKmPerSecond = target.speed / 3600;
+                    const latDegreesPerKm = 1 / 111.0;
+                    const lngDegreesPerKm = 1 / (111.0 * Math.cos(target.lat * Math.PI / 180));
+                    
+                    const speedDegreesPerSecond = speedKmPerSecond * latDegreesPerKm;
+                    const courseRad = (target.course - 90) * Math.PI / 180;
+                    
+                    const deltaLat = Math.sin(courseRad) * speedDegreesPerSecond * deltaTime;
+                    const deltaLng = Math.cos(courseRad) * speedDegreesPerSecond * deltaTime * 
+                                    (latDegreesPerKm / lngDegreesPerKm);
+                    
+                    const newLat = target.lat + deltaLat;
+                    const newLng = target.lng + deltaLng;
+                    
+                    target.lat = newLat;
+                    target.lng = newLng;
+                    
+                    if (!targetHistory[target.id]) targetHistory[target.id] = [];
+                    targetHistory[target.id].push([newLat, newLng]);
+                    
+                    // Обновляем маркер если он видимый
+                    if (markers[target.id] && map.hasLayer(markers[target.id])) {
+                        markers[target.id].setLatLng([newLat, newLng]);
+                        const newIcon = createTriangleIcon(target.type, target.course);
+                        markers[target.id].setIcon(newIcon);
+                    }
+                    
+                    // Обновляем видимость
+                    const isVisible = bounds.contains([newLat, newLng]);
+                    if (markers[target.id]) {
+                        if (isVisible && !map.hasLayer(markers[target.id])) {
+                            markers[target.id].addTo(map);
+                            hiddenTargets.delete(target.id);
+                        } else if (!isVisible && map.hasLayer(markers[target.id])) {
+                            markers[target.id].remove();
+                            hiddenTargets.add(target.id);
+                        }
+                    }
+                    
+                    // Обновляем траекторию
+                    if (trailsVisible && targetTrails[target.id]) {
+                        targetTrails[target.id].setLatLngs(targetHistory[target.id]);
+                    }
+                }
             });
-
-            updateStats(); // Обновляем статистику
-        }
-
-        // Обновление статистики
-        function updateStats() {
-            document.getElementById('totalTargets').textContent = targets.length;
-            document.getElementById('visibleTargets').textContent = targets.length - hiddenTargets.size;
             
-            const avgSpeed = targets.reduce((sum, target) => sum + target.speed, 0) / (targets.length || 1);
-            document.getElementById('avgSpeed').textContent = `${Math.round(avgSpeed)} км/год`;
+            updateTargetsList();
+        }
+
+        function selectTargetForCourse(targetId) {
+            courseMode = true;
+            selectedTargetId = targetId;
+            alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
+        }
+
+        function updateTargetCourse(e) {
+            if (!selectedTargetId) return;
             
-            document.getElementById('statusTargets').textContent = targets.length;
+            const target = targets.find(t => t.id === selectedTargetId);
+            if (!target) return;
+            
+            const dx = e.latlng.lng - target.lng;
+            const dy = e.latlng.lat - target.lat;
+            let newCourse = (Math.atan2(dy, dx) * 180 / Math.PI + 90 + 360) % 360;
+            
+            target.course = newCourse;
+            
+            if (markers[target.id]) {
+                const newIcon = createTriangleIcon(target.type, newCourse);
+                markers[target.id].setIcon(newIcon);
+            }
+            
+            alert(`Курс змінено на: ${Math.round(newCourse)}°`);
+            
+            courseMode = false;
+            selectedTargetId = null;
         }
 
-        // Счетчик времени работы
-        function startUptimeCounter() {
-            setInterval(() => {
-                const seconds = Math.floor((Date.now() - startTime) / 1000);
-                const hours = Math.floor(seconds / 3600);
-                const minutes = Math.floor((seconds % 3600) / 60);
-                const secs = seconds % 60;
-                
-                document.getElementById('uptime').textContent = 
-                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-                document.getElementById('statusTime').textContent = 
-                    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-            }, 1000);
+        function toggleTrails() {
+            trailsVisible = !trailsVisible;
+            const btn = document.getElementById('trailsBtn');
+            btn.textContent = trailsVisible ? '🔴 Траєкторії' : '⚫ Траєкторії';
+            updateMapMarkers();
         }
 
-        // Помощь
-        function showHelp() {
-            alert(`Гарячі клавиші:\n\nSpace - Пауза/Відтворити\nDelete - Видалити вибрані\nCtrl+C - Центрувати карту\nEscape - Скасувати\n\nКлавіша миши - Контекстне меню`);
+        function togglePause() {
+            animationPaused = !animationPaused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = animationPaused ? '▶️ Відтворити' : '⏸️ Пауза';
+            btn.style.background = animationPaused ? '#27ae60' : '#a38d6d';
+            if (!animationPaused) {
+                lastFrameTime = performance.now();
+            }
         }
 
-        // Запуск при загрузке
+        function toggleMapView() {
+            if (currentMapView === 'street') {
+                map.removeLayer(baseLayers.street);
+                baseLayers.satellite.addTo(map);
+                currentMapView = 'satellite';
+                document.getElementById('mapViewBtn').textContent = '🗺️ Мапа';
+            } else {
+                map.removeLayer(baseLayers.satellite);
+                baseLayers.street.addTo(map);
+                currentMapView = 'street';
+                document.getElementById('mapViewBtn').textContent = '🛰️ Супутник';
+            }
+            updateVisibleTargets();
+        }
+
+        function centerMap() {
+            map.setView([50.4501, 30.5234], 6);
+            updateVisibleTargets();
+        }
+
         window.onload = initMap;
-
-        // Закрытие контекстного меню при клике вне его
-        document.addEventListener('click', hideContextMenu);
     </script>
 </body>
 </html>
