@@ -73,6 +73,28 @@
         .target-icon.hidden {
             opacity: 0.3;
         }
+
+        /* Статус бар */
+        .status-bar {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: #2c3e50;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #a38d6d;
+            font-size: 12px;
+        }
+
+        /* Адаптивность для мобильных */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            #map { height: 400px; }
+            .controls { flex-direction: column; }
+            .btn { width: 100%; margin: 2px 0; }
+            #searchInput { width: 100%; }
+            #searchResults { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -90,11 +112,14 @@
         <button class="btn" onclick="toggleTrails()" id="trailsBtn">🔴 Траєкторії</button>
         <button class="btn" onclick="toggleMapView()" id="mapViewBtn">🛰️ Супутник</button>
         <button class="btn" onclick="showAllTargets()">👁️ Показати всі цілі</button>
+        <button class="btn" onclick="clearAllTargets()" style="background:#e74c3c;">🗑️ Очистити всі цілі</button>
+        <button class="btn" onclick="exportData()">💾 Експорт даних</button>
+        <button class="btn" onclick="importData()">📥 Імпорт даних</button>
     </div>
 
     <div id="map"></div>
 
-    <h3>🎯 Активні цілі:</h3>
+    <h3>🎯 Активні цілі: <span id="targetsCount">0</span></h3>
     <div id="targetsList">Завантаження...</div>
 
     <!-- Форма добавления/редактирования цели -->
@@ -103,7 +128,7 @@
             <h3 id="formTitle">➕ Додати ціль</h3>
             <input type="hidden" id="targetId">
             <input type="text" id="targetName" placeholder="Назва цілі">
-            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)">
+            <input type="number" id="targetSpeed" placeholder="Швидкість (км/год)" min="0" max="5000">
             <input type="number" id="targetCourse" placeholder="Курс (0-360°)" min="0" max="360">
             <select id="targetType">
                 <option value="винищувач">Винищувач</option>
@@ -111,6 +136,8 @@
                 <option value="ракета">Ракета</option>
                 <option value="бомба">Бомба</option>
                 <option value="корабль">Корабель</option>
+                <option value="вертоліт">Вертоліт</option>
+                <option value="транспорт">Транспортний літак</option>
             </select>
             <div style="margin-top:15px;">
                 <button class="btn" onclick="saveTarget()">💾 Зберегти</button>
@@ -119,6 +146,14 @@
             </div>
         </div>
     </div>
+
+    <!-- Статус бар -->
+    <div class="status-bar" id="statusBar">
+        ⚡ Статус: Активний | 🎯 Цілей: 0 | ⏸️ Пауза: Ні
+    </div>
+
+    <!-- Скрытый input для импорта -->
+    <input type="file" id="importFile" accept=".json" style="display:none">
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -134,12 +169,12 @@
         let baseLayers = {};
         let targets = [];
         let animationInterval;
-        let nextId = 3;
         let targetTrails = {};
         let targetHistory = {};
         let clickMarker = null;
         let lastFrameTime = performance.now();
         let hiddenTargets = new Set();
+        let nextId = 1;
 
         // Инициализация карты
         function initMap() {
@@ -174,9 +209,176 @@
             // Обработчик перемещения карты
             map.on('moveend', updateVisibleTargets);
 
+            // Загрузка данных
             loadTargets();
             startAnimation();
+            updateStatusBar();
         }
+
+        // Сохранение целей в localStorage
+        function saveTargetsToStorage() {
+            const data = {
+                targets: targets,
+                nextId: nextId
+            };
+            localStorage.setItem('airTargetsData', JSON.stringify(data));
+        }
+
+        // Загрузка целей из localStorage
+        function loadTargetsFromStorage() {
+            const saved = localStorage.getItem('airTargetsData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    targets = data.targets || [];
+                    nextId = data.nextId || 1;
+                    
+                    // Инициализируем историю для каждой цели
+                    targets.forEach(target => {
+                        targetHistory[target.id] = targetHistory[target.id] || [[target.lat, target.lng]];
+                    });
+                    
+                    return true;
+                } catch (e) {
+                    console.error('Ошибка загрузки данных:', e);
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        // Загрузка целей
+        function loadTargets() {
+            if (!loadTargetsFromStorage()) {
+                // Данные по умолчанию
+                targets = [
+                    {id: nextId++, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
+                    {id: nextId++, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
+                ];
+                
+                targets.forEach(target => {
+                    targetHistory[target.id] = [[target.lat, target.lng]];
+                });
+            }
+            
+            updateTargetsList();
+            updateMapMarkers();
+            updateStatusBar();
+        }
+
+        // Обновление статус бара
+        function updateStatusBar() {
+            const statusBar = document.getElementById('statusBar');
+            const targetsCount = document.getElementById('targetsCount');
+            const visibleTargets = targets.filter(t => !hiddenTargets.has(t.id)).length;
+            
+            targetsCount.textContent = targets.length;
+            statusBar.innerHTML = `⚡ Статус: ${animationPaused ? 'Пауза' : 'Активний'} | 🎯 Цілей: ${targets.length} (${visibleTargets} видимих) | 📍 Режим: ${addMode ? 'Додавання' : courseMode ? 'Зміна курсу' : 'Перегляд'}`;
+        }
+
+        // Экспорт данных
+        function exportData() {
+            const data = {
+                targets: targets,
+                nextId: nextId,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+            alert('✅ Дані експортовано успішно!');
+        }
+
+        // Импорт данных
+        function importData() {
+            document.getElementById('importFile').click();
+        }
+
+        // Обработчик выбора файла
+        document.getElementById('importFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm(`Імпортувати ${data.targets.length} цілей? Поточні дані будуть видалені.`)) {
+                        // Очищаем текущие данные
+                        clearAllTargets(true);
+                        
+                        // Загружаем новые данные
+                        targets = data.targets || [];
+                        nextId = data.nextId || targets.length + 1;
+                        
+                        // Инициализируем историю
+                        targets.forEach(target => {
+                            targetHistory[target.id] = [[target.lat, target.lng]];
+                        });
+                        
+                        // Сохраняем и обновляем
+                        saveTargetsToStorage();
+                        updateMapMarkers();
+                        updateTargetsList();
+                        updateStatusBar();
+                        
+                        alert(`✅ Успішно імпортовано ${targets.length} цілей!`);
+                    }
+                } catch (error) {
+                    alert('❌ Помилка імпорту: некоректний формат файлу');
+                    console.error('Import error:', error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Сбрасываем input
+            e.target.value = '';
+        });
+
+        // Очистка всех целей
+        function clearAllTargets(silent = false) {
+            if (!silent && !confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+            
+            targets = [];
+            
+            // Очищаем маркеры и траектории
+            for (const id in markers) {
+                map.removeLayer(markers[id]);
+            }
+            for (const id in targetTrails) {
+                if (targetTrails[id]) map.removeLayer(targetTrails[id]);
+            }
+            
+            markers = {};
+            targetTrails = {};
+            targetHistory = {};
+            hiddenTargets.clear();
+            nextId = 1;
+            
+            if (!silent) {
+                saveTargetsToStorage();
+                updateTargetsList();
+                updateStatusBar();
+                alert('✅ Всі цілі видалені!');
+            }
+        }
+
+        // Остальные функции остаются без изменений (как в предыдущем коде)
+        // [Здесь должны быть все остальные функции из предыдущего кода:
+        // updateVisibleTargets, showAllTargets, initSearch, searchLocation, 
+        // toggleAddMode, handleAddClick, showTargetForm, hideTargetForm, 
+        // saveTarget, deleteTarget, createTriangleIcon, updateMapMarkers, 
+        // updateTargetsList, startAnimation, moveTargets, selectTargetForCourse, 
+        // updateTargetCourse, toggleTrails, togglePause, toggleMapView, centerMap]
 
         // Обновление видимости целей
         function updateVisibleTargets() {
@@ -200,6 +402,7 @@
                 }
             });
             updateTargetsList();
+            updateStatusBar();
         }
 
         // Показать все цели
@@ -214,6 +417,7 @@
                 }
             });
             updateTargetsList();
+            updateStatusBar();
         }
 
         // Инициализация поиска
@@ -275,6 +479,7 @@
                     clickMarker = null;
                 }
             }
+            updateStatusBar();
         }
 
         // Обработчик клика для добавления цели
@@ -341,6 +546,7 @@
             addMode = false;
             document.getElementById('addModeBtn').textContent = '📍 Додати ціль кліком';
             document.getElementById('addModeBtn').style.background = '#a38d6d';
+            updateStatusBar();
         }
 
         // Сохранение цели
@@ -386,8 +592,10 @@
                 targetHistory[newTarget.id] = [[lat, lng]];
             }
 
+            saveTargetsToStorage();
             updateMapMarkers();
             updateTargetsList();
+            updateStatusBar();
             hideTargetForm();
         }
 
@@ -407,26 +615,17 @@
                     if (targetHistory[id]) {
                         delete targetHistory[id];
                     }
+                    if (hiddenTargets.has(parseInt(id))) {
+                        hiddenTargets.delete(parseInt(id));
+                    }
+                    
+                    saveTargetsToStorage();
                     updateMapMarkers();
                     updateTargetsList();
+                    updateStatusBar();
                 }
             }
             hideTargetForm();
-        }
-
-        // Загрузка целей
-        function loadTargets() {
-            targets = [
-                {id: 1, name: "F-16", type: "винищувач", speed: 800, course: 45, lat: 50.45, lng: 30.52},
-                {id: 2, name: "Shahed-136", type: "дрон", speed: 180, course: 120, lat: 49.0, lng: 31.0}
-            ];
-
-            targets.forEach(target => {
-                targetHistory[target.id] = [[target.lat, target.lng]];
-            });
-
-            updateTargetsList();
-            updateMapMarkers();
         }
 
         // Создание треугольного маркера
@@ -436,7 +635,9 @@
                 'дрон': '#e74c3c',
                 'ракета': '#f39c12',
                 'бомба': '#95a5a6',
-                'корабль': '#9b59b6'
+                'корабль': '#9b59b6',
+                'вертоліт': '#2ecc71',
+                'транспорт': '#f1c40f'
             };
 
             const color = colors[type] || '#3498db';
@@ -581,6 +782,7 @@
                 }
             });
             updateTargetsList();
+            updateStatusBar();
         }
 
         // Выбор цели для изменения курса
@@ -588,6 +790,7 @@
             courseMode = true;
             selectedTargetId = targetId;
             alert(`Обрано ціль: ${targets.find(t => t.id === targetId).name}. Клікніть на карту у напрямку нового курсу.`);
+            updateStatusBar();
         }
 
         // Обновление курса цели
@@ -608,9 +811,11 @@
                 markers[target.id].setIcon(newIcon);
             }
 
+            saveTargetsToStorage();
             alert(`Курс змінено на: ${Math.round(newCourse)}°`);
             courseMode = false;
             selectedTargetId = null;
+            updateStatusBar();
         }
 
         // Переключение траекторий
@@ -630,6 +835,7 @@
             if (!animationPaused) {
                 lastFrameTime = performance.now();
             }
+            updateStatusBar();
         }
 
         // Переключение вида карты
@@ -656,6 +862,9 @@
 
         // Запуск при загрузке
         window.onload = initMap;
+
+        // Автосохранение каждые 30 секунд
+        setInterval(saveTargetsToStorage, 30000);
     </script>
 </body>
 </html>
