@@ -1,3 +1,4 @@
+IREBASE
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -62,6 +63,23 @@
             max-height: 40vh;
             overflow-y: auto;
             box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .panel-toggle {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0d8bf2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .tabs {
@@ -280,6 +298,20 @@
             font-weight: bold;
         }
 
+        /* Стилі для редагування */
+        .edit-mode {
+            border: 2px solid #0d8bf2 !important;
+        }
+
+        .course-marker {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #0d8bf2;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
         /* Адаптивність */
         @media (max-width: 768px) {
             .header h1 {
@@ -303,6 +335,12 @@
             .control-panel {
                 max-height: 50vh;
             }
+            
+            .panel-toggle {
+                top: -30px;
+                width: 35px;
+                height: 35px;
+            }
         }
 
         /* Анімації */
@@ -314,22 +352,6 @@
 
         .pulse {
             animation: pulse 2s infinite;
-        }
-
-        /* Стрілки для розгортання панелі */
-        .panel-toggle {
-            position: absolute;
-            top: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #0d8bf2;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            z-index: 1001;
         }
     </style>
 </head>
@@ -382,6 +404,9 @@
                 <button onclick="addTarget()"><i class="fas fa-plus"></i> Додати ціль</button>
                 <button onclick="addRandomTarget()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
                     <i class="fas fa-dice"></i> Випадкова ціль
+                </button>
+                <button onclick="enableCourseSelection()" style="background: linear-gradient(90deg, #1dd1a1 0%, #10ac84 100%);">
+                    <i class="fas fa-route"></i> Обрати курс на карті
                 </button>
             </div>
 
@@ -473,44 +498,54 @@
         let isOnline = false;
         let showTrajectories = true;
         let isPanelExpanded = true;
+        let isCourseSelectionMode = false;
+        let selectedTargetForCourse = null;
+        let autoSaveInterval = null;
 
         // ВАШІ НАЛАШТУВАННЯ FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
-            authDomain: "air-tracking-site.firebaseapp.com",
-            databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "air-tracking-site",
-            storageBucket: "air-tracking-site.firebasestorage.app",
-            messagingSenderId: "185790784262",
-            appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
-            measurementId: "G-XW9Y6JKCPG"
-        };
+    authDomain: "air-tracking-site.firebaseapp.com",
+    databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "air-tracking-site",
+    storageBucket: "air-tracking-site.firebasestorage.app",
+    messagingSenderId: "185790784262",
+    appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
+    measurementId: "G-XW9Y6JKCPG"
+};
 
-        // Ініціалізація додатку
-        function initApp() {
-            initMap();
-            loadTargetsFromLocalStorage();
-            initFirebase();
-            setupEventListeners();
-            updateStats();
-            updateStatus();
+// Ініціалізація додатку
+function initApp() {
+    initMap();
+    loadTargetsFromLocalStorage();
+    initFirebase();
+    setupEventListeners();
+    updateStats();
+    updateStatus();
+    startAutoSave();
+}
+
+// Ініціалізація карти
+function initMap() {
+    map = L.map('map').setView([50.4500, 30.5233], 6);
+
+    // Додаємо темну тему карти
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap, © CartoDB',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Додаємо обробник кліку по карті для вибору курсу
+    map.on('click', function(e) {
+        if (isCourseSelectionMode && selectedTargetForCourse) {
+            setTargetCourseFromMap(e.latlng);
         }
-
-        // Ініціалізація карти
-        function initMap() {
-            map = L.map('map').setView([50.4500, 30.5233], 6);
-
-// Додаємо темну тему карти
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap, © CartoDB',
-    maxZoom: 19
-}).addTo(map);
+    });
 }
 
 // Ініціалізація Firebase
 function initFirebase() {
     try {
-        // Використовуємо ваші реальні налаштування
         firebase.initializeApp(firebaseConfig);
         isOnline = true;
         console.log("Firebase успішно підключено!");
@@ -520,6 +555,14 @@ function initFirebase() {
         isOnline = false;
     }
     updateStatus();
+}
+
+// Автоматичне збереження кожні 5 секунд
+function startAutoSave() {
+    autoSaveInterval = setInterval(function() {
+        saveTargets();
+        console.log("Автоматичне збереження виконано");
+    }, 5000); // 5 секунд
 }
 
 // Налаштування слухачів Firebase
@@ -628,7 +671,7 @@ function addRandomTarget() {
     updateTargetsList();
 }
 
-// ОНОВЛЕНА ФУНКЦІЯ: Використання PNG іконок
+// ОНОВЛЕНА ФУНКЦІЯ: Використання PNG іконок з правильним поворотом
 function getIconForType(type) {
     const iconUrls = {
         'дрон': 'icons/shahed.png',
@@ -655,7 +698,7 @@ function addTargetToMap(target) {
     const icon = getIconForType(target.type);
     const marker = L.marker([target.latitude, target.longitude], { 
         icon: icon, 
-        rotationAngle: target.course 
+        rotationAngle: target.course // ПОВОРОТ ІКОНКИ ЗА КУРСОМ
     })
     .addTo(map)
     .bindPopup(`
@@ -663,12 +706,18 @@ function addTargetToMap(target) {
         Тип: ${target.type}<br>
         Швидкість: ${target.speed} км/год<br>
         Курс: ${target.course}°<br>
-        Відстань: ${(target.distance).toFixed(1)} км
+        Відстань: ${(target.distance).toFixed(1)} км<br>
+        <button onclick="editTarget('${target.id}')" style="margin-top: 5px; padding: 5px;">
+            <i class="fas fa-edit"></i> Редагувати
+        </button>
+        <button onclick="enableCourseSelectionForTarget('${target.id}')" style="margin-top: 5px; padding: 5px; background: #1dd1a1;">
+            <i class="fas fa-route"></i> Змінити курс
+        </button>
     `);
     
     markers[target.id] = marker;
     
-    // ОНОВЛЕНА ФУНКЦІЯ: Створення траєкторій з товщиною 1px
+    // Створення траєкторій з товщиною 1px
     if (showTrajectories && !polylines[target.id]) {
         polylines[target.id] = L.polyline([], {
             color: getColorForType(target.type),
@@ -683,7 +732,7 @@ function addTargetToMap(target) {
     }
     targetHistory[target.id].push([target.latitude, target.longitude]);
     
-    // ОНОВЛЕНА ЛОГІКА: Без обмеження довжини траєкторії
+    // Без обмеження довжини траєкторії
     if (polylines[target.id]) {
         polylines[target.id].setLatLngs(targetHistory[target.id]);
     }
@@ -704,16 +753,22 @@ function getColorForType(type) {
 function updateTargetOnMap(target) {
     if (markers[target.id]) {
         markers[target.id].setLatLng([target.latitude, target.longitude]);
-        markers[target.id].setRotationAngle(target.course);
+        markers[target.id].setRotationAngle(target.course); // ОНОВЛЕННЯ ПОВОРОТУ
         markers[target.id].setPopupContent(`
             <strong>${target.name}</strong><br>
             Тип: ${target.type}<br>
             Швидкість: ${target.speed} км/год<br>
             Курс: ${target.course}°<br>
-            Відстань: ${(target.distance).toFixed(1)} км
+            Відстань: ${(target.distance).toFixed(1)} км<br>
+            <button onclick="editTarget('${target.id}')" style="margin-top: 5px; padding: 5px;">
+                <i class="fas fa-edit"></i> Редагувати
+            </button>
+            <button onclick="enableCourseSelectionForTarget('${target.id}')" style="margin-top: 5px; padding: 5px; background: #1dd1a1;">
+                <i class="fas fa-route"></i> Змінити курс
+            </button>
         `);
         
-        // ОНОВЛЕНА ЛОГІКА: Оновлення траєкторії без обмежень довжини
+        // Оновлення траєкторії
         targetHistory[target.id].push([target.latitude, target.longitude]);
         if (polylines[target.id]) {
             polylines[target.id].setLatLngs(targetHistory[target.id]);
@@ -721,6 +776,7 @@ function updateTargetOnMap(target) {
     }
 }
 
+// Функція для руху цілей
 function calculateNewPosition(target, deltaTime) {
     const R = 6371; // Радіус Землі в км
     const distanceKm = (target.speed * deltaTime) / 3600; // Відстань у км
@@ -792,6 +848,46 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+// НОВІ ФУНКЦІЇ ДЛЯ РЕДАГУВАННЯ ТА ВИБОРУ КУРСУ
+function enableCourseSelection() {
+    isCourseSelectionMode = true;
+    selectedTargetForCourse = null;
+    alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для нової цілі');
+}
+
+function enableCourseSelectionForTarget(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        isCourseSelectionMode = true;
+        selectedTargetForCourse = targetId;
+        alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для цієї цілі');
+    }
+}
+
+function setTargetCourseFromMap(latlng) {
+    if (!selectedTargetForCourse) return;
+    
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (target) {
+        // Розрахунок курсу від поточної позиції до обраної точки
+        const dx = latlng.lng - target.longitude;
+        const dy = latlng.lat - target.latitude;
+        let course = Math.atan2(dy, dx) * 180 / Math.PI;
+        course = (360 + course) % 360; // Нормалізація до 0-360
+        
+        target.course = Math.round(course);
+        target.updatedAt = Date.now();
+        
+        updateTargetOnMap(target);
+        saveTargets();
+        updateTargetsList();
+    }
+    
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    alert('Режим вибору курсу вимкнено');
+}
+
 // Система збереження даних
 function saveTargets() {
     saveTargetsToLocalStorage();
@@ -815,36 +911,6 @@ function loadTargetsFromLocalStorage() {
     
     if (savedTargets) {
         targets = JSON.parse(savedTargets);
-    } else {
-        // Тестові дані
-        targets = [
-            {
-                id: '1',
-                name: 'Shahed-136',
-                type: 'дрон',
-                speed: 150,
-                course: 45,
-                latitude: 50.45,
-                longitude: 30.52,
-                distance: 0,
-                maxSpeed: 150,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            },
-            {
-                id: '2',
-                name: 'Іскандер',
-                type: 'ракета',
-                speed: 300,
-                course: 90,
-                latitude: 49.0,
-                longitude: 32.0,
-                distance: 0,
-                maxSpeed: 300,
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            }
-        ];
     }
     
     if (savedHistory) {
@@ -975,256 +1041,262 @@ function togglePanel() {
         icon.className = 'fas fa-chevron-down';
     } else {
         panel.style.maxHeight = '60px';
-icon.className = 'fas fa-chevron-up';
-}
+        icon.className = 'fas fa-chevron-up';
+    }
 }
 
 // Оновлення інтерфейсу
 function updateMap() {
-// Видаляємо старі маркери
-Object.values(markers).forEach(marker => map.removeLayer(marker));
-Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
-
-markers = {};
-polylines = {};
-
-// Додаємо нові маркери
-targets.forEach(target => {
-addTargetToMap(target);
-});
+    // Видаляємо старі маркери
+    Object.values(markers).forEach(marker => map.removeLayer(marker));
+    Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+    
+    markers = {};
+    polylines = {};
+    
+    // Додаємо нові маркери
+    targets.forEach(target => {
+        addTargetToMap(target);
+    });
 }
 
 function updateStats() {
-document.getElementById('totalTargets').textContent = targets.length;
-document.getElementById('activeTargets').textContent = targets.length;
+    document.getElementById('totalTargets').textContent = targets.length;
+    document.getElementById('activeTargets').textContent = targets.length;
 
-const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
-const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
+    const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
+    const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
 
-document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
-document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
+    document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
+    document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
 }
 
 function updateTargetsList() {
-const container = document.getElementById('targetsListContainer');
-container.innerHTML = '';
+    const container = document.getElementById('targetsListContainer');
+    container.innerHTML = '';
 
-targets.forEach(target => {
-const targetElement = document.createElement('div');
-targetElement.className = 'target-item';
-targetElement.innerHTML = `
-<div class="target-header">
-<span class="target-name">${target.name}</span>
-<span class="target-type">${target.type}</span>
-</div>
-<div class="target-details">
-Швидкість: ${target.speed} км/год<br>
-Курс: ${target.course}°<br>
-Відстань: ${target.distance.toFixed(1)} км
-</div>
-<div class="target-actions">
-<button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
-<button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
-<i class="fas fa-trash"></i>
-</button>
-</div>
-`;
-container.appendChild(targetElement);
-});
+    targets.forEach(target => {
+        const targetElement = document.createElement('div');
+        targetElement.className = 'target-item';
+        targetElement.innerHTML = `
+            <div class="target-header">
+                <span class="target-name">${target.name}</span>
+                <span class="target-type">${target.type}</span>
+            </div>
+            <div class="target-details">
+                Швидкість: ${target.speed} км/год<br>
+                Курс: ${target.course}°<br>
+                Відстань: ${target.distance.toFixed(1)} км
+            </div>
+            <div class="target-actions">
+                <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
+                <button onclick="enableCourseSelectionForTarget('${target.id}')" style="background: #1dd1a1;">
+                    <i class="fas fa-route"></i>
+                </button>
+                <button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(targetElement);
+    });
 }
 
 function editTarget(id) {
-const target = targets.find(t => t.id === id);
-if (!target) return;
+    const target = targets.find(t => t.id === id);
+    if (!target) return;
 
-// Заповнюємо форму даними цілі
-document.getElementById('targetName').value = target.name;
-document.getElementById('targetType').value = target.type;
-document.getElementById('targetSpeed').value = target.speed;
-document.getElementById('targetCourse').value = target.course;
+    // Заповнюємо форму даними цілі
+    document.getElementById('targetName').value = target.name;
+    document.getElementById('targetType').value = target.type;
+    document.getElementById('targetSpeed').value = target.speed;
+    document.getElementById('targetCourse').value = target.course;
 
-// Видаляємо стару ціль
-deleteTarget(id);
+    // Видаляємо стару ціль
+    deleteTarget(id);
 
-// Переходимо на вкладку додавання
-switchTab('add-target');
+    // Переходимо на вкладку додавання
+    switchTab('add-target');
 }
 
 function deleteTarget(id) {
-if (!confirm('Видалити цю ціль?')) return;
+    if (!confirm('Видалити цю ціль?')) return;
 
-// Видаляємо з масиву
-targets = targets.filter(t => t.id !== id);
+    // Видаляємо з масиву
+    targets = targets.filter(t => t.id !== id);
 
-// Видаляємо маркер
-if (markers[id]) {
-map.removeLayer(markers[id]);
-delete markers[id];
-}
+    // Видаляємо маркер
+    if (markers[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+    }
 
-// Видаляємо траєкторію
-if (polylines[id]) {
-map.removeLayer(polylines[id]);
-delete polylines[id];
-}
+    // Видаляємо траєкторію
+    if (polylines[id]) {
+        map.removeLayer(polylines[id]);
+        delete polylines[id];
+    }
 
-// Видаляємо історію
-delete targetHistory[id];
+    // Видаляємо історію
+    delete targetHistory[id];
 
-saveTargets();
-updateStats();
-updateTargetsList();
+    saveTargets();
+    updateStats();
+    updateTargetsList();
 }
 
 function switchTab(tabName) {
-// Приховуємо всі вкладки
-document.querySelectorAll('.tab-content').forEach(tab => {
-tab.classList.remove('active');
-});
+    // Приховуємо всі вкладки
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
 
-// Деактивуємо всі кнопки вкладок
-document.querySelectorAll('.tab').forEach(tab => {
-tab.classList.remove('active');
-});
+    // Деактивуємо всі кнопки вкладок
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
 
-// Показуємо обрану вкладку
-document.getElementById(tabName).classList.add('active');
+    // Показуємо обрану вкладку
+    document.getElementById(tabName).classList.add('active');
 
-// Активуємо обрану кнопку
-document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    // Активуємо обрану кнопку
+    document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
 
-// Оновлюємо список цілей при переході на відповідну вкладку
-if (tabName === 'targets-list') {
-updateTargetsList();
-}
+    // Оновлюємо список цілей при переході на відповідну вкладку
+    if (tabName === 'targets-list') {
+        updateTargetsList();
+    }
 }
 
 function exportData() {
-const data = {
-targets: targets,
-exportDate: new Date().toISOString(),
-version: '2.5'
-};
+    const data = {
+        targets: targets,
+        exportDate: new Date().toISOString(),
+        version: '2.5'
+    };
 
-const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-const url = URL.createObjectURL(blob);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
 
-const a = document.createElement('a');
-a.href = url;
-a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function importData() {
-document.getElementById('importFile').click();
+    document.getElementById('importFile').click();
 }
 
 function handleFileImport(event) {
-const file = event.target.files[0];
-if (!file) return;
+    const file = event.target.files[0];
+    if (!file) return;
 
-const reader = new FileReader();
-reader.onload = function(e) {
-try {
-const data = JSON.parse(e.target.result);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
 
-if (data.targets && Array.isArray(data.targets)) {
-// Видаляємо поточні цілі
-clearAllTargets();
+            if (data.targets && Array.isArray(data.targets)) {
+                // Видаляємо поточні цілі
+                clearAllTargets();
 
-// Додаємо імпортовані цілі
-targets = data.targets;
-updateMap();
-saveTargets();
-updateStats();
-updateTargetsList();
+                // Додаємо імпортовані цілі
+                targets = data.targets;
+                updateMap();
+                saveTargets();
+                updateStats();
+                updateTargetsList();
 
-alert(`Успішно імпортовано ${targets.length} цілей`);
-} else {
-throw new Error('Невірний формат файлу');
-}
-} catch (error) {
-alert('Помилка при імпорті даних: ' + error.message);
-}
-};
-reader.readAsText(file);
+                alert(`Успішно імпортовано ${targets.length} цілей`);
+            } else {
+                throw new Error('Невірний формат файлу');
+            }
+        } catch (error) {
+            alert('Помилка при імпорті даних: ' + error.message);
+        }
+    };
+    reader.readAsText(file);
 
-// Очищаємо input для можливості повторного вибору того ж файлу
-event.target.value = '';
+    // Очищаємо input для можливості повторного вибору того ж файлу
+    event.target.value = '';
 }
 
 function updateStatus() {
-const indicator = document.getElementById('statusIndicator');
-const statusText = document.getElementById('statusText');
-const updateTime = document.getElementById('updateTime');
+    const indicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const updateTime = document.getElementById('updateTime');
 
-if (isOnline) {
-indicator.className = 'status-indicator';
-statusText.textContent = 'Підключено до Firebase';
-} else {
-indicator.className = 'status-indicator offline';
-statusText.textContent = 'Автономний режим';
-}
+    if (isOnline) {
+        indicator.className = 'status-indicator';
+        statusText.textContent = 'Підключено до Firebase';
+    } else {
+        indicator.className = 'status-indicator offline';
+        statusText.textContent = 'Автономний режим';
+    }
 
-updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
+    updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
 }
 
 function setupEventListeners() {
-// Обробник імпорту файлів
-document.getElementById('importFile').addEventListener('change', handleFileImport);
+    // Обробник імпорту файлів
+    document.getElementById('importFile').addEventListener('change', handleFileImport);
 
-// Гарячі клавіші
-document.addEventListener('keydown', (e) => {
-if (e.key === 'Escape') {
-centerMap();
-}
-if (e.key === ' ' && !e.target.tagName.toLowerCase().match(/input|textarea/)) {
-e.preventDefault();
-toggleSimulation();
-}
-});
+    // Гарячі клавіші
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            centerMap();
+        }
+        if (e.key === ' ' && !e.target.tagName.toLowerCase().match(/input|textarea/)) {
+            e.preventDefault();
+            toggleSimulation();
+        }
+    });
 
-// Оновлення часу кожну хвилину
-setInterval(updateStatus, 60000);
+    // Оновлення часу кожну хвилину
+    setInterval(updateStatus, 60000);
 }
 
 // Утиліти
 function shouldSyncWithFirebase(firebaseTargets) {
-if (Object.keys(firebaseTargets).length === 0) return false;
-if (targets.length === 0) return true;
+    if (Object.keys(firebaseTargets).length === 0) return false;
+    if (targets.length === 0) return true;
 
-const localLastUpdate = Math.max(...targets.map(t => t.updatedAt || t.createdAt));
-const remoteLastUpdate = Math.max(...Object.values(firebaseTargets).map(t => t.updatedAt || t.createdAt));
+    const localLastUpdate = Math.max(...targets.map(t => t.updatedAt || t.createdAt));
+    const remoteLastUpdate = Math.max(...Object.values(firebaseTargets).map(t => t.updatedAt || t.createdAt));
 
-return remoteLastUpdate > localLastUpdate;
+    return remoteLastUpdate > localLastUpdate;
 }
 
 // Ініціалізація при завантаженні
 document.addEventListener('DOMContentLoaded', function() {
-initApp();
+    initApp();
 
-// Оновлюємо стан кнопки траєкторій
-updateTrajectoriesButton();
+    // Оновлюємо стан кнопки траєкторій
+    updateTrajectoriesButton();
 
-// Встановлюємо початкову швидкість
-document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
+    // Встановлюємо початкову швидкість
+    document.getElementById('speedValue').textContent = `${simulationSpeed}x`;
 
-// Додаємо обробник для закриття Firebase з'єднання
-window.addEventListener('beforeunload', function() {
-if (isOnline) {
-const db = firebase.database();
-const usersRef = db.ref('onlineUsers');
-// Тут має бути логіка для видалення поточного користувача
-}
-});
+    // Додаємо обробник для закриття Firebase з'єднання
+    window.addEventListener('beforeunload', function() {
+        if (isOnline) {
+            const db = firebase.database();
+            const usersRef = db.ref('onlineUsers');
+            // Тут має бути логіка для видалення поточного користувача
+        }
+        if (autoSaveInterval) {
+            clearInterval(autoSaveInterval);
+        }
+    });
 });
 
 // Обробник помилок
 window.addEventListener('error', function(e) {
-console.error('Global error:', e.error);
+    console.error('Global error:', e.error);
 });
 </script>
 
