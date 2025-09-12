@@ -1381,4 +1381,411 @@ function saveTargetsToLocalStorage() {
     localStorage.setItem('isAdmin', isAdmin.toString());
 }
 
-function loadTargetsFromLoca
+    function loadTargetsFromLocalStorage() {
+        try {
+            const savedTargets = localStorage.getItem('airTargets');
+            const savedHistory = localStorage.getItem('targetHistory');
+            const savedTrajectories = localStorage.getItem('showTrajectories');
+            const savedAdmin = localStorage.getItem('isAdmin');
+            
+            if (savedTargets) {
+                targets = JSON.parse(savedTargets);
+            }
+            
+            if (savedHistory) {
+                targetHistory = JSON.parse(savedHistory);
+            }
+            
+            if (savedTrajectories) {
+                showTrajectories = savedTrajectories === 'true';
+                updateTrajectoriesButton();
+            }
+            
+            if (savedAdmin) {
+                isAdmin = savedAdmin === 'true';
+                updateUIForUserRole();
+            }
+            
+            updateMap();
+            updateStats();
+            updateTargetsList();
+            updateTargetClusters();
+        } catch (error) {
+            console.error('Помилка завантаження з LocalStorage:', error);
+        }
+    }
+
+    function syncWithFirebase() {
+        if (!isOnline) return;
+        
+        isSyncing = true;
+        
+        try {
+            const db = firebase.database();
+            const targetsRef = db.ref('targets');
+            
+            const targetsDict = {};
+            targets.forEach(target => {
+                targetsDict[target.id] = {
+                    ...target,
+                    marker: undefined,
+                    polyline: undefined
+                };
+            });
+            
+            targetsRef.set(targetsDict)
+                .then(() => {
+                    console.log("Дані успішно синхронізовано з Firebase");
+                    lastSyncTime = Date.now();
+                })
+                .catch(error => {
+                    console.error("Помилка синхронізації з Firebase:", error);
+                })
+                .finally(() => {
+                    isSyncing = false;
+                });
+        } catch (error) {
+            console.error('Помилка синхронізації:', error);
+            isSyncing = false;
+        }
+    }
+
+    function shouldSyncWithFirebase(firebaseTargets) {
+        if (Object.keys(firebaseTargets).length === 0) return false;
+        if (targets.length === 0) return true;
+
+        const localLastUpdate = Math.max(...targets.map(t => t.updatedAt || t.createdAt));
+        const remoteLastUpdate = Math.max(...Object.values(firebaseTargets).map(t => t.updatedAt || t.createdAt));
+
+        return remoteLastUpdate > localLastUpdate;
+    }
+
+    // Управління інтерфейсом
+    function toggleTrajectories() {
+        showTrajectories = !showTrajectories;
+        
+        Object.keys(polylines).forEach(id => {
+            if (polylines[id]) {
+                if (showTrajectories) {
+                    map.addLayer(polylines[id]);
+                } else {
+                    map.removeLayer(polylines[id]);
+                }
+            }
+        });
+        
+        updateTrajectoriesButton();
+        saveTargetsToLocalStorage();
+    }
+
+    function updateTrajectoriesButton() {
+        const btn = document.getElementById('trajectoriesBtn');
+        if (showTrajectories) {
+            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Вимкнути траєкторії';
+        } else {
+            btn.innerHTML = '<i class="fas fa-project-diagram"></i> Увімкнути траєкторії';
+        }
+    }
+
+    function togglePanel() {
+        const panel = document.getElementById('controlPanel');
+        const btn = document.querySelector('.toggle-panel-btn');
+        
+        isPanelExpanded = !isPanelExpanded;
+        
+        if (isPanelExpanded) {
+            panel.classList.remove('collapsed');
+            btn.innerHTML = '<i class="fas fa-eye-slash"></i> Панель';
+        } else {
+            panel.classList.add('collapsed');
+            btn.innerHTML = '<i class="fas fa-eye"></i> Панель';
+        }
+    }
+
+    function clearAllTargets() {
+        if (!isAdmin) return;
+        
+        if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+        
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+        Object.values(targetClusters).forEach(cluster => map.removeLayer(cluster));
+        
+        targets = [];
+        markers = {};
+        polylines = {};
+        targetHistory = {};
+        targetClusters = {};
+        
+        saveTargets();
+        updateStats();
+        updateTargetsList();
+    }
+
+    function centerMap() {
+        if (targets.length > 0) {
+            const group = new L.featureGroup(Object.values(markers));
+            map.fitBounds(group.getBounds().pad(0.1));
+        } else {
+            map.setView([50.4500, 30.5233], 6);
+        }
+    }
+
+    // Оновлення інтерфейсу
+    function updateMap() {
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        Object.values(polylines).forEach(polyline => map.removeLayer(polyline));
+        Object.values(targetClusters).forEach(cluster => map.removeLayer(cluster));
+        
+        markers = {};
+        polylines = {};
+        targetClusters = {};
+        
+        targets.forEach(target => {
+            addTargetToMap(target);
+        });
+        
+        updateTargetClusters();
+    }
+
+    function updateStats() {
+        document.getElementById('totalTargets').textContent = targets.length;
+        document.getElementById('activeTargets').textContent = targets.filter(t => t.speed > 0).length;
+
+        const totalDistance = targets.reduce((sum, target) => sum + target.distance, 0);
+        const maxSpeed = targets.reduce((max, target) => Math.max(max, target.speed), 0);
+
+        document.getElementById('totalDistance').textContent = `${totalDistance.toFixed(1)} км`;
+        document.getElementById('maxSpeed').textContent = `${maxSpeed} км/год`;
+    }
+
+    function updateTargetsList() {
+        const container = document.getElementById('targetsListContainer');
+        container.innerHTML = '';
+
+        targets.forEach(target => {
+            const targetElement = document.createElement('div');
+            targetElement.className = 'target-item';
+            targetElement.innerHTML = `
+                <div class="target-header">
+                    <span class="target-name">${target.name}</span>
+                    <span class="target-type">${target.type}</span>
+                </div>
+                <div class="target-details">
+                    Швидкість: ${target.speed} км/год<br>
+                    Курс: ${target.course}°<br>
+                    Відстань: ${target.distance.toFixed(1)} км
+                </div>
+                ${isAdmin ? `
+                <div class="target-actions">
+                    <button onclick="editTarget('${target.id}')"><i class="fas fa-edit"></i></button>
+                    <button onclick="enableCourseSelectionForTarget('${target.id}')" style="background: #1dd1a1;">
+                        <i class="fas fa-route"></i>
+                    </button>
+                    <button onclick="deleteTarget('${target.id}')" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                ` : ''}
+            `;
+            container.appendChild(targetElement);
+        });
+    }
+
+    function deleteTarget(id) {
+        if (!isAdmin) return;
+        
+        if (!confirm('Видалити цю ціль?')) return;
+
+        targets = targets.filter(t => t.id !== id);
+
+        if (markers[id]) {
+            map.removeLayer(markers[id]);
+            delete markers[id];
+        }
+
+        if (polylines[id]) {
+            map.removeLayer(polylines[id]);
+            delete polylines[id];
+        }
+
+        delete targetHistory[id];
+
+        saveTargets();
+        updateStats();
+        updateTargetsList();
+        updateTargetClusters();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.getElementById(tabName).classList.add('active');
+        
+        // Знаходимо кнопку табу, яка відповідає цьому табу
+        const tabButtons = document.querySelectorAll('.tab');
+        tabButtons.forEach(button => {
+            if (button.getAttribute('onclick') === `switchTab('${tabName}')`) {
+                button.classList.add('active');
+            }
+        });
+
+        if (tabName === 'targets-list') {
+            updateTargetsList();
+        }
+    }
+
+    function exportData() {
+        if (!isAdmin) return;
+        
+        const data = {
+            targets: targets,
+            exportDate: new Date().toISOString(),
+            version: '3.0'
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `air-targets-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function importData() {
+        if (!isAdmin) return;
+        
+        document.getElementById('importFile').click();
+    }
+
+    function handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+
+                if (data.targets && Array.isArray(data.targets)) {
+                    // Зберігаємо поточний стан для відновлення у разі помилки
+                    const backupTargets = [...targets];
+                    const backupHistory = {...targetHistory};
+                    
+                    try {
+                        clearAllTargets();
+                        targets = data.targets;
+                        
+                        // Оновлюємо історію для нових цілей
+                        targets.forEach(target => {
+                            if (!targetHistory[target.id]) {
+                                targetHistory[target.id] = [[target.latitude, target.longitude]];
+                            }
+                        });
+                        
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        updateTargetClusters();
+                        alert(`Успішно імпортовано ${targets.length} цілей`);
+                    } catch (error) {
+                        // Відновлюємо попередній стан у разі помилки
+                        targets = backupTargets;
+                        targetHistory = backupHistory;
+                        updateMap();
+                        throw error;
+                    }
+                } else {
+                    throw new Error('Невірний формат файлу');
+                }
+            } catch (error) {
+                alert('Помилка при імпорті даних: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function updateStatus() {
+        const indicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const updateTime = document.getElementById('updateTime');
+
+        if (isOnline) {
+            indicator.className = 'status-indicator';
+            statusText.textContent = 'Підключено до Firebase';
+        } else {
+            indicator.className = 'status-indicator offline';
+            statusText.textContent = 'Автономний режим';
+        }
+
+        updateTime.textContent = `Оновлено: ${new Date().toLocaleTimeString()}`;
+    }
+
+    function checkConnection() {
+        if (isOnline && Date.now() - lastSyncTime > 30000) {
+            syncWithFirebase();
+        }
+    }
+
+    function setupEventListeners() {
+        document.getElementById('importFile').addEventListener('change', handleFileImport);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (isCourseSelectionMode) {
+                    isCourseSelectionMode = false;
+                    selectedTargetForCourse = null;
+                    alert('Режим вибору курсу вимкнено');
+                } else {
+                    centerMap();
+                }
+            }
+        });
+
+        setInterval(updateStatus, 60000);
+        setInterval(checkConnection, 30000);
+        
+        // Додаємо обробник для закриття модальних вікон по кліку на затемнений фон
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Ініціалізація при завантаженні
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            initApp();
+            updateTrajectoriesButton();
+
+            window.addEventListener('beforeunload', function() {
+                if (autoSaveInterval) {
+                    clearInterval(autoSaveInterval);
+                }
+                if (animationFrameId) {
+                    cancelAnimationFrame(animationFrameId);
+                }
+            });
+        } catch (error) {
+            console.error('Помилка ініціалізації:', error);
+        }
+    });
+    </script>
+</body>
+</html>
