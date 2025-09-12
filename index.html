@@ -100,29 +100,9 @@
             position: relative;
         }
 
+        /* Скрываем кнопку добавления цели на карте */
         .add-target-button {
-            position: absolute;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(90deg, #00b894 0%, #00cec9 100%);
-            border: none;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
-            z-index: 1000;
-            box-shadow: 0 5px 20px rgba(0, 206, 201, 0.5);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-        }
-
-        .add-target-button:hover {
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 206, 201, 0.6);
+            display: none;
         }
 
         /* Прицел по центру */
@@ -494,11 +474,6 @@
                 width: 90%;
                 margin: 20% auto;
             }
-            
-            .add-target-button {
-                padding: 10px 16px;
-                font-size: 13px;
-            }
         }
 
         @media (max-width: 480px) {
@@ -545,7 +520,8 @@
 
         <div class="main-content">
             <div id="map">
-                <button class="add-target-button" onclick="enableAddTargetMode()">
+                <!-- Кнопка добавления цели скрыта -->
+                <button class="add-target-button" onclick="enableAddTargetMode()" style="display: none;">
                     <i class="fas fa-plus"></i>Додати ціль
                 </button>
                 <div class="crosshair"></div>
@@ -731,6 +707,7 @@ let isAddTargetMode = false;
 let popupOpenTargetId = null;
 let deletedTargets = new Set();
 let markerCluster; // Для кластеризации
+let isStatsUpdating = false; // Флаг для предотвращения мерцания статистики
 
 // ВАШІ НАЛАШТУВАННЯ FIREBASE
 const firebaseConfig = {
@@ -883,6 +860,7 @@ function setupRealtimeListeners() {
         const db = firebase.database();
         const targetsRef = db.ref('targets');
         const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
         
         // Слушатель изменений целей
         targetsRef.on('value', (snapshot) => {
@@ -925,6 +903,25 @@ function setupRealtimeListeners() {
             });
         });
         
+        // Слушатель истории траекторий
+        historyRef.on('value', (snapshot) => {
+            const firebaseHistory = snapshot.val() || {};
+            
+            // Обновляем историю траекторий
+            Object.keys(firebaseHistory).forEach(targetId => {
+                if (!deletedTargets.has(targetId)) {
+                    targetHistory[targetId] = firebaseHistory[targetId];
+                    
+                    // Обновляем траекторию на карте
+                    if (showTrajectories && polylines[targetId]) {
+                        polylines[targetId].setLatLngs(
+                            targetHistory[targetId].map(point => [point.lat, point.lng])
+                        );
+                    }
+                }
+            });
+        });
+        
         // Лічильник онлайн-користувачів
         const usersRef = db.ref('onlineUsers');
         const userRef = usersRef.push();
@@ -962,10 +959,11 @@ function loadFromFirebase() {
         const db = firebase.database();
         const targetsRef = db.ref('targets');
         const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
         
         targetsRef.once('value').then((snapshot) => {
             const firebaseTargets = snapshot.val() || {};
-            console.log("Завантажено з Firebase");
+            console.log("Завантажено цілі з Firebase");
             mergeTargetsFromFirebase(firebaseTargets);
         });
         
@@ -976,6 +974,23 @@ function loadFromFirebase() {
                     deletedTargets.add(id);
                 }
             });
+        });
+        
+        historyRef.once('value').then((snapshot) => {
+            const firebaseHistory = snapshot.val() || {};
+            console.log("Завантажено історію траєкторій з Firebase");
+            
+            // Обновляем историю траекторий
+            Object.keys(firebaseHistory).forEach(targetId => {
+                if (!deletedTargets.has(targetId)) {
+                    targetHistory[targetId] = firebaseHistory[targetId];
+                }
+            });
+            
+            // Обновляем траектории на карте
+            if (showTrajectories) {
+                updateTrajectories();
+            }
         });
     } catch (error) {
         console.error('Помилка завантаження з Firebase:', error);
@@ -994,15 +1009,21 @@ function mergeTargetsFromFirebase(firebaseTargets) {
         
         const existingTarget = targets.find(t => t.id === firebaseTarget.id);
         if (!existingTarget) {
+            // Новая цель - добавляем полную историю
             targets.push(firebaseTarget);
             console.log("Додано ціль з Firebase:", firebaseTarget.name);
+            
+            // Создаем маркер и траекторию
+            addTargetToMap(firebaseTarget);
         } else if (firebaseTarget.updatedAt > existingTarget.updatedAt) {
             // Обновляем существующую цель если она новее
             Object.assign(existingTarget, firebaseTarget);
+            
+            // Обновляем маркер
+            updateMarkerRotation(existingTarget);
         }
     });
     
-    updateMap();
     saveTargetsToLocalStorage();
     updateStats();
     updateTargetsList();
@@ -1018,6 +1039,7 @@ function syncWithFirebase() {
         const db = firebase.database();
         const targetsRef = db.ref('targets');
         const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
         
         // Фильтруем удаленные цели
         const activeTargets = targets.filter(target => !deletedTargets.has(target.id));
@@ -1031,10 +1053,10 @@ function syncWithFirebase() {
         // Синхронизируем цели
         targetsRef.set(targetsObject)
             .then(() => {
-                console.log("Дані синхронізовані з Firebase");
+                console.log("Дані цілей синхронізовані з Firebase");
             })
             .catch((error) => {
-                console.error("Помилка синхронізації:", error);
+                console.error("Помилка синхронізації цілей:", error);
                 isOnline = false;
                 updateStatus();
             });
@@ -1047,6 +1069,15 @@ function syncWithFirebase() {
             })
             .catch((error) => {
                 console.error("Помилка синхронізації видалених цілей:", error);
+            });
+            
+        // Синхронизируем историю траекторий
+        historyRef.set(targetHistory)
+            .then(() => {
+                console.log("Історія траєкторій синхронізована з Firebase");
+            })
+            .catch((error) => {
+                console.error("Помилка синхронізації історії траєкторій:", error);
             })
             .finally(() => {
                 isSyncing = false;
@@ -1105,6 +1136,14 @@ function addTargetAtPosition(latlng) {
     };
     
     targets.push(target);
+    
+    // Инициализируем историю траектории с начальной позиции
+    targetHistory[target.id] = [{
+        lat: target.latitude,
+        lng: target.longitude,
+        timestamp: Date.now()
+    }];
+    
     addTargetToMap(target);
     saveTargets();
     updateStats();
@@ -1237,16 +1276,6 @@ function addTargetToMap(target) {
     if (showTrajectories) {
         addTrajectory(target);
     }
-    
-    // Додаємо в історію позицій
-    if (!targetHistory[target.id]) {
-        targetHistory[target.id] = [];
-    }
-    targetHistory[target.id].push({
-        lat: target.latitude,
-        lng: target.longitude,
-        timestamp: Date.now()
-    });
 }
 
 // Оновити обертання маркера
@@ -1287,7 +1316,7 @@ function updateMarkerRotation(target) {
     }
 }
 
-// Додати траєкторію (бесконечная)
+// Додати траєкторію
 function addTrajectory(target) {
     if (polylines[target.id]) {
         map.removeLayer(polylines[target.id]);
@@ -1303,6 +1332,24 @@ function addTrajectory(target) {
         
         polyline.addTo(map);
         polylines[target.id] = polyline;
+    }
+}
+
+// Обновить все траектории
+function updateTrajectories() {
+    // Удаляем все старые траектории
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    // Добавляем траектории для всех целей
+    if (showTrajectories) {
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id) && targetHistory[target.id]) {
+                addTrajectory(target);
+            }
+        });
     }
 }
 
@@ -1350,14 +1397,17 @@ function moveTargets() {
             updateMarkerRotation(target);
         }
         
-        // Оновлення траєкторії (бесконечная)
+        // Оновлення траєкторії
+        if (!targetHistory[target.id]) {
+            targetHistory[target.id] = [];
+        }
         targetHistory[target.id].push({
             lat: target.latitude,
             lng: target.longitude,
             timestamp: now
         });
         
-        // Не ограничиваем историю для бесконечной траектории
+        // Обновляем траекторию на карте
         if (showTrajectories && polylines[target.id]) {
             polylines[target.id].setLatLngs(
                 targetHistory[target.id].map(point => [point.lat, point.lng])
@@ -1368,9 +1418,16 @@ function moveTargets() {
         target.updatedAt = now;
     });
     
-    // Оновлення часу останнього оновлення
+        // Оновлення часу останнього оновлення
     document.getElementById('lastUpdate').textContent = 
         `Оновлено: ${new Date().toLocaleTimeString()}`;
+    
+    // Обновляем статистику с защитой от мерцания
+    if (!isStatsUpdating) {
+        isStatsUpdating = true;
+        updateStats();
+        setTimeout(() => { isStatsUpdating = false; }, 100);
+    }
 }
 
 // Обновление кластеризации
@@ -1464,7 +1521,7 @@ function clearAllTargets() {
     
     if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
     
-        // Добавляем все цели в список удаленных
+    // Добавляем все цели в список удаленных
     targets.forEach(target => {
         deletedTargets.add(target.id);
     });
@@ -1846,116 +1903,116 @@ function updateUIForUserRole() {
     }
 }
 
-// Налаштування обробників подій
-function setupEventListeners() {
-    // Закриття модальних вікон по кліку на затемнений фон
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.style.display = 'none';
+    // Налаштування обробників подій
+    function setupEventListeners() {
+        // Закриття модальних вікон по кліку на затемнений фон
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    isAddTargetMode = false;
+                    isCourseSelectionMode = false;
+                }
+            });
+        });
+        
+        // Обробка клавіші ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLoginModal();
+                closeEditModal();
+                cancelCourseSelection();
                 isAddTargetMode = false;
-                isCourseSelectionMode = false;
             }
         });
-    });
-    
-    // Обробка клавіші ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeLoginModal();
-            closeEditModal();
-            cancelCourseSelection();
-            isAddTargetMode = false;
-        }
-    });
-    
-    // Автозаповнення назви цілі
-    document.getElementById('targetName').addEventListener('focus', function() {
-        if (!this.value) {
-            this.value = 'Ціль-' + (targets.length + 1);
-        }
-    });
+        
+        // Автозаповнення назви цілі
+        document.getElementById('targetName').addEventListener('focus', function() {
+            if (!this.value) {
+                this.value = 'Ціль-' + (targets.length + 1);
+            }
+        });
 
-    // Додаємо обробник для імпорту файлів
-    document.getElementById('importFile').addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        // Обробка імпортованих даних
-                        importedData.forEach(target => {
-                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
-                            target.createdAt = Date.now();
-                            target.updatedAt = Date.now();
-                            target.createdBy = userSessionId;
-                            targets.push(target);
-                        });
-                        updateMap();
-                        saveTargets();
-                        updateStats();
-                        updateTargetsList();
-                        alert('Дані успішно імпортовані!');
+        // Додаємо обробник для імпорту файлів
+        document.getElementById('importFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (Array.isArray(importedData)) {
+                            // Обробка імпортованих даних
+                            importedData.forEach(target => {
+                                target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
+                                target.createdAt = Date.now();
+                                target.updatedAt = Date.now();
+                                target.createdBy = userSessionId;
+                                targets.push(target);
+                            });
+                            updateMap();
+                            saveTargets();
+                            updateStats();
+                            updateTargetsList();
+                            alert('Дані успішно імпортовані!');
+                        }
+                    } catch (error) {
+                        alert('Помилка при імпорті файлу: ' + error.message);
                     }
-                } catch (error) {
-                    alert('Помилка при імпорті файлу: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
-        }
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        console.log("Обробники подій успішно налаштовані");
+    }
+
+    // Оновити карту
+    function updateMap() {
+        // Очистити всі маркери
+        markerCluster.clearLayers();
+        markers = {};
+        
+        // Очистити всі траєкторії
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        polylines = {};
+        
+        // Додати цілі на карту (кроме удаленных)
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id)) {
+                addTargetToMap(target);
+            }
+        });
+    }
+
+    // Ініціалізація при завантаженні сторінки
+    document.addEventListener('DOMContentLoaded', function() {
+        initApp();
     });
 
-    console.log("Обробники подій успішно налаштовані");
-}
-
-// Оновити карту
-function updateMap() {
-    // Очистити всі маркери
-    markerCluster.clearLayers();
-    markers = {};
-    
-    // Очистити всі траєкторії
-    Object.values(polylines).forEach(polyline => {
-        map.removeLayer(polyline);
-    });
-    polylines = {};
-    
-    // Додати цілі на карту (кроме удаленных)
-    targets.forEach(target => {
-        if (!deletedTargets.has(target.id)) {
-            addTargetToMap(target);
-        }
-    });
-}
-
-// Ініціалізація при завантаженні сторінки
-document.addEventListener('DOMContentLoaded', function() {
-    initApp();
-});
-
-// Глобальні функції для виклику з HTML
-window.addTargetAtCenter = addTargetAtCenter;
-window.toggleTrajectories = toggleTrajectories;
-window.clearAllTargets = clearAllTargets;
-window.exportTargets = exportTargets;
-window.importTargets = importTargets;
-window.togglePanel = togglePanel;
-window.showLoginModal = showLoginModal;
-window.closeLoginModal = closeLoginModal;
-window.attemptLogin = attemptLogin;
-window.logout = logout;
-window.enableAddTargetMode = enableAddTargetMode;
-window.editTarget = editTarget;
-window.deleteTarget = deleteTarget;
-window.saveTargetEdit = saveTargetEdit;
-window.closeEditModal = closeEditModal;
-window.showCourseSelectionModal = showCourseSelectionModal;
-window.confirmCourseSelection = confirmCourseSelection;
-window.cancelCourseSelection = cancelCourseSelection;
-window.setTargetCourseFromMap = setTargetCourseFromMap;
+    // Глобальні функції для виклику з HTML
+    window.addTargetAtCenter = addTargetAtCenter;
+    window.toggleTrajectories = toggleTrajectories;
+    window.clearAllTargets = clearAllTargets;
+    window.exportTargets = exportTargets;
+    window.importTargets = importTargets;
+    window.togglePanel = togglePanel;
+    window.showLoginModal = showLoginModal;
+    window.closeLoginModal = closeLoginModal;
+    window.attemptLogin = attemptLogin;
+    window.logout = logout;
+    window.enableAddTargetMode = enableAddTargetMode;
+    window.editTarget = editTarget;
+    window.deleteTarget = deleteTarget;
+    window.saveTargetEdit = saveTargetEdit;
+    window.closeEditModal = closeEditModal;
+    window.showCourseSelectionModal = showCourseSelectionModal;
+    window.confirmCourseSelection = confirmCourseSelection;
+    window.cancelCourseSelection = cancelCourseSelection;
+    window.setTargetCourseFromMap = setTargetCourseFromMap;
 </script>
 </body>
 </html>
