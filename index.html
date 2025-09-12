@@ -1390,7 +1390,6 @@ function removeTrajectory(targetId) {
         delete polylines[targetId];
     }
 }
-
 // Переміщення цілей
 function moveTargets() {
     const now = Date.now();
@@ -1398,7 +1397,7 @@ function moveTargets() {
     lastUpdateTime = now;
     
     targets.forEach(target => {
-        if (deletedTargets.has(target.id)) return; // Пропускаем удаленные цели
+        if (deletedTargets.has(target.id) || pausedTargets.has(target.id)) return; // ⭐ ОСТАНАВЛИВАЕМ ЦЕЛИ В POPUP
         
         // Переміщення цілі - реалистичная скорость (150 км/ч = 41.67 м/с)
         const distance = (target.speed * 1000 / 3600) * deltaTime; // в метрах
@@ -1421,7 +1420,7 @@ function moveTargets() {
             target.maxSpeed = target.speed;
         }
         
-                // Оновлення маркера
+        // Оновлення маркера
         if (markers[target.id]) {
             markers[target.id].setLatLng([target.latitude, target.longitude]);
             updateMarkerRotation(target);
