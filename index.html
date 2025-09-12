@@ -126,6 +126,7 @@
         .panel.collapsed {
             height: 60px;
             overflow: hidden;
+            padding: 10px;
         }
 
         .panel-section {
@@ -500,6 +501,15 @@
                 padding: 12px 20px;
                 font-size: 14px;
             }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .header-btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
         }
 
         /* Модальное окно добавления цели */
@@ -510,6 +520,19 @@
         .add-target-modal p {
             margin: 15px 0;
             color: #dfe6e9;
+            font-size: 16px;
+        }
+
+        /* Стили для свернутой панели */
+        .panel-collapsed-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 40px;
+        }
+
+        .panel-collapsed-content h3 {
+            color: #00cec9;
             font-size: 16px;
         }
     </style>
@@ -539,33 +562,108 @@
             </div>
 
             <div class="panel" id="sidePanel">
-                <!-- ... остальная панель без изменений ... -->
+                <div class="panel-section">
+                    <h2><i class="fas fa-plus-circle"></i> Додати ціль</h2>
+                    <div class="form-group">
+                        <label for="targetName">Назва цілі:</label>
+                        <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
+                    </div>
+                                    <div class="form-group">
+                    <label for="targetType">Тип цілі:</label>
+                    <select id="targetType">
+                        <option value="дрон">Дрон</option>
+                        <option value="ракета">Ракета</option>
+                        <option value="винищувач">Винищувач</option>
+                        <option value="бомба">Бомба</option>
+                        <option value="корабль">Корабель</option>
+                        <option value="вертоліт">Вертоліт</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="targetSpeed">Швидкість (км/год):</label>
+                    <input type="number" id="targetSpeed" value="150" min="0" max="5000">
+                </div>
+                <div class="form-group">
+                    <label for="targetCourse">Курс (0-360°):</label>
+                    <input type="number" id="targetCourse" value="0" min="0" max="360">
+                </div>
+                <button class="btn" onclick="addTargetAtCenter()">
+                    <i class="fas fa-plus"></i> Додати ціль
+                </button>
+                <button class="btn btn-secondary" onclick="addRandomTarget()" style="margin-top: 10px;">
+                    <i class="fas fa-random"></i> Випадкова ціль
+                </button>
             </div>
-        </div>
 
-        <div class="status-bar">
-            <div class="status-indicator">
-                <div id="statusDot" class="offline-dot"></div>
-                <span id="statusText">Офлайн</span>
+            <div class="panel-section">
+                <h2><i class="fas fa-bullseye"></i> Цілі</h2>
+                <div class="targets-list" id="targetsList">
+                    <!-- Список целей будет добавляться динамически -->
+                </div>
             </div>
-            <div id="onlineUsers">Онлайн: 0</div>
-            <div id="lastUpdate">Оновлено: --:--:--</div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-chart-bar"></i> Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalTargets">0</h3>
+                        <p>Всього цілей</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="activeTargets">0</h3>
+                        <p>Активних</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="maxSpeed">0</h3>
+                        <p>Макс. швидкість</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalDistance">0</h3>
+                        <p>Загальна відстань</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-sliders-h"></i> Налаштування</h2>
+                <button class="btn" onclick="toggleTrajectories()">
+                    <i class="fas fa-route"></i> Траєкторії
+                </button>
+                <button class="btn btn-secondary" onclick="clearAllTargets()" style="margin-top: 10px;">
+                    <i class="fas fa-trash"></i> Очистити все
+                </button>
+                <button class="btn btn-secondary" onclick="exportTargets()" style="margin-top: 10px;">
+                    <i class="fas fa-download"></i> Експорт
+                </button>
+                <button class="btn btn-secondary" onclick="importTargets()" style="margin-top: 10px;">
+                    <i class="fas fa-upload"></i> Імпорт
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Модальное окно добавления цели -->
-    <div id="addTargetModal" class="modal add-target-modal">
-        <div class="modal-content">
-            <h3><i class="fas fa-plus-circle"></i> Додати ціль</h3>
-            <p>Натисніть на карту в місці, де потрібно додати ціль</p>
-            <div class="modal-buttons">
-                            <button onclick="startAddTargetMode()">Зрозуміло</button>
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div id="statusDot" class="offline-dot"></div>
+            <span id="statusText">Офлайн</span>
+        </div>
+        <div id="onlineUsers">Онлайн: 0</div>
+        <div id="lastUpdate">Оновлено: --:--:--</div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления цели -->
+<div id="addTargetModal" class="modal add-target-modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-plus-circle"></i> Додати ціль</h3>
+        <p>Натисніть на карту в місці, де потрібно додати ціль</p>
+        <div class="modal-buttons">
+            <button onclick="startAddTargetMode()">Зрозуміло</button>
             <button onclick="closeAddTargetModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
         </div>
     </div>
 </div>
 
-<!-- Остальные модальные окна (логин, редактирование, выбор курса) остаются без изменений -->
 <!-- Модальне вікно логіну -->
 <div id="loginModal" class="modal">
     <div class="modal-content">
@@ -770,55 +868,169 @@ function debouncedSave() {
         saveTargets();
     }, 1000);
 }
-    // Налаштування слухачів Firebase
-function setupRealtimeListeners() {
-    if (!isOnline) return;
+    // Переключити панель
+function togglePanel() {
+    const panel = document.getElementById('sidePanel');
+    panel.classList.toggle('collapsed');
+    isPanelExpanded = !isPanelExpanded;
     
-    try {
-        const db = firebase.database();
-        const targetsRef = db.ref('targets');
-        
-        // Слухач змін цілей
-        targetsRef.on('value', (snapshot) => {
-            const firebaseTargets = snapshot.val() || {};
-            
-            // Ігноруємо власні зміни
-            if (isSyncing) {
-                isSyncing = false;
-                return;
-            }
-            
-            console.log("Отримано оновлення з Firebase:", Object.keys(firebaseTargets).length + " цілей");
-            mergeTargetsFromFirebase(firebaseTargets);
-        });
-        
-        // Лічильник онлайн-користувачів
-        const usersRef = db.ref('onlineUsers');
-        const userRef = usersRef.push();
-        
-        userRef.set({
-            connected: true,
-            lastSeen: Date.now(),
-            isAdmin: isAdmin,
-            userAgent: navigator.userAgent,
-            sessionId: userSessionId
-        });
-        
-        userRef.onDisconnect().remove();
-        
-        usersRef.on('value', (snapshot) => {
-            const users = snapshot.val() || {};
-            const activeUsers = Object.values(users).filter(user => 
-                user.connected && Date.now() - user.lastSeen < 30000
-            );
-            
-            document.getElementById('onlineUsers').textContent = `Онлайн: ${activeUsers.length}`;
-        });
-    } catch (error) {
-        console.error('Помилка Firebase:', error);
-        isOnline = false;
-        updateStatus();
+    const button = document.querySelector('.toggle-panel-btn');
+    button.innerHTML = isPanelExpanded ? 
+        '<i class="fas fa-eye-slash"></i> Сховати' : 
+        '<i class="fas fa-eye"></i> Панель';
+    
+    console.log("Панель " + (isPanelExpanded ? "розгорнута" : "згорнута"));
+}
+
+// Показати модальне вікно логіну
+function showLoginModal() {
+    console.log("Відкриття модального вікна логіну");
+    document.getElementById('loginModal').style.display = 'block';
+}
+
+// Закрити модальне вікно логіну
+function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+// Показати модальне вікно додавання цілі
+function showAddTargetModal() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може додавати цілі');
+        return;
     }
+    console.log("Відкриття модального вікна додавання цілі");
+    document.getElementById('addTargetModal').style.display = 'block';
+}
+
+// Закрити модальне вікно додавання цілі
+function closeAddTargetModal() {
+    document.getElementById('addTargetModal').style.display = 'none';
+    isAddTargetMode = false;
+}
+
+// Почати режим додавання цілі
+function startAddTargetMode() {
+    isAddTargetMode = true;
+    document.getElementById('addTargetModal').style.display = 'none';
+    alert('Режим додавання цілі увімкнено. Клацніть на карту, щоб додати ціль');
+}
+
+// Спроба входу
+function attemptLogin() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    console.log("Спроба входу:", username);
+    
+    // Перевірка логіну та паролю
+    if (username === 'admin123450' && password === 'password123450') {
+        isAdmin = true;
+        closeLoginModal();
+        updateUIForUserRole();
+        alert('Успішний вхід як адміністратор');
+        
+        // Після входу синхронізуємо дані
+        if (isOnline) {
+            syncWithFirebase();
+            loadFromFirebase();
+        }
+    } else {
+        alert('Невірний логін або пароль');
+    }
+}
+
+// Вийти
+function logout() {
+    isAdmin = false;
+    updateUIForUserRole();
+    alert('Вихід виконано');
+}
+
+// Оновити UI відповідно до ролі користувача
+function updateUIForUserRole() {
+    const loginBtn = document.querySelector('.login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminElements = document.querySelectorAll('.admin-only');
+    
+    console.log("Оновлення UI для ролі: " + (isAdmin ? "адмін" : "користувач"));
+    
+    if (isAdmin) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        adminElements.forEach(el => el.style.display = 'block');
+    } else {
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        adminElements.forEach(el => el.style.display = 'none');
+    }
+}
+
+// Налаштування обробників подій
+function setupEventListeners() {
+    // Закриття модальних вікон по кліку на затемнений фон
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isAddTargetMode = false;
+            }
+        });
+    });
+    
+    // Обробка клавіші ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoginModal();
+            closeEditModal();
+            closeAddTargetModal();
+            cancelCourseSelection();
+            isAddTargetMode = false;
+        }
+    });
+    
+    // Автозаповнення назви цілі
+    document.getElementById('targetName').addEventListener('focus', function() {
+        if (!this.value) {
+            this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    // Додаємо обробник для імпорту файлів
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        // Обробка імпортованих даних
+                        importedData.forEach(target => {
+                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
+                            target.createdAt = Date.now();
+                            target.updatedAt = Date.now();
+                            target.createdBy = userSessionId;
+                            targets.push(target);
+                        });
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        alert('Дані успішно імпортовані!');
+                    }
+                } catch (error) {
+                    alert('Помилка при імпорті файлу: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    console.log("Обробники подій успішно налаштовані");
 }
 
 // Завантажити дані з Firebase
@@ -876,423 +1088,109 @@ function mergeTargetsFromFirebase(firebaseTargets) {
     updateTargetClusters();
 }
 
-// Показати модальне вікно додавання цілі
-function showAddTargetModal() {
+// Синхронізувати з Firebase
+function syncWithFirebase() {
+    if (!isOnline || isSyncing) return;
+    
+    isSyncing = true;
+    lastSyncTime = Date.now();
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        
+        // Конвертуємо масив в об'єкт для Firebase
+        const targetsObject = {};
+        targets.forEach(target => {
+            targetsObject[target.id] = target;
+        });
+        
+        targetsRef.set(targetsObject)
+            .then(() => {
+                console.log("Дані успішно синхронізовані з Firebase");
+            })
+            .catch((error) => {
+                console.error("Помилка синхронізації з Firebase:", error);
+                isOnline = false;
+                updateStatus();
+            })
+            .finally(() => {
+                isSyncing = false;
+            });
+    } catch (error) {
+        console.error("Помилка Firebase:", error);
+        isOnline = false;
+        updateStatus();
+        isSyncing = false;
+    }
+}
+
+// Додати ціль в центрі карти
+function addTargetAtCenter() {
+    const center = map.getCenter();
+    addTargetAtPosition(center);
+}
+
+// Додати ціль в конкретній позиції
+function addTargetAtPosition(latlng) {
+    console.log("Спроба додати ціль...");
+    
     if (!isAdmin) {
         alert('Лише адміністратор може додавати цілі');
         return;
     }
-    document.getElementById('addTargetModal').style.display = 'block';
-}
-
-// Закрити модальне вікно додавання цілі
-function closeAddTargetModal() {
-    document.getElementById('addTargetModal').style.display = 'none';
-    isAddTargetMode = false;
-}
-
-// Почати режим додавання цілі
-function startAddTargetMode() {
-    isAddTargetMode = true;
-    document.getElementById('addTargetModal').style.display = 'none';
-    alert('Режим додавання цілі увімкнено. Клацніть на карту, щоб додати ціль');
-}
-
-// Функція для отримання іконки за типом цілі
-function getIconForType(type, course = 0) {
-    const iconOptions = {
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20]
-    };
     
-    if (type === 'дрон') {
-        return L.icon({
-            iconUrl: 'icons/shahed.png',
-            ...iconOptions,
-            className: 'rotatable-icon'
-        });
-    }
-    else if (type === 'ракета') {
-        return L.icon({
-            iconUrl: 'icons/raketa.png',
-            ...iconOptions,
-            className: 'rotatable-icon'
-        });
-    }
+    const name = document.getElementById('targetName').value.trim();
+    const type = document.getElementById('targetType').value;
+    const speed = parseInt(document.getElementById('targetSpeed').value);
+    const course = parseInt(document.getElementById('targetCourse').value);
     
-    // Для інших типів - кольорові круги з символами
-    const colors = {
-        'винищувач': '#48dbfb',
-        'бомба': '#ff9ff3',
-        'корабль': '#1dd1a1',
-        'вертоліт': '#f368e0'
-    };
-    
-    const color = colors[type] || '#ffffff';
-    const symbol = getTypeSymbol(type);
-    
-    return L.divIcon({
-        className: 'target-marker',
-        html: `
-            <div style="
-                background-color: ${color};
-                width: 35px;
-                height: 35px;
-                border-radius: 50%;
-                border: 3px solid white;
-                box-shadow: 0 0 15px rgba(0,0,0,0.8);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-weight: bold;
-                font-size: 18px;
-                color: white;
-                text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
-                transform: rotate(${course}deg);
-            ">
-                ${symbol}
-            </div>
-        `,
-        iconSize: [35, 35],
-        iconAnchor: [17, 17]
-    });
-}
-
-// Створити popup для цілі
-function createTargetPopup(target) {
-    return `
-        <div class="target-info-window">
-            <h4>${target.name}</h4>
-            <div class="info-row">
-                <span class="info-label">Тип:</span>
-                <span class="info-value">${target.type}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Швидкість:</span>
-                <span class="info-value">${target.speed} км/год</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Курс:</span>
-                <span class="info-value">${target.course}°</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Відстань:</span>
-                <span class="info-value">${(target.distance / 1000).toFixed(1)} км</span>
-            </div>
-            ${isAdmin ? `
-            <div class="action-buttons">
-                <button class="action-button edit-btn" onclick="event.stopPropagation(); editTarget('${target.id}')">
-                    <i class="fas fa-edit"></i> Редагувати
-                </button>
-                <button class="action-button delete-btn" onclick="event.stopPropagation(); deleteTarget('${target.id}')">
-                    <i class="fas fa-trash"></i> Видалити
-                </button>
-                <button class="action-button course-btn" onclick="event.stopPropagation(); showCourseSelectionModal('${target.id}')">
-                    <i class="fas fa-route"></i> Курс
-                </button>
-            </div>
-            ` : ''}
-        </div>
-    `;
-}
-
-// Додати ціль на карту
-function addTargetToMap(target) {
-    if (markers[target.id]) {
-        map.removeLayer(markers[target.id]);
-    }
-    
-    const icon = getIconForType(target.type, target.course);
-    const marker = L.marker([target.latitude, target.longitude], { icon: icon });
-    
-    // Додаємо popup з обробниками подій
-    marker.bindPopup(createTargetPopup(target), {
-        closeOnClick: false,
-        autoClose: false,
-        closeButton: true
-    });
-    
-    // Обробник відкриття popup
-    marker.on('popupopen', function() {
-        popupOpenTargetId = target.id;
-    });
-    
-    // Обробник закриття popup
-    marker.on('popupclose', function() {
-        popupOpenTargetId = null;
-    });
-    
-    marker.addTo(map);
-    markers[target.id] = marker;
-    
-    // Додаємо траєкторію
-    if (showTrajectories) {
-        addTrajectory(target);
-    }
-    
-    // Додаємо в історію позицій
-    if (!targetHistory[target.id]) {
-        targetHistory[target.id] = [];
-    }
-    targetHistory[target.id].push({
-        lat: target.latitude,
-        lng: target.longitude,
-        timestamp: Date.now()
-    });
-    
-    // Обмежуємо історію
-    if (targetHistory[target.id].length > 100) {
-        targetHistory[target.id].shift();
-    }
-}
-
-// Оновити обертання маркера
-function updateMarkerRotation(target) {
-    if (markers[target.id]) {
-        const newIcon = getIconForType(target.type, target.course);
-        markers[target.id].setIcon(newIcon);
-        
-        // Оновити popup тільки якщо він не відкритий
-        if (popupOpenTargetId !== target.id) {
-            markers[target.id].setPopupContent(createTargetPopup(target));
-        }
-    }
-}
-
-// Переміщення цілей
-function moveTargets() {
-    const now = Date.now();
-    const deltaTime = (now - lastUpdateTime) / 1000; // в секундах
-    lastUpdateTime = now;
-    
-    targets.forEach(target => {
-        // Переміщення цілі
-        const distance = (target.speed * 1000 / 3600) * deltaTime; // в метрах
-        const bearing = target.course * Math.PI / 180;
-        
-        const lat1 = target.latitude * Math.PI / 180;
-        const lon1 = target.longitude * Math.PI / 180;
-        
-        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / 6371000) +
-                             Math.cos(lat1) * Math.sin(distance / 6371000) * Math.cos(bearing));
-        
-        const lon2 = lon1 + Math.atan2(Math.sin(bearing) * Math.sin(distance / 6371000) * Math.cos(lat1),
-                                     Math.cos(distance / 6371000) - Math.sin(lat1) * Math.sin(lat2));
-        
-        target.latitude = lat2 * 180 / Math.PI;
-        target.longitude = lon2 * 180 / Math.PI;
-        target.distance += distance;
-        
-        if (target.speed > target.maxSpeed) {
-            target.maxSpeed = target.speed;
-        }
-        
-        // Оновлення маркера
-        if (markers[target.id]) {
-            markers[target.id].setLatLng([target.latitude, target.longitude]);
-            updateMarkerRotation(target);
-        }
-        
-        // Оновлення траєкторії
-        if (now - target.lastTrajectoryUpdate > 1000) {
-            targetHistory[target.id].push({
-                lat: target.latitude,
-                lng: target.longitude,
-                timestamp: now
-            });
-            
-            if (targetHistory[target.id].length > 100) {
-                targetHistory[target.id].shift();
-            }
-            
-            if (showTrajectories && polylines[target.id]) {
-                polylines[target.id].setLatLngs(
-                    targetHistory[target.id].map(point => [point.lat, point.lng])
-                );
-            }
-            
-            target.lastTrajectoryUpdate = now;
-        }
-        
-        target.updatedAt = now;
-    });
-    
-    // Оновлення часу останнього оновлення
-    document.getElementById('lastUpdate').textContent = 
-        `Оновлено: ${new Date().toLocaleTimeString()}`;
-}
-
-// Експорт цілей
-function exportTargets() {
-    if (!isAdmin) {
-        alert('Лише адміністратор може експортувати цілі');
+    if (!name) {
+        alert('Будь ласка, введіть назву цілі');
         return;
     }
     
-    try {
-        const dataStr = JSON.stringify(targets, null, 2);
-        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-        
-        const exportFileDefaultName = 'air-targets-' + new Date().toISOString().slice(0, 10) + '.json';
-        
-        const linkElement = document.createElement('a');
-        linkElement.setAttribute('href', dataUri);
-        linkElement.setAttribute('download', exportFileDefaultName);
-        linkElement.click();
-        
-        console.log("Експорт успішний: ", targets.length, "цілей");
-    } catch (error) {
-        console.error("Помилка експорту:", error);
-        alert('Помилка при експорті даних');
-    }
-}
-
-// Імпорт цілей
-function importTargets() {
-    if (!isAdmin) {
-        alert('Лише адміністратор може імпортувати цілі');
+    if (isNaN(speed) || speed < 0 || speed > 5000) {
+        alert('Швидкість повинна бути від 0 до 5000 км/год');
         return;
     }
     
-    document.getElementById('importFile').click();
-}
-
-// Обробник вибору файлу для імпорту
-document.getElementById('importFile').addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    if (isNaN(course) || course < 0 || course > 360) {
+        alert('Курс повинен бути від 0 до 360 градусів');
+        return;
+    }
     
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const importedTargets = JSON.parse(e.target.result);
-            
-            if (Array.isArray(importedTargets)) {
-                // Додати імпортовані цілі
-                importedTargets.forEach(target => {
-                    // Генеруємо новий ID для уникнення конфліктів
-                    target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
-                    target.createdAt = Date.now();
-                    target.updatedAt = Date.now();
-                    target.createdBy = userSessionId;
-                    targets.push(target);
-                });
-                
-                updateMap();
-                saveTargets();
-                updateStats();
-                updateTargetsList();
-                updateTargetClusters();
-                
-                alert(`Успішно імпортовано ${importedTargets.length} цілей`);
-                console.log("Імпорт успішний: ", importedTargets.length, "цілей");
-            } else {
-                alert('Невірний формат файлу');
-            }
-        } catch (error) {
-            console.error('Помилка імпорту:', error);
-            alert('Помилка при імпорті файлу: ' + error.message);
-        }
+    const target = {
+        id: Date.now().toString() + '-' + userSessionId,
+        name: name,
+        type: type,
+        speed: speed,
+        course: course,
+        latitude: latlng.lat,
+        longitude: latlng.lng,
+        distance: 0,
+        maxSpeed: speed,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastTrajectoryUpdate: Date.now(),
+        createdBy: userSessionId
     };
-    reader.readAsText(file);
     
-    // Очистити input
-    event.target.value = '';
-});
-        // Синхронізувати з Firebase
-    function syncWithFirebase() {
-        if (!isOnline || isSyncing) return;
-        
-        isSyncing = true;
-        lastSyncTime = Date.now();
-        
-        try {
-            const db = firebase.database();
-            const targetsRef = db.ref('targets');
-            
-            // Конвертуємо масив в об'єкт для Firebase
-            const targetsObject = {};
-            targets.forEach(target => {
-                targetsObject[target.id] = target;
-            });
-            
-            targetsRef.set(targetsObject)
-                .then(() => {
-                    console.log("Дані успішно синхронізовані з Firebase");
-                })
-                .catch((error) => {
-                    console.error("Помилка синхронізації з Firebase:", error);
-                    isOnline = false;
-                    updateStatus();
-                })
-                .finally(() => {
-                    isSyncing = false;
-                });
-        } catch (error) {
-            console.error("Помилка Firebase:", error);
-            isOnline = false;
-            updateStatus();
-            isSyncing = false;
-        }
-    }
-
-    // Спроба входу
-    function attemptLogin() {
-        const username = document.getElementById('loginUsername').value;
-        const password = document.getElementById('loginPassword').value;
-        
-        // Перевірка логіну та паролю
-        if (username === 'admin123450' && password === 'password123450') {
-            isAdmin = true;
-            closeLoginModal();
-            updateUIForUserRole();
-            alert('Успішний вхід як адміністратор');
-            
-            // Після входу синхронізуємо дані
-            if (isOnline) {
-                syncWithFirebase();
-                loadFromFirebase();
-            }
-        } else {
-            alert('Невірний логін або пароль');
-        }
-    }
-
-    // Налаштування обробників подій
-    function setupEventListeners() {
-        // Закриття модальних вікон по кліку на затемнений фон
-        const modals = document.querySelectorAll('.modal');
-        modals.forEach(modal => {
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                    isAddTargetMode = false;
-                }
-            });
-        });
-        
-        // Обробка клавіші ESC
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeLoginModal();
-                closeEditModal();
-                closeAddTargetModal();
-                cancelCourseSelection();
-                isAddTargetMode = false;
-            }
-        });
-        
-        // Автозаповнення назви цілі
-        document.getElementById('targetName').addEventListener('focus', function() {
-            if (!this.value) {
-                this.value = 'Ціль-' + (targets.length + 1);
-            }
-        });
-    }
-
-    // Ініціалізація при завантаженні сторінки
+    targets.push(target);
+    addTargetToMap(target);
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+    updateTargetClusters();
+    
+    // Очистити форму
+    document.getElementById('targetName').value = 'Ціль-' + (targets.length + 1);
+    
+    console.log("Ціль успішно додана:", target);
+}
+        // Ініціалізація при завантаженні сторінки
     document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM завантажено, ініціалізація додатку...");
         initApp();
     });
 
@@ -1320,6 +1218,8 @@ document.getElementById('importFile').addEventListener('change', function(event)
     window.showAddTargetModal = showAddTargetModal;
     window.closeAddTargetModal = closeAddTargetModal;
     window.startAddTargetMode = startAddTargetMode;
+
+    console.log("Глобальні функції зареєстровані");
 </script>
 </body>
 </html>
