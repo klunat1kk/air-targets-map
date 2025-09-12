@@ -1303,6 +1303,15 @@ function addTargetToMap(target) {
     marker.bindPopup(popupContent);
     marker.addTo(markerCluster);
     markers[target.id] = marker;
+
+    // ⭐ ОБРАБОТЧИКИ ДЛЯ ОСТАНОВКИ ПРИ ОТКРЫТИИ POPUP
+        marker.on('popupopen', function() {
+            pausedTargets.add(target.id);
+        });
+        
+        marker.on('popupclose', function() {
+            pausedTargets.delete(target.id);
+        });
     
     // Додаємо траєкторію (всегда, не зависимо от showTrajectories)
     addTrajectory(target);
