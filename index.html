@@ -882,6 +882,7 @@ function setupRealtimeListeners() {
     try {
         const db = firebase.database();
         const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
         
         // Слушатель изменений целей
         targetsRef.on('value', (snapshot) => {
@@ -898,7 +899,6 @@ function setupRealtimeListeners() {
         });
         
         // Слушатель удаленных целей
-        const deletedRef = db.ref('deletedTargets');
         deletedRef.on('value', (snapshot) => {
             const firebaseDeleted = snapshot.val() || [];
             
@@ -906,7 +906,7 @@ function setupRealtimeListeners() {
             firebaseDeleted.forEach(id => {
                 if (!deletedTargets.has(id)) {
                     deletedTargets.add(id);
-                    // Удаляем цель локально
+                    // Немедленно удаляем цель локально
                     const targetIndex = targets.findIndex(t => t.id === id);
                     if (targetIndex !== -1) {
                         targets.splice(targetIndex, 1);
@@ -917,14 +917,15 @@ function setupRealtimeListeners() {
                     }
                     removeTrajectory(id);
                     delete targetHistory[id];
+                    
+                    // Немедленно обновляем UI
+                    updateStats();
+                    updateTargetsList();
                 }
             });
-            
-            updateStats();
-            updateTargetsList();
         });
         
-        // Счетчик онлайн-пользователей
+        // Лічильник онлайн-користувачів
         const usersRef = db.ref('onlineUsers');
         const userRef = usersRef.push();
         
@@ -953,25 +954,35 @@ function setupRealtimeListeners() {
     }
 }
 
-// Загрузить данные из Firebase
+// Завантажити дані з Firebase
 function loadFromFirebase() {
     if (!isOnline) return;
     
     try {
         const db = firebase.database();
         const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
         
         targetsRef.once('value').then((snapshot) => {
             const firebaseTargets = snapshot.val() || {};
             console.log("Завантажено з Firebase");
             mergeTargetsFromFirebase(firebaseTargets);
         });
+        
+        deletedRef.once('value').then((snapshot) => {
+            const firebaseDeleted = snapshot.val() || [];
+            firebaseDeleted.forEach(id => {
+                if (!deletedTargets.has(id)) {
+                    deletedTargets.add(id);
+                }
+            });
+        });
     } catch (error) {
         console.error('Помилка завантаження з Firebase:', error);
     }
 }
 
-// Объединить цели из Firebase
+// Об'єднати цілі з Firebase
 function mergeTargetsFromFirebase(firebaseTargets) {
     const firebaseTargetsArray = Object.values(firebaseTargets);
     
@@ -1312,7 +1323,7 @@ function moveTargets() {
     targets.forEach(target => {
         if (deletedTargets.has(target.id)) return; // Пропускаем удаленные цели
         
-        // Переміщення цілі
+        // Переміщення цілі - реалистичная скорость (150 км/ч = 41.67 м/с)
         const distance = (target.speed * 1000 / 3600) * deltaTime; // в метрах
         const bearing = target.course * Math.PI / 180;
         
@@ -1364,8 +1375,7 @@ function moveTargets() {
 
 // Обновление кластеризации
 function updateTargetClusters() {
-    // Кластеризация автоматически обновляется при изменении маркеров
-    // Эта функция может быть использована для дополнительной настройки
+    // Автоматическая кластеризация при изменении зума
     const currentZoom = map.getZoom();
     
     // Приближение - показываем отдельные маркеры
@@ -1454,7 +1464,7 @@ function clearAllTargets() {
     
     if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
     
-    // Добавляем все цели в список удаленных
+        // Добавляем все цели в список удаленных
     targets.forEach(target => {
         deletedTargets.add(target.id);
     });
