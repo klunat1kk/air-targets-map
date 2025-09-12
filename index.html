@@ -3,1223 +3,1129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта Повітряних Цілей</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <title>Air Targets Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
+        
         body {
-            background: linear-gradient(135deg, #0c0e2a 0%, #1e2142 100%);
-            color: #fff;
+            font-family: 'Arial', sans-serif;
             overflow: hidden;
         }
-
-        .app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        .header {
-            background: linear-gradient(90deg, #2d3436 0%, #2c3e50 100%);
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-            border-bottom: 2px solid #00cec9;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            font-weight: bold;
-            color: #00cec9;
-            text-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
-        }
-
-        .header h1 i {
-            margin-right: 10px;
-        }
-
-        .header-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        .header-btn {
-            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
-            border: none;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .header-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
-        }
-
-        .main-content {
-            display: flex;
-            flex: 1;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
+        
         #map {
-            flex: 1;
-            z-index: 1;
-            position: relative;
-        }
-
-        .add-target-button {
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(90deg, #00b894 0%, #00cec9 100%);
-            border: none;
-            color: white;
-            padding: 15px 25px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-weight: bold;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000;
-            box-shadow: 0 5px 20px rgba(0, 206, 201, 0.5);
+            max-width: 300px;
+        }
+        
+        .panel-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .add-target-button:hover {
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 206, 201, 0.6);
-        }
-
-        .panel {
-            width: 100%;
-            height: 300px;
-            background: rgba(30, 33, 66, 0.95);
-            padding: 20px;
-            overflow-y: auto;
-            transition: all 0.3s ease;
-            border-top: 2px solid #00cec9;
-            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .panel.collapsed {
-            height: 60px;
-            overflow: hidden;
-            padding: 10px;
-        }
-
-        .panel-section {
-            margin-bottom: 25px;
-            background: rgba(44, 62, 80, 0.6);
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #34495e;
-        }
-
-        .panel-section h2 {
-            color: #00cec9;
             margin-bottom: 15px;
-            font-size: 18px;
-            border-bottom: 2px solid #00cec9;
-            padding-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
         }
-
-        .panel-section h2 i {
-            font-size: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #dfe6e9;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #34495e;
-            border-radius: 5px;
-            background: #2d3436;
-            color: #fff;
-            font-size: 16px;
-            transition: all 0.3s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #00cec9;
-            box-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
-        }
-
-        .btn {
-            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
-            border: none;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 5px;
-            cursor: pointer;
+        
+        .panel-title {
             font-weight: bold;
-            transition: all 0.3s ease;
-            width: 100%;
-            margin-top: 5px;
+            font-size: 16px;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(90deg, #7f8c8d 0%, #636e72 100%);
-        }
-
-        .targets-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 15px;
-        }
-
-        .target-item {
-            background: rgba(52, 73, 94, 0.6);
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            border-left: 4px solid #00cec9;
-            transition: all 0.3s ease;
+        
+        .toggle-btn {
+            background: none;
+            border: none;
+            font-size: 18px;
             cursor: pointer;
         }
-
-        .target-item:hover {
-            background: rgba(52, 73, 94, 0.9);
-            transform: translateX(5px);
+        
+        .panel-content {
+            display: block;
         }
-
-        .target-item h4 {
-            color: #00cec9;
-            margin-bottom: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        
+        .panel-content.hidden {
+            display: none;
         }
-
-        .target-item p {
-            color: #dfe6e9;
-            font-size: 14px;
-            margin: 3px 0;
-        }
-
-        .target-item .target-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .target-item .target-actions button {
-            flex: 1;
-            padding: 8px;
-            font-size: 12px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .stat-card {
-            background: rgba(52, 73, 94, 0.6);
-            padding: 15px;
-            border-radius: 8px;
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
             text-align: center;
-            border: 1px solid #34495e;
         }
-
-        .stat-card h3 {
-            color: #00cec9;
-            font-size: 24px;
-            margin-bottom: 5px;
+        
+        .btn:hover {
+            background: #0056b3;
         }
-
-        .stat-card p {
-            color: #dfe6e9;
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .user-info {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
             font-size: 14px;
         }
-
-        .status-bar {
-            background: rgba(44, 62, 80, 0.9);
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 2px solid #00cec9;
-            font-size: 14px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .online-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #00b894;
-            animation: pulse 2s infinite;
-        }
-
-        .offline-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #d63031;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
+        
+        /* Modal styles */
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
         }
-
+        
         .modal-content {
-            background: linear-gradient(135deg, #2d3436 0%, #2c3e50 100%);
-            margin: 10% auto;
-            padding: 25px;
-            border-radius: 15px;
-            width: 400px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 2px solid #00cec9;
-            position: relative;
-        }
-
-        .modal-content h3 {
-            color: #00cec9;
-            margin-bottom: 20px;
-            text-align: center;
-            font-size: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        .course-notification {
-            position: fixed;
-            top: 20px;
+            position: absolute;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
-            color: white;
-            padding: 15px 25px;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
             border-radius: 8px;
-            z-index: 1001;
-            box-shadow: 0 5px 20px rgba(0, 206, 201, 0.5);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: bold;
+            min-width: 300px;
         }
-
-        .target-marker-cluster {
-            background: rgba(231, 76, 60, 0.8);
-            border-radius: 50%;
-            color: white;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 3px solid white;
-            box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+        
+        .modal-header {
+            margin-bottom: 15px;
         }
-
-        .target-info-window {
-            background: rgba(45, 52, 54, 0.95);
-            border: 2px solid #00cec9;
-            border-radius: 10px;
-            padding: 15px;
-            color: white;
-            min-width: 250px;
-            backdrop-filter: blur(10px);
-        }
-
-        .target-info-window h4 {
-            color: #00cec9;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #00cec9;
-            padding-bottom: 5px;
-        }
-
-        .target-info-window p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-
-        .target-info-window .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-        }
-
-        .target-info-window .info-label {
-            color: #b2bec3;
-            font-weight: 500;
-        }
-
-        .target-info-window .info-value {
-            color: #dfe6e9;
-            font-weight: bold;
-        }
-
-        .target-info-window .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            justify-content: center;
-        }
-
-        .target-info-window .action-button {
-            padding: 8px 12px;
+        
+        .modal-close {
+            float: right;
+            background: none;
             border: none;
-            border-radius: 5px;
+            font-size: 18px;
             cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.3s ease;
         }
-
-        .target-info-window .edit-btn {
-            background: #00cec9;
-            color: white;
+        
+        .form-group {
+            margin-bottom: 15px;
         }
-
-        .target-info-window .delete-btn {
-            background: #e74c3c;
-            color: white;
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
         }
-
-        .target-info-window .course-btn {
-            background: #0984e3;
-            color: white;
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
-
-        .target-info-window .action-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        
+        /* Target icon rotation */
+        .target-icon {
+            transition: transform 0.3s ease;
         }
-
-        /* Стили для обертання іконок */
-        .rotatable-icon {
-            transition: transform 0.5s ease;
-            transform-origin: center;
-        }
-
-        /* Адаптивность */
-        @media (max-width: 768px) {
-            .panel {
-                height: 250px;
-            }
-            
-            .panel.collapsed {
-                height: 50px;
-            }
-            
-            .modal-content {
-                width: 90%;
-                margin: 20% auto;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .add-target-button {
-                top: 10px;
-                padding: 12px 20px;
-                font-size: 14px;
-            }
-            
-            .header h1 {
-                font-size: 20px;
-            }
-            
-            .header-btn {
-                padding: 8px 12px;
-                font-size: 14px;
-            }
-        }
-
-        /* Модальное окно добавления цели */
-        .add-target-modal .modal-content {
+        
+        /* Status indicators */
+        .status {
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 12px;
             text-align: center;
         }
-
-        .add-target-modal p {
-            margin: 15px 0;
-            color: #dfe6e9;
-            font-size: 16px;
+        
+        .status.online {
+            background: #d4edda;
+            color: #155724;
         }
-
-        /* Стили для свернутой панели */
-        .panel-collapsed-content {
+        
+        .status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        /* Popup buttons */
+        .popup-buttons {
+            margin-top: 10px;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 40px;
+            gap: 5px;
+            flex-wrap: wrap;
         }
-
-        .panel-collapsed-content h3 {
-            color: #00cec9;
-            font-size: 16px;
+        
+        .popup-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .popup-btn.edit {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .popup-btn.delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .popup-btn.course {
+            background: #17a2b8;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="header">
-            <h1><i class="fas fa-crosshairs"></i> Карта Повітряних Цілей</h1>
-            <div class="header-controls">
-                <button class="header-btn toggle-panel-btn" onclick="togglePanel()">
-                    <i class="fas fa-eye-slash"></i> Панель
-                </button>
-                <button class="header-btn login-btn" onclick="showLoginModal()">
-                    <i class="fas fa-user"></i> Увійти
-                </button>
-                <button class="header-btn logout-btn" onclick="logout()" id="logoutBtn" style="display: none;">
-                    <i class="fas fa-sign-out-alt"></i> Вийти
-                </button>
-            </div>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <div class="panel-header">
+            <div class="panel-title">Панель управління</div>
+            <button class="toggle-btn" onclick="togglePanel()">−</button>
         </div>
-
-        <div class="main-content">
-            <div id="map">
-                <button class="add-target-button" onclick="showAddTargetModal()">
-                    <i class="fas fa-plus"></i> Додати ціль
-                </button>
+        <div class="panel-content">
+            <button class="btn" onclick="startAddTargetMode()">Додати ціль</button>
+            <button class="btn" onclick="addRandomTarget()">Випадкова ціль</button>
+            <button class="btn" onclick="toggleTrajectories()">Траєкторії</button>
+            <button class="btn" onclick="clearAllTargets()">Очистити все</button>
+            <button class="btn" onclick="exportTargets()">Експорт</button>
+            <button class="btn" onclick="importTargets()">Імпорт</button>
+            
+            <div class="user-info">
+                <div id="userStatus">Гість</div>
+                <button class="btn" onclick="showLoginModal()">Увійти</button>
             </div>
-
-            <div class="panel" id="sidePanel">
-                <div class="panel-section">
-                    <h2><i class="fas fa-plus-circle"></i> Додати ціль</h2>
-                    <div class="form-group">
-                        <label for="targetName">Назва цілі:</label>
-                        <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
-                    </div>
-                                    <div class="form-group">
-                    <label for="targetType">Тип цілі:</label>
-                    <select id="targetType">
-                        <option value="дрон">Дрон</option>
-                        <option value="ракета">Ракета</option>
-                        <option value="винищувач">Винищувач</option>
-                        <option value="бомба">Бомба</option>
-                        <option value="корабль">Корабель</option>
-                        <option value="вертоліт">Вертоліт</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="targetSpeed">Швидкість (км/год):</label>
-                    <input type="number" id="targetSpeed" value="150" min="0" max="5000">
-                </div>
-                <div class="form-group">
-                    <label for="targetCourse">Курс (0-360°):</label>
-                    <input type="number" id="targetCourse" value="0" min="0" max="360">
-                </div>
-                <button class="btn" onclick="addTargetAtCenter()">
-                    <i class="fas fa-plus"></i> Додати ціль
-                </button>
-                <button class="btn btn-secondary" onclick="addRandomTarget()" style="margin-top: 10px;">
-                    <i class="fas fa-random"></i> Випадкова ціль
-                </button>
+            
+            <div id="connectionStatus" class="status offline">Офлайн</div>
+        </div>
+    </div>
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Вхід в систему</h3>
+                <button class="modal-close" onclick="closeLoginModal()">×</button>
             </div>
-
-            <div class="panel-section">
-                <h2><i class="fas fa-bullseye"></i> Цілі</h2>
-                <div class="targets-list" id="targetsList">
-                    <!-- Список целей будет добавляться динамически -->
-                </div>
+            <div class="form-group">
+                <label for="login">Логін:</label>
+                <input type="text" id="login" placeholder="Введіть логін">
             </div>
-
-            <div class="panel-section">
-                <h2><i class="fas fa-chart-bar"></i> Статистика</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h3 id="totalTargets">0</h3>
-                        <p>Всього цілей</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="activeTargets">0</h3>
-                        <p>Активних</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="maxSpeed">0</h3>
-                        <p>Макс. швидкість</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="totalDistance">0</h3>
-                        <p>Загальна відстань</p>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label for="password">Пароль:</label>
+                <input type="password" id="password" placeholder="Введіть пароль">
             </div>
-
-            <div class="panel-section">
-                <h2><i class="fas fa-sliders-h"></i> Налаштування</h2>
-                <button class="btn" onclick="toggleTrajectories()">
-                    <i class="fas fa-route"></i> Траєкторії
-                </button>
-                <button class="btn btn-secondary" onclick="clearAllTargets()" style="margin-top: 10px;">
-                    <i class="fas fa-trash"></i> Очистити все
-                </button>
-                <button class="btn btn-secondary" onclick="exportTargets()" style="margin-top: 10px;">
-                    <i class="fas fa-download"></i> Експорт
-                </button>
-                <button class="btn btn-secondary" onclick="importTargets()" style="margin-top: 10px;">
-                    <i class="fas fa-upload"></i> Імпорт
-                </button>
+            <button class="btn" onclick="attemptLogin()">Увійти</button>
+        </div>
+    </div>
+    
+    <!-- Add Target Modal -->
+    <div id="addTargetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Додати ціль</h3>
+                <button class="modal-close" onclick="closeAddTargetModal()">×</button>
             </div>
+            <div class="form-group">
+                <label for="targetName">Назва цілі:</label>
+                <input type="text" id="targetName" placeholder="Введіть назву">
+            </div>
+            <div class="form-group">
+                <label for="targetType">Тип цілі:</label>
+                <select id="targetType">
+                    <option value="aircraft">Літак</option>
+                    <option value="helicopter">Гелікоптер</option>
+                    <option value="missile">Ракета</option>
+                    <option value="uav">БПЛА</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="targetSpeed">Швидкість (км/год):</label>
+                <input type="number" id="targetSpeed" value="800" min="0">
+            </div>
+            <div class="form-group">
+                <label for="targetAltitude">Висота (м):</label>
+                <input type="number" id="targetAltitude" value="5000" min="0">
+            </div>
+            <button class="btn" onclick="confirmAddTarget()">Додати</button>
+        </div>
+    </div>
+    
+    <!-- Course Selection Modal -->
+    <div id="courseModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Вибір курсу</h3>
+                <button class="modal-close" onclick="closeCourseModal()">×</button>
+            </div>
+            <div class="form-group">
+                <label>Клацніть на карту для вибору курсу</label>
+                <p>Ціль: <span id="courseTargetName"></span></p>
+            </div>
+            <button class="btn" onclick="cancelCourseSelection()">Скасувати</button>
         </div>
     </div>
 
-    <div class="status-bar">
-        <div class="status-indicator">
-            <div id="statusDot" class="offline-dot"></div>
-            <span id="statusText">Офлайн</span>
-        </div>
-        <div id="onlineUsers">Онлайн: 0</div>
-        <div id="lastUpdate">Оновлено: --:--:--</div>
-    </div>
-</div>
-
-<!-- Модальное окно добавления цели -->
-<div id="addTargetModal" class="modal add-target-modal">
-    <div class="modal-content">
-        <h3><i class="fas fa-plus-circle"></i> Додати ціль</h3>
-        <p>Натисніть на карту в місці, де потрібно додати ціль</p>
-        <div class="modal-buttons">
-            <button onclick="startAddTargetMode()">Зрозуміло</button>
-            <button onclick="closeAddTargetModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
-        </div>
-    </div>
-</div>
-
-<!-- Модальне вікно логіну -->
-<div id="loginModal" class="modal">
-    <div class="modal-content">
-        <h3><i class="fas fa-user-shield"></i> Вхід для адміністратора</h3>
-        <div class="form-group">
-            <label for="loginUsername">Логін:</label>
-            <input type="text" id="loginUsername" placeholder="Введіть логін">
-        </div>
-        <div class="form-group">
-            <label for="loginPassword">Пароль:</label>
-            <input type="password" id="loginPassword" placeholder="Введіть пароль">
-        </div>
-        <div class="modal-buttons">
-            <button onclick="attemptLogin()">Увійти</button>
-            <button onclick="closeLoginModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
-        </div>
-    </div>
-</div>
-
-<!-- Модальне вікно редагування -->
-<div id="editModal" class="modal">
-    <div class="modal-content">
-        <h3><i class="fas fa-edit"></i> Редагувати ціль</h3>
-        <div class="form-group">
-            <label for="editName">Назва цілі:</label>
-            <input type="text" id="editName">
-        </div>
-        <div class="form-group">
-            <label for="editType">Тип цілі:</label>
-            <select id="editType">
-                <option value="дрон">Дрон</option>
-                <option value="ракета">Ракета</option>
-                <option value="винищувач">Винищувач</option>
-                <option value="бомба">Бомба</option>
-                <option value="корабль">Корабель</option>
-                <option value="вертоліт">Вертоліт</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="editSpeed">Швидкість (км/год):</label>
-            <input type="number" id="editSpeed">
-        </div>
-        <div class="form-group">
-            <label for="editCourse">Курс (0-360°):</label>
-            <input type="number" id="editCourse" min="0" max="360">
-        </div>
-        <div class="modal-buttons">
-            <button onclick="saveTargetEdit()">Зберегти</button>
-            <button onclick="closeEditModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
-        </div>
-    </div>
-</div>
-
-<!-- Модальне вікно вибору курсу -->
-<div id="courseSelectionModal" class="modal">
-    <div class="modal-content">
-        <h3><i class="fas fa-route"></i> Вибір курсу</h3>
-        <p>Клацніть по карті, щоб встановити напрямок руху цілі</p>
-        <div class="modal-buttons">
-            <button onclick="confirmCourseSelection()">Підтвердити</button>
-            <button onclick="cancelCourseSelection()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
-        </div>
-    </div>
-</div>
-
-<!-- Уведомление о выборе курса -->
-<div id="courseNotification" class="course-notification" style="display: none;">
-    <i class="fas fa-route"></i> Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс
-</div>
-
-<input type="file" id="importFile" style="display: none;" accept=".json">
-
-<script>
-// Глобальні змінні
-let map;
-let targets = [];
-let markers = {};
-let polylines = {};
-let targetHistory = {};
-let isOnline = false;
-let showTrajectories = true;
-let isPanelExpanded = true;
-let isCourseSelectionMode = false;
-let selectedTargetForCourse = null;
-let autoSaveInterval = null;
-let isAdmin = false;
-let currentEditTargetId = null;
-let isSyncing = false;
-let lastSyncTime = Date.now();
-let saveTimeout = null;
-let lastUpdateTime = Date.now();
-let animationFrameId = null;
-let targetClusters = {};
-let userSessionId = Math.random().toString(36).substr(2, 9);
-let syncInterval = null;
-let isAddTargetMode = false;
-let popupOpenTargetId = null;
-
-// ВАШІ НАЛАШТУВАННЯ FIREBASE
-const firebaseConfig = {
-    apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
-    authDomain: "air-tracking-site.firebaseapp.com",
-    databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "air-tracking-site",
-    storageBucket: "air-tracking-site.firebasestorage.app",
-    messagingSenderId: "185790784262",
-    appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
-    measurementId: "G-XW9Y6JKCPG"
-};
-
-// Ініціалізація додатку
-function initApp() {
-    try {
-        initMap();
-        loadTargetsFromLocalStorage();
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+    // ==============================================
+    // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНФИГУРАЦИЯ
+    // ==============================================
+    
+    // Конфигурация Firebase
+    const firebaseConfig = {
+        apiKey: "your-api-key",
+        authDomain: "your-project.firebaseapp.com",
+        databaseURL: "https://your-project.firebaseio.com",
+        projectId: "your-project",
+        storageBucket: "your-project.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "your-app-id"
+    };
+    
+    // Глобальные переменные
+    let map;
+    let targets = [];
+    let targetMarkers = {};
+    let trajectories = {};
+    let isAdmin = false;
+    let isOnline = false;
+    let isSyncing = false;
+    let isAddTargetMode = false;
+    let isCourseSelectionMode = false;
+    let selectedTargetForCourse = null;
+    let currentUser = null;
+    
+    // Иконки для разных типов целей
+    const targetIcons = {
+        aircraft: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/824/824658.png',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            className: 'target-icon'
+        }),
+        helicopter: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2970/2970783.png',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            className: 'target-icon'
+        }),
+        missile: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/1828/1828665.png',
+            iconSize: [25, 25],
+            iconAnchor: [12, 12],
+            className: 'target-icon'
+        }),
+        uav: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/1683/1683306.png',
+            iconSize: [25, 25],
+            iconAnchor: [12, 12],
+            className: 'target-icon'
+        })
+    };
+    
+    // ==============================================
+    // ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
+    // ==============================================
+    
+    // Инициализация приложения
+    function initApp() {
         initFirebase();
+        initMap();
         setupEventListeners();
-        updateStats();
-        updateStatus();
-        startAutoSave();
-        startAutoSync();
-        updateUIForUserRole();
+        checkOnlineStatus();
+        loadFromFirebase();
         
-        // Запускаємо анімаційний цикл
-        startAnimationLoop();
+        // Проверка онлайн статуса каждые 30 секунд
+        setInterval(checkOnlineStatus, 30000);
+    }
+    
+    // Инициализация карты
+    function initMap() {
+        // Создание карты с центром на Украине
+        map = L.map('map').setView([49.0, 31.0], 6);
         
-        console.log("Додаток успішно ініціалізовано");
-    } catch (error) {
-        console.error('Помилка ініціалізації:', error);
+        // Добавление слоя OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Обработчик кликов по карте
+        map.on('click', function(e) {
+            if (isCourseSelectionMode && selectedTargetForCourse) {
+                setTargetCourseFromMap(e.latlng);
+            } else if (isAddTargetMode && isAdmin) {
+                addTargetAtPosition(e.latlng);
+                isAddTargetMode = false; // Сбрасываем режим
+            }
+        });
+        
+        console.log("Карта инициализирована");
     }
-}
-
-// Ініціалізація карти
-function initMap() {
-    map = L.map('map').setView([50.4500, 30.5233], 6);
-
-    // Додаємо темну тему карти
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap, © CartoDB',
-        maxZoom: 19
-    }).addTo(map);
-
-    // Додаємо обробник кліку по карті
-    map.on('click', function(e) {
-        if (isCourseSelectionMode && selectedTargetForCourse) {
-            setTargetCourseFromMap(e.latlng);
-        } else if (isAddTargetMode && isAdmin) {
-            // Додавання цілі по кліку на карту
-            addTargetAtPosition(e.latlng);
-            closeAddTargetModal();
-        }
-    });
-
-    console.log("Карта успішно ініціалізована");
-}
-
-// Ініціалізація Firebase
-function initFirebase() {
-    try {
-        firebase.initializeApp(firebaseConfig);
-        isOnline = true;
-        console.log("Firebase успішно підключено!");
-        setupRealtimeListeners();
-    } catch (error) {
-        console.log("Помилка підключення до Firebase, використовуємо офлайн-режим:", error);
-        isOnline = false;
-    }
-    updateStatus();
-}
-
-// Анімаційний цикл
-function startAnimationLoop() {
-    function animationLoop() {
-        moveTargets();
-        updateTargetClusters();
-        animationFrameId = requestAnimationFrame(animationLoop);
-    }
-    animationFrameId = requestAnimationFrame(animationLoop);
-}
-
-// Автоматичне збереження кожні 5 секунд
-function startAutoSave() {
-    autoSaveInterval = setInterval(function() {
-        saveTargets();
-    }, 5000);
-}
-
-// Автоматична синхронізація з Firebase кожну секунду
-function startAutoSync() {
-    syncInterval = setInterval(function() {
-        if (isOnline) {
-            syncWithFirebase();
-            loadFromFirebase();
-        }
-    }, 1000);
-}
-
-// DEBOUNCE ДЛЯ ЗБЕРЕЖЕННЯ
-function debouncedSave() {
-    if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-        saveTargets();
-    }, 1000);
-}
-    // Переключити панель
-function togglePanel() {
-    const panel = document.getElementById('sidePanel');
-    panel.classList.toggle('collapsed');
-    isPanelExpanded = !isPanelExpanded;
     
-    const button = document.querySelector('.toggle-panel-btn');
-    button.innerHTML = isPanelExpanded ? 
-        '<i class="fas fa-eye-slash"></i> Сховати' : 
-        '<i class="fas fa-eye"></i> Панель';
+    // Инициализация Firebase
+    function initFirebase() {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase инициализирован");
+        } catch (error) {
+            console.error("Ошибка инициализации Firebase:", error);
+        }
+    }
     
-    console.log("Панель " + (isPanelExpanded ? "розгорнута" : "згорнута"));
-}
+    // Настройка обработчиков событий
+    function setupEventListeners() {
+        // Обработчики для кнопок в панели
+        document.querySelector('.btn[onclick="addTargetAtCenter()"]').onclick = addTargetAtCenter;
+        document.querySelector('.btn[onclick="addRandomTarget()"]').onclick = addRandomTarget;
+        document.querySelector('.btn[onclick="toggleTrajectories()"]').onclick = toggleTrajectories;
+        document.querySelector('.btn[onclick="clearAllTargets()"]').onclick = clearAllTargets;
+        document.querySelector('.btn[onclick="exportTargets()"]').onclick = exportTargets;
+        document.querySelector('.btn[onclick="importTargets()"]').onclick = importTargets;
+        
+        // Обработчики для кнопок в popup
+        map.on('popupopen', function(e) {
+            const popup = e.popup;
+            const content = popup.getContent();
+            
+            // Обработчики для кнопок в popup
+            setTimeout(() => {
+                const editBtn = popup._container.querySelector('.edit-btn');
+                const deleteBtn = popup._container.querySelector('.delete-btn');
+                const courseBtn = popup._container.querySelector('.course-btn');
+                
+                if (editBtn) editBtn.onclick = function() {
+                    const targetId = this.getAttribute('data-target-id');
+                    editTarget(targetId);
+                };
+                
+                if (deleteBtn) deleteBtn.onclick = function() {
+                    const targetId = this.getAttribute('data-target-id');
+                    deleteTarget(targetId);
+                };
+                
+                if (courseBtn) courseBtn.onclick = function() {
+                    const targetId = this.getAttribute('data-target-id');
+                    showCourseSelectionModal(targetId);
+                };
+            }, 100);
+        });
+        
+        // Обработчики для модальных окон
+        document.getElementById('login').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') attemptLogin();
+        });
+        
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') attemptLogin();
+        });
+        
+        console.log("Обработчики событий настроены");
+    }
+        <script>
+// ==============================================
+// ФУНКЦИИ РАБОТЫ С ЦЕЛЯМИ
+// ==============================================
 
-// Показати модальне вікно логіну
-function showLoginModal() {
-    console.log("Відкриття модального вікна логіну");
-    document.getElementById('loginModal').style.display = 'block';
-}
-
-// Закрити модальне вікно логіну
-function closeLoginModal() {
-    document.getElementById('loginModal').style.display = 'none';
-    document.getElementById('loginUsername').value = '';
-    document.getElementById('loginPassword').value = '';
-}
-
-// Показати модальне вікно додавання цілі
-function showAddTargetModal() {
+// Добавление цели в указанной позиции
+function addTargetAtPosition(latlng, targetData = null) {
     if (!isAdmin) {
-        alert('Лише адміністратор може додавати цілі');
+        alert("Только администратор может добавлять цели");
         return;
     }
-    console.log("Відкриття модального вікна додавання цілі");
-    document.getElementById('addTargetModal').style.display = 'block';
-}
-
-// Закрити модальне вікно додавання цілі
-function closeAddTargetModal() {
-    document.getElementById('addTargetModal').style.display = 'none';
-    isAddTargetMode = false;
-}
-
-// Почати режим додавання цілі
-function startAddTargetMode() {
-    isAddTargetMode = true;
-    document.getElementById('addTargetModal').style.display = 'none';
-    alert('Режим додавання цілі увімкнено. Клацніть на карту, щоб додати ціль');
-}
-
-// Спроба входу
-function attemptLogin() {
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
     
-    console.log("Спроба входу:", username);
+    const targetId = targetData ? targetData.id : 'target_' + Date.now();
+    const target = targetData || {
+        id: targetId,
+        name: document.getElementById('targetName').value || 'Цель ' + (targets.length + 1),
+        type: document.getElementById('targetType').value || 'aircraft',
+        lat: latlng.lat,
+        lng: latlng.lng,
+        speed: parseInt(document.getElementById('targetSpeed').value) || 800,
+        altitude: parseInt(document.getElementById('targetAltitude').value) || 5000,
+        course: 0,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser
+    };
     
-    // Перевірка логіну та паролю
-    if (username === 'admin123450' && password === 'password123450') {
-        isAdmin = true;
-        closeLoginModal();
-        updateUIForUserRole();
-        alert('Успішний вхід як адміністратор');
-        
-        // Після входу синхронізуємо дані
-        if (isOnline) {
-            syncWithFirebase();
-            loadFromFirebase();
+    // Добавляем цель в массив
+    if (!targetData) {
+        targets.push(target);
+    }
+    
+    // Создаем маркер
+    const marker = L.marker([target.lat, target.lng], {
+        icon: targetIcons[target.type]
+    }).addTo(map);
+    
+    // Обновляем поворот иконки
+    updateIconRotation(marker, target.course);
+    
+    // Создаем popup
+    const popupContent = `
+        <strong>${target.name}</strong><br>
+        Тип: ${target.type}<br>
+        Скорость: ${target.speed} км/ч<br>
+        Высота: ${target.altitude} м<br>
+        Курс: ${target.course}°<br>
+        <div class="popup-buttons">
+            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
+            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+            <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    targetMarkers[target.id] = marker;
+    
+    // Синхронизируем с Firebase
+    syncWithFirebase();
+    
+    // Закрываем модальное окно если оно открыто
+    closeAddTargetModal();
+    
+    console.log("Цель добавлена:", target);
+}
+
+// Добавление цели в центре карты
+function addTargetAtCenter() {
+    if (!isAdmin) {
+        alert("Только администратор может добавлять цели");
+        return;
+    }
+    showAddTargetModal();
+}
+
+// Добавление случайной цели
+function addRandomTarget() {
+    if (!isAdmin) {
+        alert("Только администратор может добавлять цели");
+        return;
+    }
+    
+    const center = map.getCenter();
+    const randomLat = center.lat + (Math.random() - 0.5) * 2;
+    const randomLng = center.lng + (Math.random() - 0.5) * 4;
+    
+    const targetTypes = ['aircraft', 'helicopter', 'missile', 'uav'];
+    const randomType = targetTypes[Math.floor(Math.random() * targetTypes.length)];
+    
+    const target = {
+        id: 'target_' + Date.now(),
+        name: 'Случайная цель ' + (targets.length + 1),
+        type: randomType,
+        lat: randomLat,
+        lng: randomLng,
+        speed: Math.floor(Math.random() * 1000) + 300,
+        altitude: Math.floor(Math.random() * 10000) + 1000,
+        course: Math.floor(Math.random() * 360),
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser || 'system'
+    };
+    
+    addTargetAtPosition({lat: randomLat, lng: randomLng}, target);
+}
+
+// Редактирование цели
+function editTarget(targetId) {
+    if (!isAdmin) {
+        alert("Только администратор может редактировать цели");
+        return;
+    }
+    
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    // Здесь можно реализовать модальное окно для редактирования
+    // Для простоты просто обновим некоторые параметры
+    target.speed += 100;
+    target.altitude += 500;
+    
+    // Обновляем popup
+    const marker = targetMarkers[targetId];
+    if (marker) {
+        const popupContent = `
+            <strong>${target.name}</strong><br>
+            Тип: ${target.type}<br>
+            Скорость: ${target.speed} км/ч<br>
+            Высота: ${target.altitude} м<br>
+            Курс: ${target.course}°<br>
+            <div class="popup-buttons">
+                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
+                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+                <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
+            </div>
+        `;
+        marker.setPopupContent(popupContent);
+    }
+    
+    syncWithFirebase();
+    console.log("Цель отредактирована:", target);
+}
+
+// Удаление цели
+function deleteTarget(targetId) {
+    if (!isAdmin) {
+        alert("Только администратор может удалять цели");
+        return;
+    }
+    
+    if (!confirm("Вы уверены, что хотите удалить эту цель?")) return;
+    
+    // Удаляем из массива
+    targets = targets.filter(t => t.id !== targetId);
+    
+    // Удаляем маркер с карты
+    if (targetMarkers[targetId]) {
+        map.removeLayer(targetMarkers[targetId]);
+        delete targetMarkers[targetId];
+    }
+    
+    // Удаляем траекторию если есть
+    if (trajectories[targetId]) {
+        map.removeLayer(trajectories[targetId]);
+        delete trajectories[targetId];
+    }
+    
+    syncWithFirebase();
+    console.log("Цель удалена:", targetId);
+}
+
+// Обновление поворота иконки
+function updateIconRotation(marker, course) {
+    const icon = marker.options.icon;
+    if (icon && icon.options) {
+        const iconElement = marker.getElement();
+        if (iconElement) {
+            iconElement.style.transform = `rotate(${course}deg)`;
         }
+    }
+}
+
+// ==============================================
+// ФУНКЦИИ РАБОТЫ С КУРСОМ
+// ==============================================
+
+// Показать модальное окно выбора курса
+function showCourseSelectionModal(targetId) {
+    if (!isAdmin) {
+        alert("Только администратор может изменять курс");
+        return;
+    }
+    
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    selectedTargetForCourse = targetId;
+    isCourseSelectionMode = true;
+    
+    document.getElementById('courseTargetName').textContent = target.name;
+    document.getElementById('courseModal').style.display = 'block';
+    
+    console.log("Режим выбора курса для цели:", target.name);
+}
+
+// Установка курса с карты
+function setTargetCourseFromMap(latlng) {
+    if (!selectedTargetForCourse) return;
+    
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (!target) return;
+    
+    // Вычисляем курс от текущей позиции к выбранной точке
+    const dy = latlng.lat - target.lat;
+    const dx = latlng.lng - target.lng;
+    let course = Math.atan2(dy, dx) * 180 / Math.PI;
+    
+    // Нормализуем курс от 0 до 360
+    course = (course + 360) % 360;
+    target.course = Math.round(course);
+    
+    // Обновляем поворот иконки
+    const marker = targetMarkers[target.id];
+    if (marker) {
+        updateIconRotation(marker, target.course);
+        
+        // Обновляем popup
+        const popupContent = `
+            <strong>${target.name}</strong><br>
+            Тип: ${target.type}<br>
+            Скорость: ${target.speed} км/ч<br>
+            Высота: ${target.altitude} м<br>
+            Курс: ${target.course}°<br>
+            <div class="popup-buttons">
+                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
+                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+                <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
+            </div>
+        `;
+        marker.setPopupContent(popupContent);
+    }
+    
+    syncWithFirebase();
+    closeCourseModal();
+    
+    console.log("Курс обновлен для цели:", target.name, "Новый курс:", target.course);
+}
+
+// Закрыть модальное окно курса
+function closeCourseModal() {
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    document.getElementById('courseModal').style.display = 'none';
+}
+
+// Отмена выбора курса
+function cancelCourseSelection() {
+    closeCourseModal();
+}
+
+// ==============================================
+// ФУНКЦИИ ТРАЕКТОРИЙ
+// ==============================================
+
+// Переключение отображения траекторий
+function toggleTrajectories() {
+    const show = Object.keys(trajectories).length === 0;
+    
+    if (show) {
+        showTrajectories();
     } else {
-        alert('Невірний логін або пароль');
+        hideTrajectories();
     }
 }
 
-// Вийти
-function logout() {
-    isAdmin = false;
-    updateUIForUserRole();
-    alert('Вихід виконано');
+// Показать траектории
+function showTrajectories() {
+    targets.forEach(target => {
+        if (!trajectories[target.id]) {
+            const points = calculateTrajectory(target);
+            trajectories[target.id] = L.polyline(points, {
+                color: 'red',
+                weight: 2,
+                opacity: 0.7
+            }).addTo(map);
+        }
+    });
+    console.log("Траектории показаны");
 }
 
-// Оновити UI відповідно до ролі користувача
-function updateUIForUserRole() {
-    const loginBtn = document.querySelector('.login-btn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const adminElements = document.querySelectorAll('.admin-only');
+// Скрыть траектории
+function hideTrajectories() {
+    Object.values(trajectories).forEach(trajectory => {
+        map.removeLayer(trajectory);
+    });
+    trajectories = {};
+    console.log("Траектории скрыты");
+}
+
+// Расчет траектории
+function calculateTrajectory(target) {
+    const points = [];
+    const distance = 100; // км
+    const steps = 20;
     
-    console.log("Оновлення UI для ролі: " + (isAdmin ? "адмін" : "користувач"));
-    
-    if (isAdmin) {
-        loginBtn.style.display = 'none';
-        logoutBtn.style.display = 'block';
-        adminElements.forEach(el => el.style.display = 'block');
-    } else {
-        loginBtn.style.display = 'block';
-        logoutBtn.style.display = 'none';
-        adminElements.forEach(el => el.style.display = 'none');
+    for (let i = 0; i <= steps; i++) {
+        const ratio = i / steps;
+        const lat = target.lat + (distance * ratio * Math.sin(target.course * Math.PI / 180)) / 111;
+        const lng = target.lng + (distance * ratio * Math.cos(target.course * Math.PI / 180)) / (111 * Math.cos(target.lat * Math.PI / 180));
+        points.push([lat, lng]);
     }
-}
-
-// Налаштування обробників подій
-function setupEventListeners() {
-    // Закриття модальних вікон по кліку на затемнений фон
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-                isAddTargetMode = false;
-            }
-        });
-    });
     
-    // Обробка клавіші ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeLoginModal();
-            closeEditModal();
-            closeAddTargetModal();
-            cancelCourseSelection();
-            isAddTargetMode = false;
+    return points;
         }
-    });
-    
-    // Автозаповнення назви цілі
-    document.getElementById('targetName').addEventListener('focus', function() {
-        if (!this.value) {
-            this.value = 'Ціль-' + (targets.length + 1);
-        }
-    });
+        <script>
+// ==============================================
+// ФУНКЦИИ FIREBASE И СИНХРОНИЗАЦИИ
+// ==============================================
 
-    // Додаємо обробник для імпорту файлів
-    document.getElementById('importFile').addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        // Обробка імпортованих даних
-                        importedData.forEach(target => {
-                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
-                            target.createdAt = Date.now();
-                            target.updatedAt = Date.now();
-                            target.createdBy = userSessionId;
-                            targets.push(target);
-                        });
-                        updateMap();
-                        saveTargets();
-                        updateStats();
-                        updateTargetsList();
-                        alert('Дані успішно імпортовані!');
-                    }
-                } catch (error) {
-                    alert('Помилка при імпорті файлу: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-    });
-
-    console.log("Обробники подій успішно налаштовані");
-}
-
-// Завантажити дані з Firebase
-function loadFromFirebase() {
-    if (!isOnline) return;
-    
-    try {
-        const db = firebase.database();
-        const targetsRef = db.ref('targets');
-        
-        targetsRef.once('value').then((snapshot) => {
-            const firebaseTargets = snapshot.val() || {};
-            console.log("Завантажено з Firebase:", Object.keys(firebaseTargets).length + " цілей");
-            mergeTargetsFromFirebase(firebaseTargets);
-        });
-    } catch (error) {
-        console.error('Помилка завантаження з Firebase:', error);
-    }
-}
-
-// Об'єднати цілі з Firebase
-function mergeTargetsFromFirebase(firebaseTargets) {
-    const firebaseTargetsArray = Object.values(firebaseTargets);
-    
-    // Оновлюємо існуючі цілі та додаємо нові
-    firebaseTargetsArray.forEach(firebaseTarget => {
-        const existingTargetIndex = targets.findIndex(t => t.id === firebaseTarget.id);
-        
-        if (existingTargetIndex === -1) {
-            // Нова ціль з Firebase
-            if (firebaseTarget.createdBy !== userSessionId) {
-                targets.push(firebaseTarget);
-                console.log("Додано нову ціль з Firebase:", firebaseTarget.name);
-            }
-        } else {
-            // Оновлюємо існуючу ціль, якщо вона новіша
-            if (firebaseTarget.updatedAt > targets[existingTargetIndex].updatedAt && 
-                firebaseTarget.createdBy !== userSessionId) {
-                Object.assign(targets[existingTargetIndex], firebaseTarget);
-                console.log("Оновлено ціль з Firebase:", firebaseTarget.name);
-            }
-        }
-    });
-    
-    // Видаляємо цілі, яких немає в Firebase (крім наших власних)
-    targets = targets.filter(target => 
-        firebaseTargetsArray.some(ft => ft.id === target.id) || 
-        target.createdBy === userSessionId
-    );
-    
-    updateMap();
-    saveTargetsToLocalStorage();
-    updateStats();
-    updateTargetsList();
-    updateTargetClusters();
-}
-
-// Синхронізувати з Firebase
+// Упрощенная синхронизация с Firebase
 function syncWithFirebase() {
     if (!isOnline || isSyncing) return;
     
     isSyncing = true;
-    lastSyncTime = Date.now();
+    const db = firebase.database();
+    const targetsRef = db.ref('targets');
     
-    try {
-        const db = firebase.database();
-        const targetsRef = db.ref('targets');
-        
-        // Конвертуємо масив в об'єкт для Firebase
-        const targetsObject = {};
-        targets.forEach(target => {
-            targetsObject[target.id] = target;
+    // Просто сохраняем все цели
+    const targetsObject = {};
+    targets.forEach(target => {
+        targetsObject[target.id] = target;
+    });
+    
+    targetsRef.set(targetsObject)
+        .then(() => console.log("Синхронизировано с Firebase"))
+        .catch(error => console.error("Ошибка синхронизации:", error))
+        .finally(() => isSyncing = false);
+}
+
+// Загрузка данных из Firebase
+function loadFromFirebase() {
+    if (!isOnline) {
+        console.log("Офлайн режим, данные не загружены");
+        return;
+    }
+    
+    const db = firebase.database();
+    const targetsRef = db.ref('targets');
+    
+    targetsRef.once('value')
+        .then(snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                // Очищаем текущие цели
+                clearAllTargets(false);
+                
+                // Загружаем новые цели
+                Object.values(data).forEach(target => {
+                    targets.push(target);
+                    createTargetMarker(target);
+                });
+                
+                console.log("Данные загружены из Firebase:", targets.length, "целей");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка загрузки данных:", error);
         });
+}
+
+// Создание маркера цели
+function createTargetMarker(target) {
+    const marker = L.marker([target.lat, target.lng], {
+        icon: targetIcons[target.type]
+    }).addTo(map);
+    
+    // Обновляем поворот иконки
+    updateIconRotation(marker, target.course);
+    
+    const popupContent = `
+        <strong>${target.name}</strong><br>
+        Тип: ${target.type}<br>
+        Скорость: ${target.speed} км/ч<br>
+        Высота: ${target.altitude} м<br>
+        Курс: ${target.course}°<br>
+        <div class="popup-buttons">
+            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
+            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+            <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    targetMarkers[target.id] = marker;
+}
+
+// Проверка онлайн статуса
+function checkOnlineStatus() {
+    const online = navigator.onLine;
+    
+    if (online !== isOnline) {
+        isOnline = online;
+        updateConnectionStatus();
         
-        targetsRef.set(targetsObject)
-            .then(() => {
-                console.log("Дані успішно синхронізовані з Firebase");
-            })
-            .catch((error) => {
-                console.error("Помилка синхронізації з Firebase:", error);
-                isOnline = false;
-                updateStatus();
-            })
-            .finally(() => {
-                isSyncing = false;
-            });
-    } catch (error) {
-        console.error("Помилка Firebase:", error);
-        isOnline = false;
-        updateStatus();
-        isSyncing = false;
+        if (online) {
+            loadFromFirebase();
+            syncWithFirebase();
+        }
     }
 }
 
-// Додати ціль в центрі карти
-function addTargetAtCenter() {
-    const center = map.getCenter();
-    addTargetAtPosition(center);
+// Обновление статуса соединения
+function updateConnectionStatus() {
+    const statusElement = document.getElementById('connectionStatus');
+    if (statusElement) {
+        statusElement.textContent = isOnline ? "Онлайн" : "Офлайн";
+        statusElement.className = isOnline ? "status online" : "status offline";
+    }
 }
 
-// Додати ціль в конкретній позиції
-function addTargetAtPosition(latlng) {
-    console.log("Спроба додати ціль...");
+// ==============================================
+// ФУНКЦИИ ЭКСПОРТА/ИМПОРТА
+// ==============================================
+
+// Экспорт целей
+function exportTargets() {
+    const dataStr = JSON.stringify(targets, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
+    const exportFileDefaultName = 'targets_export.json';
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    console.log("Цели экспортированы");
+}
+
+// Импорт целей
+function importTargets() {
     if (!isAdmin) {
-        alert('Лише адміністратор може додавати цілі');
+        alert("Только администратор может импортировать цели");
         return;
     }
     
-    const name = document.getElementById('targetName').value.trim();
-    const type = document.getElementById('targetType').value;
-    const speed = parseInt(document.getElementById('targetSpeed').value);
-    const course = parseInt(document.getElementById('targetCourse').value);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
     
-    if (!name) {
-        alert('Будь ласка, введіть назву цілі');
-        return;
-    }
-    
-    if (isNaN(speed) || speed < 0 || speed > 5000) {
-        alert('Швидкість повинна бути від 0 до 5000 км/год');
-        return;
-    }
-    
-    if (isNaN(course) || course < 0 || course > 360) {
-        alert('Курс повинен бути від 0 до 360 градусів');
-        return;
-    }
-    
-    const target = {
-        id: Date.now().toString() + '-' + userSessionId,
-        name: name,
-        type: type,
-        speed: speed,
-        course: course,
-        latitude: latlng.lat,
-        longitude: latlng.lng,
-        distance: 0,
-        maxSpeed: speed,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        lastTrajectoryUpdate: Date.now(),
-        createdBy: userSessionId
+    input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            try {
+                const importedTargets = JSON.parse(event.target.result);
+                
+                if (Array.isArray(importedTargets)) {
+                    // Очищаем текущие цели
+                    clearAllTargets(false);
+                    
+                    // Добавляем импортированные цели
+                    importedTargets.forEach(target => {
+                        targets.push(target);
+                        createTargetMarker(target);
+                    });
+                    
+                    syncWithFirebase();
+                    alert(`Успешно импортировано ${importedTargets.length} целей`);
+                    console.log("Цели импортированы:", importedTargets.length);
+                } else {
+                    alert("Неверный формат файла");
+                }
+            } catch (error) {
+                alert("Ошибка при импорте файла: " + error.message);
+                console.error("Ошибка импорта:", error);
+            }
+        };
+        
+        reader.readAsText(file);
     };
     
-    targets.push(target);
-    addTargetToMap(target);
-    saveTargets();
-    updateStats();
-    updateTargetsList();
-    updateTargetClusters();
-    
-    // Очистити форму
-    document.getElementById('targetName').value = 'Ціль-' + (targets.length + 1);
-    
-    console.log("Ціль успішно додана:", target);
+    input.click();
 }
-        // Ініціалізація при завантаженні сторінки
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM завантажено, ініціалізація додатку...");
-        initApp();
-    });
 
-    // Глобальні функції для виклику з HTML
-    window.addTarget = showAddTargetModal;
+// ==============================================
+// ФУНКЦИИ УПРАВЛЕНИЯ ИНТЕРФЕЙСОМ
+// ==============================================
+
+// Переключение панели управления
+function togglePanel() {
+    const panelContent = document.querySelector('.panel-content');
+    const toggleBtn = document.querySelector('.toggle-btn');
+    
+    panelContent.classList.toggle('hidden');
+    toggleBtn.textContent = panelContent.classList.contains('hidden') ? '+' : '−';
+}
+
+// Обновление интерфейса для роли пользователя
+function updateUIForUserRole() {
+    const buttons = document.querySelectorAll('.btn');
+    const userStatus = document.getElementById('userStatus');
+    
+    if (isAdmin) {
+        buttons.forEach(btn => {
+            if (btn.onclick) {
+                btn.disabled = false;
+            }
+        });
+        userStatus.textContent = "Администратор";
+    } else {
+        buttons.forEach(btn => {
+            if (btn.onclick && !btn.textContent.includes('Увійти')) {
+                btn.disabled = true;
+            }
+        });
+        userStatus.textContent = "Гость";
+    }
+}
+
+// Показать модальное окно входа
+function showLoginModal() {
+    document.getElementById('loginModal').style.display = 'block';
+    document.getElementById('login').focus();
+}
+
+// Закрыть модальное окно входа
+function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('login').value = '';
+    document.getElementById('password').value = '';
+}
+
+// Попытка входа
+function attemptLogin() {
+    const login = document.getElementById('login').value;
+    const password = document.getElementById('password').value;
+    
+    // Простая проверка (в реальном приложении используйте аутентификацию Firebase)
+    if (login === 'admin' && password === 'admin') {
+        isAdmin = true;
+        currentUser = login;
+        updateUIForUserRole();
+        closeLoginModal();
+        alert("Успешный вход как администратор");
+        console.log("Пользователь вошел как администратор");
+    } else {
+        alert("Неверные учетные данные");
+    }
+}
+
+// Показать модальное окно добавления цели
+function showAddTargetModal() {
+    document.getElementById('addTargetModal').style.display = 'block';
+}
+
+// Закрыть модальное окно добавления цели
+function closeAddTargetModal() {
+    document.getElementById('addTargetModal').style.display = 'none';
+}
+
+// Подтверждение добавления цели
+function confirmAddTarget() {
+    isAddTargetMode = true;
+    closeAddTargetModal();
+    alert("Кликните на карту для размещения цели");
+}
+
+// Начать режим добавления цели
+function startAddTargetMode() {
+    if (!isAdmin) {
+        alert("Только администратор может добавлять цели");
+        return;
+    }
+    showAddTargetModal();
+}
+            <script>
+    // ==============================================
+    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ==============================================
+    
+    // Очистка всех целей
+    function clearAllTargets(confirm = true) {
+        if (!isAdmin) {
+            alert("Только администратор может очищать цели");
+            return;
+        }
+        
+        if (confirm && !confirm("Вы уверены, что хотите удалить все цели?")) return;
+        
+        // Удаляем все маркеры
+        Object.values(targetMarkers).forEach(marker => {
+            map.removeLayer(marker);
+        });
+        targetMarkers = {};
+        
+        // Удаляем все траектории
+        Object.values(trajectories).forEach(trajectory => {
+            map.removeLayer(trajectory);
+        });
+        trajectories = {};
+        
+        // Очищаем массив целей
+        targets = [];
+        
+        syncWithFirebase();
+        console.log("Все цели очищены");
+    }
+    
+    // Получение цели по ID
+    function getTargetById(targetId) {
+        return targets.find(t => t.id === targetId);
+    }
+    
+    // Форматирование даты
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('uk-UA');
+    }
+    
+    // ==============================================
+    // ОБРАБОТЧИКИ СОБЫТИЙ И ЗАВЕРШЕНИЕ
+    // ==============================================
+    
+    // Обработчик загрузки страницы
+    window.onload = function() {
+        initApp();
+        
+        // Добавляем обработчики для кнопок панели
+        const panelButtons = document.querySelectorAll('.control-panel .btn');
+        panelButtons.forEach(btn => {
+            const onclickAttr = btn.getAttribute('onclick');
+            if (onclickAttr) {
+                btn.onclick = function() {
+                    eval(onclickAttr);
+                };
+            }
+        });
+        
+        console.log("Приложение инициализировано");
+    };
+    
+    // Обработчик онлайн/офлайн статуса
+    window.addEventListener('online', function() {
+        isOnline = true;
+        updateConnectionStatus();
+        loadFromFirebase();
+        syncWithFirebase();
+    });
+    
+    window.addEventListener('offline', function() {
+        isOnline = false;
+        updateConnectionStatus();
+    });
+    
+    // Глобальные функции для доступа из HTML
     window.addTargetAtCenter = addTargetAtCenter;
     window.addRandomTarget = addRandomTarget;
-    window.editTarget = editTarget;
-    window.deleteTarget = deleteTarget;
-    window.clearAllTargets = clearAllTargets;
     window.toggleTrajectories = toggleTrajectories;
+    window.clearAllTargets = clearAllTargets;
     window.exportTargets = exportTargets;
     window.importTargets = importTargets;
-    window.togglePanel = togglePanel;
     window.showLoginModal = showLoginModal;
     window.closeLoginModal = closeLoginModal;
     window.attemptLogin = attemptLogin;
-    window.logout = logout;
-    window.saveTargetEdit = saveTargetEdit;
-    window.closeEditModal = closeEditModal;
-    window.showCourseSelectionModal = showCourseSelectionModal;
-    window.cancelCourseSelection = cancelCourseSelection;
-    window.confirmCourseSelection = confirmCourseSelection;
-    window.setTargetCourseFromMap = setTargetCourseFromMap;
-    window.showAddTargetModal = showAddTargetModal;
-    window.closeAddTargetModal = closeAddTargetModal;
     window.startAddTargetMode = startAddTargetMode;
-
-    console.log("Глобальні функції зареєстровані");
-</script>
+    </script>
 </body>
 </html>
