@@ -5,32 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Air Targets Map</title>
     
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
     <style>
-        * {
+        body {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Arial', sans-serif;
-            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
         
         #map {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
-            height: 100%;
-            z-index: 1;
+            height: 100vh;
         }
         
         .control-panel {
@@ -42,36 +30,16 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             z-index: 1000;
-            max-width: 300px;
+            width: 200px;
         }
         
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .panel-title {
-            font-weight: bold;
+        .control-panel h3 {
+            margin: 0 0 15px 0;
+            padding: 0;
             font-size: 16px;
-        }
-        
-        .toggle-btn {
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-        }
-        
-        .panel-content {
-            display: block;
-        }
-        
-        .panel-content.hidden {
-            display: none;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
         }
         
         .btn {
@@ -85,6 +53,7 @@
             border-radius: 4px;
             cursor: pointer;
             text-align: center;
+            font-size: 14px;
         }
         
         .btn:hover {
@@ -101,66 +70,9 @@
             padding-top: 10px;
             border-top: 1px solid #eee;
             font-size: 14px;
+            text-align: center;
         }
         
-        /* Modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-        }
-        
-        .modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            min-width: 300px;
-        }
-        
-        .modal-header {
-            margin-bottom: 15px;
-        }
-        
-        .modal-close {
-            float: right;
-            background: none;
-            border: none;
-            font-size: 18px;
-            cursor: pointer;
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        
-        /* Target icon rotation */
-        .target-icon {
-            transition: transform 0.3s ease;
-        }
-        
-        /* Status indicators */
         .status {
             margin-top: 10px;
             padding: 5px;
@@ -179,7 +91,10 @@
             color: #721c24;
         }
         
-        /* Popup buttons */
+        .target-icon {
+            transition: transform 0.3s ease;
+        }
+        
         .popup-buttons {
             margin-top: 10px;
             display: flex;
@@ -215,94 +130,22 @@
     <div id="map"></div>
     
     <div class="control-panel">
-        <div class="panel-header">
-            <div class="panel-title">Панель управління</div>
-            <button class="toggle-btn" onclick="togglePanel()">−</button>
+        <h3>Панель управління</h3>
+        <button class="btn" onclick="addTargetAtCenter()">Додати ціль</button>
+        <button class="btn" onclick="addRandomTarget()">Випадкова ціль</button>
+        <button class="btn" onclick="toggleTrajectories()">Траєкторії</button>
+        <button class="btn" onclick="clearAllTargets()">Очистити все</button>
+        <button class="btn" onclick="exportTargets()">Експорт</button>
+        <button class="btn" onclick="importTargets()">Імпорт</button>
+        
+        <div class="user-info">
+            <div id="userStatus">Гість</div>
+            <button class="btn" onclick="showLoginModal()">Увійти</button>
         </div>
-        <div class="panel-content">
-            <button class="btn" onclick="startAddTargetMode()">Додати ціль</button>
-            <button class="btn" onclick="addRandomTarget()">Випадкова ціль</button>
-            <button class="btn" onclick="toggleTrajectories()">Траєкторії</button>
-            <button class="btn" onclick="clearAllTargets()">Очистити все</button>
-            <button class="btn" onclick="exportTargets()">Експорт</button>
-            <button class="btn" onclick="importTargets()">Імпорт</button>
-            
-            <div class="user-info">
-                <div id="userStatus">Гість</div>
-                <button class="btn" onclick="showLoginModal()">Увійти</button>
-            </div>
-            
-            <div id="connectionStatus" class="status offline">Офлайн</div>
-        </div>
-    </div>
-    
-    <!-- Login Modal -->
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Вхід в систему</h3>
-                <button class="modal-close" onclick="closeLoginModal()">×</button>
-            </div>
-            <div class="form-group">
-                <label for="login">Логін:</label>
-                <input type="text" id="login" placeholder="Введіть логін">
-            </div>
-            <div class="form-group">
-                <label for="password">Пароль:</label>
-                <input type="password" id="password" placeholder="Введіть пароль">
-            </div>
-            <button class="btn" onclick="attemptLogin()">Увійти</button>
-        </div>
-    </div>
-    
-    <!-- Add Target Modal -->
-    <div id="addTargetModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Додати ціль</h3>
-                <button class="modal-close" onclick="closeAddTargetModal()">×</button>
-            </div>
-            <div class="form-group">
-                <label for="targetName">Назва цілі:</label>
-                <input type="text" id="targetName" placeholder="Введіть назву">
-            </div>
-            <div class="form-group">
-                <label for="targetType">Тип цілі:</label>
-                <select id="targetType">
-                    <option value="aircraft">Літак</option>
-                    <option value="helicopter">Гелікоптер</option>
-                    <option value="missile">Ракета</option>
-                    <option value="uav">БПЛА</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="targetSpeed">Швидкість (км/год):</label>
-                <input type="number" id="targetSpeed" value="800" min="0">
-            </div>
-            <div class="form-group">
-                <label for="targetAltitude">Висота (м):</label>
-                <input type="number" id="targetAltitude" value="5000" min="0">
-            </div>
-            <button class="btn" onclick="confirmAddTarget()">Додати</button>
-        </div>
-    </div>
-    
-    <!-- Course Selection Modal -->
-    <div id="courseModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Вибір курсу</h3>
-                <button class="modal-close" onclick="closeCourseModal()">×</button>
-            </div>
-            <div class="form-group">
-                <label>Клацніть на карту для вибору курсу</label>
-                <p>Ціль: <span id="courseTargetName"></span></p>
-            </div>
-            <button class="btn" onclick="cancelCourseSelection()">Скасувати</button>
-        </div>
+        
+        <div id="connectionStatus" class="status offline">Офлайн</div>
     </div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
@@ -310,7 +153,6 @@
     // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И КОНФИГУРАЦИЯ
     // ==============================================
     
-    // Конфигурация Firebase
     const firebaseConfig = {
         apiKey: "your-api-key",
         authDomain: "your-project.firebaseapp.com",
@@ -321,7 +163,6 @@
         appId: "your-app-id"
     };
     
-    // Глобальные переменные
     let map;
     let targets = [];
     let targetMarkers = {};
@@ -334,7 +175,6 @@
     let selectedTargetForCourse = null;
     let currentUser = null;
     
-    // Иконки для разных типов целей
     const targetIcons = {
         aircraft: L.icon({
             iconUrl: 'https://cdn-icons-png.flaticon.com/512/824/824658.png',
@@ -361,184 +201,143 @@
             className: 'target-icon'
         })
     };
-    
-    // ==============================================
-    // ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
-    // ==============================================
-    
-    // Инициализация приложения
-    function initApp() {
-        initFirebase();
-        initMap();
-        setupEventListeners();
-        checkOnlineStatus();
-        loadFromFirebase();
-        
-        // Проверка онлайн статуса каждые 30 секунд
-        setInterval(checkOnlineStatus, 30000);
-    }
-    
-    // Инициализация карты
-    function initMap() {
-        // Создание карты с центром на Украине
-        map = L.map('map').setView([49.0, 31.0], 6);
-        
-        // Добавление слоя OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18
-        }).addTo(map);
-        
-        // Обработчик кликов по карте
-        map.on('click', function(e) {
-            if (isCourseSelectionMode && selectedTargetForCourse) {
-                setTargetCourseFromMap(e.latlng);
-            } else if (isAddTargetMode && isAdmin) {
-                addTargetAtPosition(e.latlng);
-                isAddTargetMode = false; // Сбрасываем режим
-            }
-        });
-        
-        console.log("Карта инициализирована");
-    }
-    
-    // Инициализация Firebase
-    function initFirebase() {
-        try {
-            firebase.initializeApp(firebaseConfig);
-            console.log("Firebase инициализирован");
-        } catch (error) {
-            console.error("Ошибка инициализации Firebase:", error);
-        }
-    }
-    
-    // Настройка обработчиков событий
-    function setupEventListeners() {
-        // Обработчики для кнопок в панели
-        document.querySelector('.btn[onclick="addTargetAtCenter()"]').onclick = addTargetAtCenter;
-        document.querySelector('.btn[onclick="addRandomTarget()"]').onclick = addRandomTarget;
-        document.querySelector('.btn[onclick="toggleTrajectories()"]').onclick = toggleTrajectories;
-        document.querySelector('.btn[onclick="clearAllTargets()"]').onclick = clearAllTargets;
-        document.querySelector('.btn[onclick="exportTargets()"]').onclick = exportTargets;
-        document.querySelector('.btn[onclick="importTargets()"]').onclick = importTargets;
-        
-        // Обработчики для кнопок в popup
-        map.on('popupopen', function(e) {
-            const popup = e.popup;
-            const content = popup.getContent();
-            
-            // Обработчики для кнопок в popup
-            setTimeout(() => {
-                const editBtn = popup._container.querySelector('.edit-btn');
-                const deleteBtn = popup._container.querySelector('.delete-btn');
-                const courseBtn = popup._container.querySelector('.course-btn');
-                
-                if (editBtn) editBtn.onclick = function() {
-                    const targetId = this.getAttribute('data-target-id');
-                    editTarget(targetId);
-                };
-                
-                if (deleteBtn) deleteBtn.onclick = function() {
-                    const targetId = this.getAttribute('data-target-id');
-                    deleteTarget(targetId);
-                };
-                
-                if (courseBtn) courseBtn.onclick = function() {
-                    const targetId = this.getAttribute('data-target-id');
-                    showCourseSelectionModal(targetId);
-                };
-            }, 100);
-        });
-        
-        // Обработчики для модальных окон
-        document.getElementById('login').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') attemptLogin();
-        });
-        
-        document.getElementById('password').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') attemptLogin();
-        });
-        
-        console.log("Обработчики событий настроены");
-    }
         <script>
+// ==============================================
+// ОСНОВНЫЕ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
+// ==============================================
+
+function initApp() {
+    initFirebase();
+    initMap();
+    setupEventListeners();
+    checkOnlineStatus();
+    loadFromFirebase();
+    setInterval(checkOnlineStatus, 30000);
+}
+
+function initMap() {
+    map = L.map('map').setView([49.0, 31.0], 6);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
+    }).addTo(map);
+    
+    map.on('click', function(e) {
+        if (isCourseSelectionMode && selectedTargetForCourse) {
+            setTargetCourseFromMap(e.latlng);
+        } else if (isAddTargetMode && isAdmin) {
+            addTargetAtPosition(e.latlng);
+            isAddTargetMode = false;
+        }
+    });
+}
+
+function initFirebase() {
+    try {
+        firebase.initializeApp(firebaseConfig);
+    } catch (error) {
+        console.error("Помилка ініціалізації Firebase:", error);
+    }
+}
+
+function setupEventListeners() {
+    document.querySelector('.btn[onclick="addTargetAtCenter()"]').onclick = addTargetAtCenter;
+    document.querySelector('.btn[onclick="addRandomTarget()"]').onclick = addRandomTarget;
+    document.querySelector('.btn[onclick="toggleTrajectories()"]').onclick = toggleTrajectories;
+    document.querySelector('.btn[onclick="clearAllTargets()"]').onclick = clearAllTargets;
+    document.querySelector('.btn[onclick="exportTargets()"]').onclick = exportTargets;
+    document.querySelector('.btn[onclick="importTargets()"]').onclick = importTargets;
+    
+    map.on('popupopen', function(e) {
+        const popup = e.popup;
+        setTimeout(() => {
+            const editBtn = popup._container.querySelector('.edit-btn');
+            const deleteBtn = popup._container.querySelector('.delete-btn');
+            const courseBtn = popup._container.querySelector('.course-btn');
+            
+            if (editBtn) editBtn.onclick = function() {
+                const targetId = this.getAttribute('data-target-id');
+                editTarget(targetId);
+            };
+            
+            if (deleteBtn) deleteBtn.onclick = function() {
+                const targetId = this.getAttribute('data-target-id');
+                deleteTarget(targetId);
+            };
+            
+            if (courseBtn) courseBtn.onclick = function() {
+                const targetId = this.getAttribute('data-target-id');
+                showCourseSelectionModal(targetId);
+            };
+        }, 100);
+    });
+}
+
 // ==============================================
 // ФУНКЦИИ РАБОТЫ С ЦЕЛЯМИ
 // ==============================================
 
-// Добавление цели в указанной позиции
 function addTargetAtPosition(latlng, targetData = null) {
     if (!isAdmin) {
-        alert("Только администратор может добавлять цели");
+        alert("Тільки адміністратор може додавати цілі");
         return;
     }
     
     const targetId = targetData ? targetData.id : 'target_' + Date.now();
     const target = targetData || {
         id: targetId,
-        name: document.getElementById('targetName').value || 'Цель ' + (targets.length + 1),
-        type: document.getElementById('targetType').value || 'aircraft',
+        name: 'Ціль ' + (targets.length + 1),
+        type: 'aircraft',
         lat: latlng.lat,
         lng: latlng.lng,
-        speed: parseInt(document.getElementById('targetSpeed').value) || 800,
-        altitude: parseInt(document.getElementById('targetAltitude').value) || 5000,
+        speed: 800,
+        altitude: 5000,
         course: 0,
         createdAt: new Date().toISOString(),
         createdBy: currentUser
     };
     
-    // Добавляем цель в массив
     if (!targetData) {
         targets.push(target);
     }
     
-    // Создаем маркер
     const marker = L.marker([target.lat, target.lng], {
         icon: targetIcons[target.type]
     }).addTo(map);
     
-    // Обновляем поворот иконки
     updateIconRotation(marker, target.course);
     
-    // Создаем popup
     const popupContent = `
         <strong>${target.name}</strong><br>
         Тип: ${target.type}<br>
-        Скорость: ${target.speed} км/ч<br>
-        Высота: ${target.altitude} м<br>
+        Швидкість: ${target.speed} км/год<br>
+        Висота: ${target.altitude} м<br>
         Курс: ${target.course}°<br>
         <div class="popup-buttons">
-            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
-            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редагувати</button>
+            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Видалити</button>
             <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
         </div>
     `;
     
     marker.bindPopup(popupContent);
     targetMarkers[target.id] = marker;
-    
-    // Синхронизируем с Firebase
     syncWithFirebase();
-    
-    // Закрываем модальное окно если оно открыто
-    closeAddTargetModal();
-    
-    console.log("Цель добавлена:", target);
 }
 
-// Добавление цели в центре карты
 function addTargetAtCenter() {
     if (!isAdmin) {
-        alert("Только администратор может добавлять цели");
+        alert("Тільки адміністратор може додавати цілі");
         return;
     }
-    showAddTargetModal();
+    const center = map.getCenter();
+    addTargetAtPosition(center);
 }
 
-// Добавление случайной цели
 function addRandomTarget() {
     if (!isAdmin) {
-        alert("Только администратор может добавлять цели");
+        alert("Тільки адміністратор може додавати цілі");
         return;
     }
     
@@ -551,7 +350,7 @@ function addRandomTarget() {
     
     const target = {
         id: 'target_' + Date.now(),
-        name: 'Случайная цель ' + (targets.length + 1),
+        name: 'Випадкова ціль ' + (targets.length + 1),
         type: randomType,
         lat: randomLat,
         lng: randomLng,
@@ -565,33 +364,36 @@ function addRandomTarget() {
     addTargetAtPosition({lat: randomLat, lng: randomLng}, target);
 }
 
-// Редактирование цели
+function updateIconRotation(marker, course) {
+    const iconElement = marker.getElement();
+    if (iconElement) {
+        iconElement.style.transform = `rotate(${course}deg)`;
+    }
+}
+
 function editTarget(targetId) {
     if (!isAdmin) {
-        alert("Только администратор может редактировать цели");
+        alert("Тільки адміністратор може редагувати цілі");
         return;
     }
     
     const target = targets.find(t => t.id === targetId);
     if (!target) return;
     
-    // Здесь можно реализовать модальное окно для редактирования
-    // Для простоты просто обновим некоторые параметры
     target.speed += 100;
     target.altitude += 500;
     
-    // Обновляем popup
     const marker = targetMarkers[targetId];
     if (marker) {
         const popupContent = `
             <strong>${target.name}</strong><br>
             Тип: ${target.type}<br>
-            Скорость: ${target.speed} км/ч<br>
-            Высота: ${target.altitude} м<br>
+            Швидкість: ${target.speed} км/год<br>
+            Висота: ${target.altitude} м<br>
             Курс: ${target.course}°<br>
             <div class="popup-buttons">
-                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
-                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редагувати</button>
+                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Видалити</button>
                 <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
             </div>
         `;
@@ -599,56 +401,38 @@ function editTarget(targetId) {
     }
     
     syncWithFirebase();
-    console.log("Цель отредактирована:", target);
 }
 
-// Удаление цели
 function deleteTarget(targetId) {
     if (!isAdmin) {
-        alert("Только администратор может удалять цели");
+        alert("Тільки адміністратор може видаляти цілі");
         return;
     }
     
-    if (!confirm("Вы уверены, что хотите удалить эту цель?")) return;
+    if (!confirm("Ви впевнені, що хочете видалити цю ціль?")) return;
     
-    // Удаляем из массива
     targets = targets.filter(t => t.id !== targetId);
     
-    // Удаляем маркер с карты
     if (targetMarkers[targetId]) {
         map.removeLayer(targetMarkers[targetId]);
         delete targetMarkers[targetId];
     }
     
-    // Удаляем траекторию если есть
     if (trajectories[targetId]) {
         map.removeLayer(trajectories[targetId]);
         delete trajectories[targetId];
     }
     
     syncWithFirebase();
-    console.log("Цель удалена:", targetId);
 }
-
-// Обновление поворота иконки
-function updateIconRotation(marker, course) {
-    const icon = marker.options.icon;
-    if (icon && icon.options) {
-        const iconElement = marker.getElement();
-        if (iconElement) {
-            iconElement.style.transform = `rotate(${course}deg)`;
-        }
-    }
-}
-
+        <script>
 // ==============================================
-// ФУНКЦИИ РАБОТЫ С КУРСОМ
+// ФУНКЦИИ КУРСА И ТРАЕКТОРИЙ
 // ==============================================
 
-// Показать модальное окно выбора курса
 function showCourseSelectionModal(targetId) {
     if (!isAdmin) {
-        alert("Только администратор может изменять курс");
+        alert("Тільки адміністратор може змінювати курс");
         return;
     }
     
@@ -657,44 +441,34 @@ function showCourseSelectionModal(targetId) {
     
     selectedTargetForCourse = targetId;
     isCourseSelectionMode = true;
-    
-    document.getElementById('courseTargetName').textContent = target.name;
-    document.getElementById('courseModal').style.display = 'block';
-    
-    console.log("Режим выбора курса для цели:", target.name);
+    alert("Клацніть на карту для вибору курсу");
 }
 
-// Установка курса с карты
 function setTargetCourseFromMap(latlng) {
     if (!selectedTargetForCourse) return;
     
     const target = targets.find(t => t.id === selectedTargetForCourse);
     if (!target) return;
     
-    // Вычисляем курс от текущей позиции к выбранной точке
     const dy = latlng.lat - target.lat;
     const dx = latlng.lng - target.lng;
     let course = Math.atan2(dy, dx) * 180 / Math.PI;
-    
-    // Нормализуем курс от 0 до 360
     course = (course + 360) % 360;
     target.course = Math.round(course);
     
-    // Обновляем поворот иконки
     const marker = targetMarkers[target.id];
     if (marker) {
         updateIconRotation(marker, target.course);
         
-        // Обновляем popup
         const popupContent = `
             <strong>${target.name}</strong><br>
             Тип: ${target.type}<br>
-            Скорость: ${target.speed} км/ч<br>
-            Высота: ${target.altitude} м<br>
+            Швидкість: ${target.speed} км/год<br>
+            Висота: ${target.altitude} м<br>
             Курс: ${target.course}°<br>
             <div class="popup-buttons">
-                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
-                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+                <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редагувати</button>
+                <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Видалити</button>
                 <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
             </div>
         `;
@@ -702,31 +476,12 @@ function setTargetCourseFromMap(latlng) {
     }
     
     syncWithFirebase();
-    closeCourseModal();
-    
-    console.log("Курс обновлен для цели:", target.name, "Новый курс:", target.course);
-}
-
-// Закрыть модальное окно курса
-function closeCourseModal() {
     isCourseSelectionMode = false;
     selectedTargetForCourse = null;
-    document.getElementById('courseModal').style.display = 'none';
 }
 
-// Отмена выбора курса
-function cancelCourseSelection() {
-    closeCourseModal();
-}
-
-// ==============================================
-// ФУНКЦИИ ТРАЕКТОРИЙ
-// ==============================================
-
-// Переключение отображения траекторий
 function toggleTrajectories() {
     const show = Object.keys(trajectories).length === 0;
-    
     if (show) {
         showTrajectories();
     } else {
@@ -734,7 +489,6 @@ function toggleTrajectories() {
     }
 }
 
-// Показать траектории
 function showTrajectories() {
     targets.forEach(target => {
         if (!trajectories[target.id]) {
@@ -746,22 +500,18 @@ function showTrajectories() {
             }).addTo(map);
         }
     });
-    console.log("Траектории показаны");
 }
 
-// Скрыть траектории
 function hideTrajectories() {
     Object.values(trajectories).forEach(trajectory => {
         map.removeLayer(trajectory);
     });
     trajectories = {};
-    console.log("Траектории скрыты");
 }
 
-// Расчет траектории
 function calculateTrajectory(target) {
     const points = [];
-    const distance = 100; // км
+    const distance = 100;
     const steps = 20;
     
     for (let i = 0; i <= steps; i++) {
@@ -772,13 +522,12 @@ function calculateTrajectory(target) {
     }
     
     return points;
-        }
-        <script>
+}
+
 // ==============================================
-// ФУНКЦИИ FIREBASE И СИНХРОНИЗАЦИИ
+// FIREBASE И СИНХРОНИЗАЦИЯ
 // ==============================================
 
-// Упрощенная синхронизация с Firebase
 function syncWithFirebase() {
     if (!isOnline || isSyncing) return;
     
@@ -786,24 +535,19 @@ function syncWithFirebase() {
     const db = firebase.database();
     const targetsRef = db.ref('targets');
     
-    // Просто сохраняем все цели
     const targetsObject = {};
     targets.forEach(target => {
         targetsObject[target.id] = target;
     });
     
     targetsRef.set(targetsObject)
-        .then(() => console.log("Синхронизировано с Firebase"))
-        .catch(error => console.error("Ошибка синхронизации:", error))
+        .then(() => console.log("Синхронізовано з Firebase"))
+        .catch(error => console.error("Помилка синхронізації:", error))
         .finally(() => isSyncing = false);
 }
 
-// Загрузка данных из Firebase
 function loadFromFirebase() {
-    if (!isOnline) {
-        console.log("Офлайн режим, данные не загружены");
-        return;
-    }
+    if (!isOnline) return;
     
     const db = firebase.database();
     const targetsRef = db.ref('targets');
@@ -812,41 +556,34 @@ function loadFromFirebase() {
         .then(snapshot => {
             const data = snapshot.val();
             if (data) {
-                // Очищаем текущие цели
                 clearAllTargets(false);
-                
-                // Загружаем новые цели
                 Object.values(data).forEach(target => {
                     targets.push(target);
                     createTargetMarker(target);
                 });
-                
-                console.log("Данные загружены из Firebase:", targets.length, "целей");
             }
         })
         .catch(error => {
-            console.error("Ошибка загрузки данных:", error);
+            console.error("Помилка завантаження даних:", error);
         });
 }
 
-// Создание маркера цели
 function createTargetMarker(target) {
     const marker = L.marker([target.lat, target.lng], {
         icon: targetIcons[target.type]
     }).addTo(map);
     
-    // Обновляем поворот иконки
     updateIconRotation(marker, target.course);
     
     const popupContent = `
         <strong>${target.name}</strong><br>
         Тип: ${target.type}<br>
-        Скорость: ${target.speed} км/ч<br>
-        Высота: ${target.altitude} м<br>
+        Швидкість: ${target.speed} км/год<br>
+        Висота: ${target.altitude} м<br>
         Курс: ${target.course}°<br>
         <div class="popup-buttons">
-            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редактировать</button>
-            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Удалить</button>
+            <button class="popup-btn edit edit-btn" data-target-id="${target.id}">Редагувати</button>
+            <button class="popup-btn delete delete-btn" data-target-id="${target.id}">Видалити</button>
             <button class="popup-btn course course-btn" data-target-id="${target.id}">Курс</button>
         </div>
     `;
@@ -855,7 +592,6 @@ function createTargetMarker(target) {
     targetMarkers[target.id] = marker;
 }
 
-// Проверка онлайн статуса
 function checkOnlineStatus() {
     const online = navigator.onLine;
     
@@ -870,7 +606,6 @@ function checkOnlineStatus() {
     }
 }
 
-// Обновление статуса соединения
 function updateConnectionStatus() {
     const statusElement = document.getElementById('connectionStatus');
     if (statusElement) {
@@ -878,217 +613,126 @@ function updateConnectionStatus() {
         statusElement.className = isOnline ? "status online" : "status offline";
     }
 }
-
-// ==============================================
-// ФУНКЦИИ ЭКСПОРТА/ИМПОРТА
-// ==============================================
-
-// Экспорт целей
-function exportTargets() {
-    const dataStr = JSON.stringify(targets, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = 'targets_export.json';
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-    
-    console.log("Цели экспортированы");
-}
-
-// Импорт целей
-function importTargets() {
-    if (!isAdmin) {
-        alert("Только администратор может импортировать цели");
-        return;
-    }
-    
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = e => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-            try {
-                const importedTargets = JSON.parse(event.target.result);
-                
-                if (Array.isArray(importedTargets)) {
-                    // Очищаем текущие цели
-                    clearAllTargets(false);
-                    
-                    // Добавляем импортированные цели
-                    importedTargets.forEach(target => {
-                        targets.push(target);
-                        createTargetMarker(target);
-                    });
-                    
-                    syncWithFirebase();
-                    alert(`Успешно импортировано ${importedTargets.length} целей`);
-                    console.log("Цели импортированы:", importedTargets.length);
-                } else {
-                    alert("Неверный формат файла");
-                }
-            } catch (error) {
-                alert("Ошибка при импорте файла: " + error.message);
-                console.error("Ошибка импорта:", error);
-            }
-        };
-        
-        reader.readAsText(file);
-    };
-    
-    input.click();
-}
-
-// ==============================================
-// ФУНКЦИИ УПРАВЛЕНИЯ ИНТЕРФЕЙСОМ
-// ==============================================
-
-// Переключение панели управления
-function togglePanel() {
-    const panelContent = document.querySelector('.panel-content');
-    const toggleBtn = document.querySelector('.toggle-btn');
-    
-    panelContent.classList.toggle('hidden');
-    toggleBtn.textContent = panelContent.classList.contains('hidden') ? '+' : '−';
-}
-
-// Обновление интерфейса для роли пользователя
-function updateUIForUserRole() {
-    const buttons = document.querySelectorAll('.btn');
-    const userStatus = document.getElementById('userStatus');
-    
-    if (isAdmin) {
-        buttons.forEach(btn => {
-            if (btn.onclick) {
-                btn.disabled = false;
-            }
-        });
-        userStatus.textContent = "Администратор";
-    } else {
-        buttons.forEach(btn => {
-            if (btn.onclick && !btn.textContent.includes('Увійти')) {
-                btn.disabled = true;
-            }
-        });
-        userStatus.textContent = "Гость";
-    }
-}
-
-// Показать модальное окно входа
-function showLoginModal() {
-    document.getElementById('loginModal').style.display = 'block';
-    document.getElementById('login').focus();
-}
-
-// Закрыть модальное окно входа
-function closeLoginModal() {
-    document.getElementById('loginModal').style.display = 'none';
-    document.getElementById('login').value = '';
-    document.getElementById('password').value = '';
-}
-
-// Попытка входа
-function attemptLogin() {
-    const login = document.getElementById('login').value;
-    const password = document.getElementById('password').value;
-    
-    // Простая проверка (в реальном приложении используйте аутентификацию Firebase)
-    if (login === 'admin' && password === 'admin') {
-        isAdmin = true;
-        currentUser = login;
-        updateUIForUserRole();
-        closeLoginModal();
-        alert("Успешный вход как администратор");
-        console.log("Пользователь вошел как администратор");
-    } else {
-        alert("Неверные учетные данные");
-    }
-}
-
-// Показать модальное окно добавления цели
-function showAddTargetModal() {
-    document.getElementById('addTargetModal').style.display = 'block';
-}
-
-// Закрыть модальное окно добавления цели
-function closeAddTargetModal() {
-    document.getElementById('addTargetModal').style.display = 'none';
-}
-
-// Подтверждение добавления цели
-function confirmAddTarget() {
-    isAddTargetMode = true;
-    closeAddTargetModal();
-    alert("Кликните на карту для размещения цели");
-}
-
-// Начать режим добавления цели
-function startAddTargetMode() {
-    if (!isAdmin) {
-        alert("Только администратор может добавлять цели");
-        return;
-    }
-    showAddTargetModal();
-}
             <script>
     // ==============================================
-    // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+    // ЭКСПОРТ/ИМПОРТ И ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
     // ==============================================
     
-    // Очистка всех целей
-    function clearAllTargets(confirm = true) {
+    function exportTargets() {
+        const dataStr = JSON.stringify(targets, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', 'targets_export.json');
+        linkElement.click();
+    }
+    
+    function importTargets() {
         if (!isAdmin) {
-            alert("Только администратор может очищать цели");
+            alert("Тільки адміністратор може імпортувати цілі");
             return;
         }
         
-        if (confirm && !confirm("Вы уверены, что хотите удалить все цели?")) return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
         
-        // Удаляем все маркеры
+        input.onchange = e => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                try {
+                    const importedTargets = JSON.parse(event.target.result);
+                    
+                    if (Array.isArray(importedTargets)) {
+                        clearAllTargets(false);
+                        importedTargets.forEach(target => {
+                            targets.push(target);
+                            createTargetMarker(target);
+                        });
+                        
+                        syncWithFirebase();
+                        alert(`Успішно імпортовано ${importedTargets.length} цілей`);
+                    } else {
+                        alert("Невірний формат файлу");
+                    }
+                } catch (error) {
+                    alert("Помилка при імпорті файлу: " + error.message);
+                }
+            };
+            
+            reader.readAsText(file);
+        };
+        
+        input.click();
+    }
+    
+    function clearAllTargets(confirm = true) {
+        if (!isAdmin) {
+            alert("Тільки адміністратор може очищати цілі");
+            return;
+        }
+        
+        if (confirm && !confirm("Ви впевнені, що хочете видалити всі цілі?")) return;
+        
         Object.values(targetMarkers).forEach(marker => {
             map.removeLayer(marker);
         });
         targetMarkers = {};
         
-        // Удаляем все траектории
         Object.values(trajectories).forEach(trajectory => {
             map.removeLayer(trajectory);
         });
         trajectories = {};
         
-        // Очищаем массив целей
         targets = [];
-        
         syncWithFirebase();
-        console.log("Все цели очищены");
     }
     
-    // Получение цели по ID
-    function getTargetById(targetId) {
-        return targets.find(t => t.id === targetId);
+    function showLoginModal() {
+        const login = prompt("Логін:");
+        const password = prompt("Пароль:");
+        
+        if (login === 'admin' && password === 'admin') {
+            isAdmin = true;
+            currentUser = login;
+            updateUIForUserRole();
+            alert("Успішний вхід як адміністратор");
+        } else if (login || password) {
+            alert("Невірні облікові дані");
+        }
     }
     
-    // Форматирование даты
-    function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleString('uk-UA');
+    function updateUIForUserRole() {
+        const buttons = document.querySelectorAll('.btn');
+        const userStatus = document.getElementById('userStatus');
+        
+        if (isAdmin) {
+            buttons.forEach(btn => {
+                if (btn.onclick) {
+                    btn.disabled = false;
+                }
+            });
+            userStatus.textContent = "Адміністратор";
+        } else {
+            buttons.forEach(btn => {
+                if (btn.onclick && !btn.textContent.includes('Увійти')) {
+                    btn.disabled = true;
+                }
+            });
+            userStatus.textContent = "Гість";
+        }
     }
     
     // ==============================================
-    // ОБРАБОТЧИКИ СОБЫТИЙ И ЗАВЕРШЕНИЕ
+    // ИНИЦИАЛИЗАЦИЯ
     // ==============================================
     
-    // Обработчик загрузки страницы
     window.onload = function() {
         initApp();
         
-        // Добавляем обработчики для кнопок панели
         const panelButtons = document.querySelectorAll('.control-panel .btn');
         panelButtons.forEach(btn => {
             const onclickAttr = btn.getAttribute('onclick');
@@ -1098,11 +742,8 @@ function startAddTargetMode() {
                 };
             }
         });
-        
-        console.log("Приложение инициализировано");
     };
     
-    // Обработчик онлайн/офлайн статуса
     window.addEventListener('online', function() {
         isOnline = true;
         updateConnectionStatus();
@@ -1115,7 +756,6 @@ function startAddTargetMode() {
         updateConnectionStatus();
     });
     
-    // Глобальные функции для доступа из HTML
     window.addTargetAtCenter = addTargetAtCenter;
     window.addRandomTarget = addRandomTarget;
     window.toggleTrajectories = toggleTrajectories;
@@ -1123,9 +763,6 @@ function startAddTargetMode() {
     window.exportTargets = exportTargets;
     window.importTargets = importTargets;
     window.showLoginModal = showLoginModal;
-    window.closeLoginModal = closeLoginModal;
-    window.attemptLogin = attemptLogin;
-    window.startAddTargetMode = startAddTargetMode;
     </script>
 </body>
 </html>
