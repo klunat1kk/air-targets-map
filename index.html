@@ -524,32 +524,9 @@
                 </div>
                 <div class="form-group">
                     <label for="targetCourse">Курс (0-360°):</label>
-                    <input type="number" id="targetCourse" placeholder="Курс" value="0" min="0" max="360>
-                                <div id="add-target" class="tab-content active">
-            <div class="form-group">
-                <label for="targetName">Назва цілі:</label>
-                <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
-            </div>
-            <div class="form-group">
-                <label for="targetType">Тип цілі:</label>
-                <select id="targetType">
-                    <option value="дрон">Дрон</option>
-                    <option value="ракета">Ракета</option>
-                    <option value="винищувач">Винищувач</option>
-                    <option value="бомба">Бомба</option>
-                    <option value="корабль">Корабель</option>
-                    <option value="вертоліт">Вертоліт</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="targetSpeed">Швидкість (км/год):</label>
-                <input type="number" id="targetSpeed" placeholder="Швидкість" value="150" min="0" max="5000">
-            </div>
-            <div class="form-group">
-                <label for="targetCourse">Курс (0-360°):</label>
-                <input type="number" id="targetCourse" placeholder="Курс" value="0" min="0" max="360">
-            </div>
-            <button onclick="addTarget()" id="addTargetBtn"><i class="fas fa-plus"></i> Додати ціль</button>
+                    <input type="number" id="targetCourse" placeholder="Курс" value="0" min="0" max="360">
+                </div>
+                            <button onclick="addTarget()" id="addTargetBtn"><i class="fas fa-plus"></i> Додати ціль</button>
             <button onclick="addRandomTarget()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);" class="admin-only">
                 <i class="fas fa-dice"></i> Випадкова ціль
             </button>
@@ -909,7 +886,7 @@ function addRandomTarget() {
         'дрон': ['Shahed-136', 'Orlan-10', 'Bayraktar', 'Ланцюг'],
         'ракета': ['Іскандер', 'Калібр', 'Точка-У', 'Х-101'],
         'винищувач': ['Су-27', 'МиГ-29', 'F-16', 'F-35'],
-        'бomба': ['ФАБ-250', 'ФАБ-500', 'КАБ-500'],
+        'бомба': ['ФАБ-250', 'ФАБ-500', 'КАБ-500'],
         'корабль': ['Москва', 'Адмірал', 'Фрегат'],
         'вертоліт': ['Ка-52', 'Мі-8', 'Мі-24', 'Apache']
     };
@@ -959,7 +936,7 @@ function getIconForType(type) {
         });
     }
     
-    // Для інших типів - кольорові круги з символами
+        // Для інших типів - кольорові круги з символами
     const colors = {
         'винищувач': '#48dbfb',
         'бомба': '#ff9ff3',
@@ -999,7 +976,7 @@ function getIconForType(type) {
 function getTypeSymbol(type) {
     const symbols = {
         'винищувач': '✈',
-        'бомба': '💣',
+        'бomба': '💣',
         'корабль': '⛴',
         'вертоліт': '🚁'
     };
@@ -1332,107 +1309,107 @@ function enableCourseSelection() {
     alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для нової цілі');
 }
 
-    function enableCourseSelectionForTarget(targetId) {
-        if (!isAdmin) return;
+function enableCourseSelectionForTarget(targetId) {
+    if (!isAdmin) return;
+    
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        isCourseSelectionMode = true;
+        selectedTargetForCourse = targetId;
+        alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для цієї цілі');
+    }
+}
+
+function setTargetCourseFromMap(latlng) {
+    if (!selectedTargetForCourse || !isAdmin) return;
+    
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (target) {
+        const dx = latlng.lng - target.longitude;
+        const dy = latlng.lat - target.latitude;
+        let course = Math.atan2(dy, dx) * 180 / Math.PI;
+        course = (360 + course) % 360;
         
-        const target = targets.find(t => t.id === targetId);
-        if (target) {
-            isCourseSelectionMode = true;
-            selectedTargetForCourse = targetId;
-            alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс для цієї цілі');
+        target.course = Math.round(course);
+        target.updatedAt = Date.now();
+        
+        updateTargetOnMap(target);
+        saveTargets();
+        updateTargetsList();
+    }
+    
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    alert('Режим вибору курсу вимкнено');
+}
+
+// Система збереження даних
+function saveTargets() {
+    saveTargetsToLocalStorage();
+    if (isOnline) {
+        syncWithFirebase();
+    }
+}
+
+function saveTargetsToLocalStorage() {
+    localStorage.setItem('airTargets', JSON.stringify(targets));
+    localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
+    localStorage.setItem('showTrajectories', showTrajectories.toString());
+    localStorage.setItem('isAdmin', isAdmin.toString());
+}
+
+function loadTargetsFromLocalStorage() {
+    try {
+        const savedTargets = localStorage.getItem('airTargets');
+        const savedHistory = localStorage.getItem('targetHistory');
+        const savedTrajectories = localStorage.getItem('showTrajectories');
+        const savedAdmin = localStorage.getItem('isAdmin');
+        
+        if (savedTargets) {
+            targets = JSON.parse(savedTargets);
         }
-    }
-
-    function setTargetCourseFromMap(latlng) {
-        if (!selectedTargetForCourse || !isAdmin) return;
         
-        const target = targets.find(t => t.id === selectedTargetForCourse);
-        if (target) {
-            const dx = latlng.lng - target.longitude;
-            const dy = latlng.lat - target.latitude;
-            let course = Math.atan2(dy, dx) * 180 / Math.PI;
-            course = (360 + course) % 360;
-            
-            target.course = Math.round(course);
-            target.updatedAt = Date.now();
-            
-            updateTargetOnMap(target);
-            saveTargets();
-            updateTargetsList();
+        if (savedHistory) {
+            targetHistory = JSON.parse(savedHistory);
         }
         
-        isCourseSelectionMode = false;
-        selectedTargetForCourse = null;
-        alert('Режим вибору курсу вимкнено');
-    }
-
-    // Система збереження даних
-    function saveTargets() {
-        saveTargetsToLocalStorage();
-        if (isOnline) {
-            syncWithFirebase();
+        if (savedTrajectories) {
+            showTrajectories = savedTrajectories === 'true';
+            updateTrajectoriesButton();
         }
-    }
-
-    function saveTargetsToLocalStorage() {
-        localStorage.setItem('airTargets', JSON.stringify(targets));
-        localStorage.setItem('targetHistory', JSON.stringify(targetHistory));
-        localStorage.setItem('showTrajectories', showTrajectories.toString());
-        localStorage.setItem('isAdmin', isAdmin.toString());
-    }
-
-    function loadTargetsFromLocalStorage() {
-        try {
-            const savedTargets = localStorage.getItem('airTargets');
-            const savedHistory = localStorage.getItem('targetHistory');
-            const savedTrajectories = localStorage.getItem('showTrajectories');
-            const savedAdmin = localStorage.getItem('isAdmin');
-            
-            if (savedTargets) {
-                targets = JSON.parse(savedTargets);
-            }
-            
-            if (savedHistory) {
-                targetHistory = JSON.parse(savedHistory);
-            }
-            
-            if (savedTrajectories) {
-                showTrajectories = savedTrajectories === 'true';
-                updateTrajectoriesButton();
-            }
-            
-            if (savedAdmin) {
-                isAdmin = savedAdmin === 'true';
-                updateUIForUserRole();
-            }
-            
-            updateMap();
-            updateStats();
-            updateTargetsList();
-        } catch (error) {
-            console.error('Помилка завантаження з LocalStorage:', error);
+        
+        if (savedAdmin) {
+            isAdmin = savedAdmin === 'true';
+            updateUIForUserRole();
         }
+        
+        updateMap();
+        updateStats();
+        updateTargetsList();
+    } catch (error) {
+        console.error('Помилка завантаження з LocalStorage:', error);
     }
+}
 
-    function syncWithFirebase() {
-        if (!isOnline) return;
+function syncWithFirebase() {
+    if (!isOnline) return;
+    
+    isSyncing = true;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
         
-        isSyncing = true;
+        const targetsDict = {};
+        targets.forEach(target => {
+            targetsDict[target.id] = {
+                ...target,
+                marker: undefined,
+                polyline: undefined
+            };
+        });
         
-        try {
-            const db = firebase.database();
-            const targetsRef = db.ref('targets');
-            
-            const targetsDict = {};
-            targets.forEach(target => {
-                targetsDict[target.id] = {
-                    ...target,
-                    marker: undefined,
-                    polyline: undefined
-                };
-            });
-            
-            targetsRef.set(targetsDict)
+                    targetsRef.set(targetsDict)
                 .then(() => {
                     console.log("Дані успішно синхронізовано з Firebase");
                     lastSyncTime = Date.now();
@@ -1780,4 +1757,3 @@ function enableCourseSelection() {
     </script>
 </body>
 </html>
-                        
