@@ -77,21 +77,55 @@
         .main-content {
             display: flex;
             flex: 1;
+            flex-direction: column;
             overflow: hidden;
         }
 
+        #map {
+            flex: 1;
+            z-index: 1;
+            position: relative;
+        }
+
+        .add-target-button {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #00b894 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 1000;
+            box-shadow: 0 5px 20px rgba(0, 206, 201, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .add-target-button:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 206, 201, 0.6);
+        }
+
         .panel {
-            width: 350px;
-            background: rgba(30, 33, 66, 0.9);
+            width: 100%;
+            height: 300px;
+            background: rgba(30, 33, 66, 0.95);
             padding: 20px;
             overflow-y: auto;
             transition: all 0.3s ease;
-            border-right: 2px solid #00cec9;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
+            border-top: 2px solid #00cec9;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
         }
 
         .panel.collapsed {
-            margin-left: -350px;
+            height: 60px;
+            overflow: hidden;
         }
 
         .panel-section {
@@ -174,7 +208,7 @@
         }
 
         .targets-list {
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
             margin-top: 15px;
         }
@@ -244,11 +278,6 @@
         .stat-card p {
             color: #dfe6e9;
             font-size: 14px;
-        }
-
-        #map {
-            flex: 1;
-            z-index: 1;
         }
 
         .status-bar {
@@ -402,25 +431,20 @@
             font-weight: bold;
         }
 
-        /* Стили для иконок курса */
-        .course-indicator {
-            position: absolute;
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-bottom: 12px solid #00cec9;
+        /* Стили для обертання іконок */
+        .rotatable-icon {
+            transition: transform 0.5s ease;
             transform-origin: center;
         }
 
         /* Адаптивность */
         @media (max-width: 768px) {
             .panel {
-                width: 300px;
+                height: 250px;
             }
             
             .panel.collapsed {
-                margin-left: -300px;
+                height: 50px;
             }
             
             .modal-content {
@@ -431,6 +455,34 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .add-target-button {
+                top: 10px;
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+
+        /* Центральный маркер для добавления целей */
+        .center-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 206, 201, 0.8);
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(0, 206, 201, 0.8);
+            z-index: 999;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
         }
     </style>
 </head>
@@ -452,6 +504,13 @@
         </div>
 
         <div class="main-content">
+            <div id="map">
+                <button class="add-target-button" onclick="addTargetAtCenter()">
+                    <i class="fas fa-plus"></i> Додати ціль тут
+                </button>
+                <div class="center-marker">+</div>
+            </div>
+
             <div class="panel" id="sidePanel">
                 <div class="panel-section">
                     <h2><i class="fas fa-plus-circle"></i> Додати ціль</h2>
@@ -478,46 +537,46 @@
                         <label for="targetCourse">Курс (0-360°):</label>
                         <input type="number" id="targetCourse" value="0" min="0" max="360">
                     </div>
-                    <button class="btn" onclick="addTarget()">
-                        <i class="fas fa-plus"></i> Додати ціль
-                    </button>
-                    <button class="btn btn-secondary" onclick="addRandomTarget()" style="margin-top: 10px;">
-                        <i class="fas fa-random"></i> Випадкова ціль
-                    </button>
-                </div>
+                                    <button class="btn" onclick="addTargetAtCenter()">
+                    <i class="fas fa-plus"></i> Додати ціль
+                </button>
+                <button class="btn btn-secondary" onclick="addRandomTarget()" style="margin-top: 10px;">
+                    <i class="fas fa-random"></i> Випадкова ціль
+                </button>
+            </div>
 
-                <div class="panel-section">
-                    <h2><i class="fas fa-bullseye"></i> Цілі</h2>
-                    <div class="targets-list" id="targetsList">
-                        <!-- Список целей будет добавляться динамически -->
+            <div class="panel-section">
+                <h2><i class="fas fa-bullseye"></i> Цілі</h2>
+                <div class="targets-list" id="targetsList">
+                    <!-- Список целей будет добавляться динамически -->
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-chart-bar"></i> Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalTargets">0</h3>
+                        <p>Всього цілей</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="activeTargets">0</h3>
+                        <p>Активних</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="maxSpeed">0</h3>
+                        <p>Макс. швидкість</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalDistance">0</h3>
+                        <p>Загальна відстань</p>
                     </div>
                 </div>
+            </div>
 
-                <div class="panel-section">
-                    <h2><i class="fas fa-chart-bar"></i> Статистика</h2>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <h3 id="totalTargets">0</h3>
-                            <p>Всього цілей</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3 id="activeTargets">0</h3>
-                            <p>Активних</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3 id="maxSpeed">0</h3>
-                            <p>Макс. швидкість</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3 id="totalDistance">0</h3>
-                            <p>Загальна відстань</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="panel-section">
-                    <h2><i class="fas fa-sliders-h"></i> Налаштування</h2>
-                                    <button class="btn" onclick="toggleTrajectories()">
+            <div class="panel-section">
+                <h2><i class="fas fa-sliders-h"></i> Налаштування</h2>
+                <button class="btn" onclick="toggleTrajectories()">
                     <i class="fas fa-route"></i> Траєкторії
                 </button>
                 <button class="btn btn-secondary" onclick="clearAllTargets()" style="margin-top: 10px;">
@@ -531,8 +590,6 @@
                 </button>
             </div>
         </div>
-
-        <div id="map"></div>
     </div>
 
     <div class="status-bar">
@@ -604,6 +661,7 @@
         <h3><i class="fas fa-route"></i> Вибір курсу</h3>
         <p>Клацніть по карті, щоб встановити напрямок руху цілі</p>
         <div class="modal-buttons">
+            <button onclick="confirmCourseSelection()">Підтвердити</button>
             <button onclick="cancelCourseSelection()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
         </div>
     </div>
@@ -638,6 +696,8 @@ let lastUpdateTime = Date.now();
 let animationFrameId = null;
 let targetClusters = {};
 let userSessionId = Math.random().toString(36).substr(2, 9);
+let syncInterval = null;
+let centerMarker = null;
 
 // ВАШІ НАЛАШТУВАННЯ FIREBASE
 const firebaseConfig = {
@@ -661,6 +721,7 @@ function initApp() {
         updateStats();
         updateStatus();
         startAutoSave();
+        startAutoSync();
         updateUIForUserRole();
         
         // Запускаємо анімаційний цикл
@@ -686,10 +747,23 @@ function initMap() {
     map.on('click', function(e) {
         if (isCourseSelectionMode && selectedTargetForCourse) {
             setTargetCourseFromMap(e.latlng);
+        } else if (isAdmin) {
+            // Додавання цілі по кліку на карту
+            addTargetAtPosition(e.latlng);
         }
     });
+
+    // Оновлення позиції центрального маркера при переміщенні карти
+    map.on('move', updateCenterMarkerPosition);
     
     console.log("Карта успішно ініціалізована");
+}
+
+// Оновити позицію центрального маркера
+function updateCenterMarkerPosition() {
+    const center = map.getCenter();
+    document.querySelector('.center-marker').style.transform = 
+        `translate(${map.latLngToContainerPoint(center).x}px, ${map.latLngToContainerPoint(center).y}px)`;
 }
 
 // Ініціалізація Firebase
@@ -723,6 +797,16 @@ function startAutoSave() {
     }, 5000);
 }
 
+// Автоматична синхронізація з Firebase кожну секунду
+function startAutoSync() {
+    syncInterval = setInterval(function() {
+        if (isOnline) {
+            syncWithFirebase();
+            loadFromFirebase();
+        }
+    }, 1000);
+}
+
 // DEBOUNCE ДЛЯ ЗБЕРЕЖЕННЯ
 function debouncedSave() {
     if (saveTimeout) clearTimeout(saveTimeout);
@@ -750,12 +834,7 @@ function setupRealtimeListeners() {
             
             if (shouldSyncWithFirebase(firebaseTargets)) {
                 console.log("Отримуємо оновлення з Firebase");
-                targets = Object.values(firebaseTargets);
-                updateMap();
-                saveTargetsToLocalStorage();
-                updateStats();
-                updateTargetsList();
-                updateTargetClusters();
+                mergeTargetsFromFirebase(firebaseTargets);
             }
         });
         
@@ -786,6 +865,54 @@ function setupRealtimeListeners() {
         isOnline = false;
         updateStatus();
     }
+}
+
+// Завантажити дані з Firebase
+function loadFromFirebase() {
+    if (!isOnline) return;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        
+        targetsRef.once('value').then((snapshot) => {
+            const firebaseTargets = snapshot.val() || {};
+            if (shouldSyncWithFirebase(firebaseTargets)) {
+                console.log("Завантажуємо дані з Firebase");
+                mergeTargetsFromFirebase(firebaseTargets);
+            }
+        });
+    } catch (error) {
+        console.error('Помилка завантаження з Firebase:', error);
+    }
+}
+
+// Об'єднати цілі з Firebase
+function mergeTargetsFromFirebase(firebaseTargets) {
+    const firebaseTargetsArray = Object.values(firebaseTargets);
+    
+    // Видалити цілі, яких немає в Firebase
+    targets = targets.filter(target => 
+        firebaseTargetsArray.some(ft => ft.id === target.id) || 
+        target.createdBy === userSessionId
+    );
+    
+    // Додати нові цілі з Firebase
+    firebaseTargetsArray.forEach(firebaseTarget => {
+        const existingTarget = targets.find(t => t.id === firebaseTarget.id);
+        if (!existingTarget) {
+            targets.push(firebaseTarget);
+        } else if (firebaseTarget.updatedAt > existingTarget.updatedAt) {
+            // Оновити існуючу ціль, якщо вона новіша
+            Object.assign(existingTarget, firebaseTarget);
+        }
+    });
+    
+    updateMap();
+    saveTargetsToLocalStorage();
+    updateStats();
+    updateTargetsList();
+    updateTargetClusters();
 }
 
 // Перевірка чи потрібно синхронізувати з Firebase
@@ -822,6 +949,17 @@ function showCourseSelectionModal(targetId) {
     isCourseSelectionMode = true;
     document.getElementById('courseSelectionModal').style.display = 'block';
     showCourseNotification();
+}
+
+// Підтвердити вибір курсу
+function confirmCourseSelection() {
+    if (selectedTargetForCourse) {
+        const target = targets.find(t => t.id === selectedTargetForCourse);
+        if (target) {
+            alert(`Курс цілі "${target.name}" буде встановлено при кліку на карту`);
+        }
+    }
+    document.getElementById('courseSelectionModal').style.display = 'none';
 }
 
 // Скасувати вибір курсу
@@ -877,8 +1015,14 @@ function calculateCourse(from, to) {
     return Math.round(course);
 }
 
-// Функції для роботи з цілями
-function addTarget() {
+// Додати ціль в центрі карти
+function addTargetAtCenter() {
+    const center = map.getCenter();
+    addTargetAtPosition(center);
+}
+
+// Додати ціль в конкретній позиції
+function addTargetAtPosition(latlng) {
     console.log("Спроба додати ціль...");
     
     if (!isAdmin) {
@@ -912,8 +1056,8 @@ function addTarget() {
         type: type,
         speed: speed,
         course: course,
-        latitude: map.getCenter().lat,
-        longitude: map.getCenter().lng,
+        latitude: latlng.lat,
+        longitude: latlng.lng,
         distance: 0,
         maxSpeed: speed,
         createdAt: Date.now(),
@@ -950,6 +1094,7 @@ function addRandomTarget() {
     
     const randomType = types[Math.floor(Math.random() * types.length)];
     const randomName = names[randomType][Math.floor(Math.random() * names[randomType].length)];
+    const center = map.getCenter();
     
     const target = {
         id: Date.now().toString() + '-' + userSessionId,
@@ -957,8 +1102,8 @@ function addRandomTarget() {
         type: randomType,
         speed: Math.floor(Math.random() * 500) + 100,
         course: Math.floor(Math.random() * 360),
-        latitude: map.getCenter().lat + (Math.random() - 0.5) * 2,
-        longitude: map.getCenter().lng + (Math.random() - 0.5) * 4,
+        latitude: center.lat + (Math.random() - 0.5) * 2,
+        longitude: center.lng + (Math.random() - 0.5) * 4,
         distance: 0,
         maxSpeed: 0,
         createdAt: Date.now(),
@@ -987,13 +1132,15 @@ function getIconForType(type, course = 0) {
     if (type === 'дрон') {
         return L.icon({
             iconUrl: 'icons/shahed.png',
-            ...iconOptions
+            ...iconOptions,
+            className: 'rotatable-icon'
         });
     }
     else if (type === 'ракета') {
         return L.icon({
             iconUrl: 'icons/raketa.png',
-            ...iconOptions
+            ...iconOptions,
+            className: 'rotatable-icon'
         });
     }
     
@@ -1029,7 +1176,6 @@ function getIconForType(type, course = 0) {
             ">
                 ${symbol}
             </div>
-            <div class="course-indicator" style="transform: rotate(${course}deg);"></div>
         `,
         iconSize: [35, 35],
         iconAnchor: [17, 17]
@@ -1284,115 +1430,115 @@ function updateTargetsList() {
         targetsList.appendChild(targetItem);
     });
 }
-    // Оновити статистику
-function updateStats() {
-    document.getElementById('totalTargets').textContent = targets.length;
-    document.getElementById('activeTargets').textContent = targets.filter(t => t.speed > 0).length;
-    
-    const maxSpeed = targets.reduce((max, target) => 
-        target.speed > max ? target.speed : max, 0
-    );
-    document.getElementById('maxSpeed').textContent = maxSpeed;
-    
-    const totalDistance = targets.reduce((sum, target) => 
-        sum + target.distance, 0
-    );
-    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1);
-}
-
-// Оновити статус
-function updateStatus() {
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-    
-    if (isOnline) {
-        statusDot.className = 'online-dot';
-        statusText.textContent = 'Онлайн';
-    } else {
-        statusDot.className = 'offline-dot';
-        statusText.textContent = 'Офлайн';
-    }
-}
-
-// Зберегти цілі
-function saveTargets() {
-    // Збереження в локальне сховище
-    saveTargetsToLocalStorage();
-    
-    // Синхронізація з Firebase
-    if (isOnline) {
-        syncWithFirebase();
-    }
-}
-
-// Зберегти в локальне сховище
-function saveTargetsToLocalStorage() {
-    try {
-        localStorage.setItem('airTargets', JSON.stringify(targets));
-        localStorage.setItem('airTargetsHistory', JSON.stringify(targetHistory));
-        console.log("Цілі збережено в локальне сховище");
-    } catch (error) {
-        console.error("Помилка збереження в локальне сховище:", error);
-    }
-}
-
-// Завантажити з локального сховища
-function loadTargetsFromLocalStorage() {
-    try {
-        const savedTargets = localStorage.getItem('airTargets');
-        const savedHistory = localStorage.getItem('airTargetsHistory');
+        // Оновити статистику
+    function updateStats() {
+        document.getElementById('totalTargets').textContent = targets.length;
+        document.getElementById('activeTargets').textContent = targets.filter(t => t.speed > 0).length;
         
-        if (savedTargets) {
-            targets = JSON.parse(savedTargets);
-            console.log("Цілі завантажено з локального сховища:", targets.length);
+        const maxSpeed = targets.reduce((max, target) => 
+            target.speed > max ? target.speed : max, 0
+        );
+        document.getElementById('maxSpeed').textContent = maxSpeed;
+        
+        const totalDistance = targets.reduce((sum, target) => 
+            sum + target.distance, 0
+        );
+        document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1);
+    }
+
+    // Оновити статус
+    function updateStatus() {
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        
+        if (isOnline) {
+            statusDot.className = 'online-dot';
+            statusText.textContent = 'Онлайн';
+        } else {
+            statusDot.className = 'offline-dot';
+            statusText.textContent = 'Офлайн';
         }
-        
-        if (savedHistory) {
-            targetHistory = JSON.parse(savedHistory);
-        }
-        
-        updateMap();
-        updateStats();
-        updateTargetsList();
-    } catch (error) {
-        console.error("Помилка завантаження з локального сховища:", error);
-        targets = [];
-        targetHistory = {};
     }
-}
 
-// Синхронізувати з Firebase
-function syncWithFirebase() {
-    if (!isOnline || isSyncing) return;
-    
-    isSyncing = true;
-    lastSyncTime = Date.now();
-    
-    try {
-        const db = firebase.database();
-        const targetsRef = db.ref('targets');
+    // Зберегти цілі
+    function saveTargets() {
+        // Збереження в локальне сховище
+        saveTargetsToLocalStorage();
         
-        // Конвертуємо масив в об'єкт для Firebase
-        const targetsObject = {};
-        targets.forEach(target => {
-            targetsObject[target.id] = target;
-        });
+        // Синхронізація з Firebase
+        if (isOnline) {
+            syncWithFirebase();
+        }
+    }
+
+    // Зберегти в локальне сховище
+    function saveTargetsToLocalStorage() {
+        try {
+            localStorage.setItem('airTargets', JSON.stringify(targets));
+            localStorage.setItem('airTargetsHistory', JSON.stringify(targetHistory));
+            console.log("Цілі збережено в локальне сховище");
+        } catch (error) {
+            console.error("Помилка збереження в локальне сховище:", error);
+        }
+    }
+
+    // Завантажити з локального сховища
+    function loadTargetsFromLocalStorage() {
+        try {
+            const savedTargets = localStorage.getItem('airTargets');
+            const savedHistory = localStorage.getItem('airTargetsHistory');
+            
+            if (savedTargets) {
+                targets = JSON.parse(savedTargets);
+                console.log("Цілі завантажено з локального сховища:", targets.length);
+            }
+            
+            if (savedHistory) {
+                targetHistory = JSON.parse(savedHistory);
+            }
+            
+            updateMap();
+            updateStats();
+            updateTargetsList();
+        } catch (error) {
+            console.error("Помилка завантаження з локального сховища:", error);
+            targets = [];
+            targetHistory = {};
+        }
+    }
+
+    // Синхронізувати з Firebase
+    function syncWithFirebase() {
+        if (!isOnline || isSyncing) return;
         
-        targetsRef.set(targetsObject)
-            .then(() => {
-                console.log("Дані успішно синхронізовані з Firebase");
-            })
-            .catch((error) => {
-                console.error("Помилка синхронізації з Firebase:", error);
-                isOnline = false;
-                updateStatus();
+        isSyncing = true;
+        lastSyncTime = Date.now();
+        
+        try {
+            const db = firebase.database();
+            const targetsRef = db.ref('targets');
+            
+            // Конвертуємо масив в об'єкт для Firebase
+            const targetsObject = {};
+            targets.forEach(target => {
+                targetsObject[target.id] = target;
             });
-    } catch (error) {
-        console.error("Помилка Firebase:", error);
-        isOnline = false;
-        updateStatus();
+            
+            targetsRef.set(targetsObject)
+                .then(() => {
+                    console.log("Дані успішно синхронізовані з Firebase");
+                })
+                .catch((error) => {
+                    console.error("Помилка синхронізації з Firebase:", error);
+                    isOnline = false;
+                    updateStatus();
+                });
+        } catch (error) {
+            console.error("Помилка Firebase:", error);
+            isOnline = false;
+            updateStatus();
+        }
     }
-}
 
     // Оновити карту
     function updateMap() {
@@ -1598,12 +1744,12 @@ function syncWithFirebase() {
     function togglePanel() {
         const panel = document.getElementById('sidePanel');
         panel.classList.toggle('collapsed');
-        isPanelExpanded = !isPanelExpapsed;
+        isPanelExpanded = !isPanelExpanded;
         
         const button = document.querySelector('.toggle-panel-btn');
         button.innerHTML = isPanelExpanded ? 
-            '<i class="fas fa-eye-slash"></i> Панель' : 
-            '<i class="fas fa-eye"></i> Панель';
+            '<i class="fas fa-eye-slash"></i> Сховати' : 
+            '<i class="fas fa-eye"></i> Показати';
     }
 
     // Показати модальне вікно логіну
@@ -1629,8 +1775,8 @@ function syncWithFirebase() {
         const username = document.getElementById('loginUsername').value;
         const password = document.getElementById('loginPassword').value;
         
-        // Проста перевірка (замініть на реальну автентифікацію)
-        if (username === 'admin' && password === 'admin123') {
+        // Перевірка логіну та паролю
+        if (username === 'admin123450' && password === 'password123450') {
             isAdmin = true;
             closeLoginModal();
             updateUIForUserRole();
@@ -1727,7 +1873,8 @@ function syncWithFirebase() {
     });
 
     // Глобальні функції для виклику з HTML
-    window.addTarget = addTarget;
+    window.addTarget = addTargetAtCenter;
+    window.addTargetAtCenter = addTargetAtCenter;
     window.addRandomTarget = addRandomTarget;
     window.editTarget = editTarget;
     window.deleteTarget = deleteTarget;
@@ -1744,7 +1891,9 @@ function syncWithFirebase() {
     window.closeEditModal = closeEditModal;
     window.showCourseSelectionModal = showCourseSelectionModal;
     window.cancelCourseSelection = cancelCourseSelection;
+    window.confirmCourseSelection = confirmCourseSelection;
     window.setTargetCourseFromMap = setTargetCourseFromMap;
 </script>
 </body>
 </html>
+    
