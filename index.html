@@ -720,6 +720,7 @@ let markerCluster;
 let lastStatsUpdate = Date.now();
 let lastSyncTargets = '';
 let lastSyncDeleted = '';
+let pausedTargets = new Set(); // ⭐ НОВАЯ ПЕРЕМЕННАЯ - для временной остановки целей
 
 // ВАШІ НАЛАШТУВАННЯ FIREBASE
 const firebaseConfig = {
