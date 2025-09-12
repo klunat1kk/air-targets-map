@@ -1222,3 +1222,349 @@ function updateTargetClusters() {
         targetClusters[clusterKey].targets.push(target);
     });
 }
+    // Оновити список цілей
+function updateTargetsList() {
+    const targetsList = document.getElementById('targetsList');
+    targetsList.innerHTML = '';
+    
+    targets.forEach(target => {
+        const targetItem = document.createElement('div');
+        targetItem.className = 'target-item';
+        targetItem.innerHTML = `
+            <h4>${target.name} <span style="font-size: 12px; color: #00cec9;">${target.type}</span></h4>
+            <p>Швидкість: ${target.speed} км/год</p>
+            <p>Курс: ${target.course}°</p>
+            <p>Відстань: ${(target.distance / 1000).toFixed(1)} км</p>
+        `;
+        targetsList.appendChild(targetItem);
+    });
+}
+
+// Оновити статистику
+function updateStats() {
+    document.getElementById('totalTargets').textContent = targets.length;
+    document.getElementById('activeTargets').textContent = targets.filter(t => t.speed > 0).length;
+    
+    const maxSpeed = targets.reduce((max, target) => 
+        target.speed > max ? target.speed : max, 0
+    );
+    document.getElementById('maxSpeed').textContent = maxSpeed;
+    
+    const totalDistance = targets.reduce((sum, target) => 
+        sum + target.distance, 0
+    );
+    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1);
+}
+
+// Оновити статус
+function updateStatus() {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    
+    if (isOnline) {
+        statusDot.className = 'online-dot';
+        statusText.textContent = 'Онлайн';
+    } else {
+        statusDot.className = 'offline-dot';
+        statusText.textContent = 'Офлайн';
+    }
+}
+
+// Зберегти цілі
+function saveTargets() {
+    // Збереження в локальне сховище
+    saveTargetsToLocalStorage();
+    
+    // Синхронізація з Firebase
+    if (isOnline) {
+        syncWithFirebase();
+    }
+}
+
+// Зберегти в локальне сховище
+function saveTargetsToLocalStorage() {
+    try {
+        localStorage.setItem('airTargets', JSON.stringify(targets));
+        localStorage.setItem('airTargetsHistory', JSON.stringify(targetHistory));
+        console.log("Цілі збережено в локальне сховище");
+    } catch (error) {
+        console.error("Помилка збереження в локальне сховище:", error);
+    }
+}
+
+// Завантажити з локального сховища
+function loadTargetsFromLocalStorage() {
+    try {
+        const savedTargets = localStorage.getItem('airTargets');
+        const savedHistory = localStorage.getItem('airTargetsHistory');
+        
+        if (savedTargets) {
+            targets = JSON.parse(savedTargets);
+            console.log("Цілі завантажено з локального сховища:", targets.length);
+        }
+        
+        if (savedHistory) {
+            targetHistory = JSON.parse(savedHistory);
+        }
+        
+        updateMap();
+        updateStats();
+        updateTargetsList();
+    } catch (error) {
+        console.error("Помилка завантаження з локального сховища:", error);
+        targets = [];
+        targetHistory = {};
+    }
+}
+
+// Переключити траєкторії
+function toggleTrajectories() {
+    showTrajectories = !showTrajectories;
+    
+    if (showTrajectories) {
+        // Додати траєкторії
+        targets.forEach(target => {
+            addTrajectory(target);
+        });
+    } else {
+        // Видалити траєкторії
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        polylines = {};
+    }
+    
+    alert(`Траєкторії ${showTrajectories ? 'увімкнено' : 'вимкнено'}`);
+}
+
+// Очистити всі цілі
+function clearAllTargets() {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+    
+    // Видалити всі маркери
+    Object.values(markers).forEach(marker => {
+        map.removeLayer(marker);
+    });
+    markers = {};
+    
+    // Видалити всі траєкторії
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    // Очистити масиви
+    targets = [];
+    targetHistory = {};
+    
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+// Експорт цілей
+function exportTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може експортувати цілі');
+        return;
+    }
+    
+    try {
+        const dataStr = JSON.stringify(targets, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'air-targets-' + new Date().toISOString().slice(0, 10) + '.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    } catch (error) {
+        console.error("Помилка експорту:", error);
+        alert('Помилка при експорті даних');
+    }
+}
+
+// Імпорт цілей
+function importTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може імпортувати цілі');
+        return;
+    }
+    
+    document.getElementById('importFile').click();
+}
+
+    // Обробник вибору файлу для імпорту
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedTargets = JSON.parse(e.target.result);
+                
+                if (Array.isArray(importedTargets)) {
+                    // Додати імпортовані цілі
+                    importedTargets.forEach(target => {
+                        // Генеруємо новий ID для уникнення конфліктів
+                        target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+                        target.createdAt = Date.now();
+                        target.updatedAt = Date.now();
+                        target.createdBy = userSessionId;
+                        targets.push(target);
+                    });
+                    
+                    updateMap();
+                    saveTargets();
+                    updateStats();
+                    updateTargetsList();
+                    
+                    alert(`Успішно імпортовано ${importedTargets.length} цілей`);
+                } else {
+                    alert('Невірний формат файлу');
+                }
+            } catch (error) {
+                console.error('Помилка імпорту:', error);
+                alert('Помилка при імпорті файлу');
+            }
+        };
+        reader.readAsText(file);
+        
+        // Очистити input
+        event.target.value = '';
+    });
+
+    // Переключити панель
+    function togglePanel() {
+        const panel = document.getElementById('sidePanel');
+        panel.classList.toggle('collapsed');
+        isPanelExpanded = !isPanelExpanded;
+        
+        const button = document.querySelector('.toggle-panel-btn');
+        button.innerHTML = isPanelExpanded ? 
+            '<i class="fas fa-eye-slash"></i><span>Сховати</span>' : 
+            '<i class="fas fa-eye"></i><span>Панель</span>';
+    }
+
+    // Показати модальне вікно логіну
+    function showLoginModal() {
+        document.getElementById('loginModal').style.display = 'block';
+    }
+
+    // Закрити модальне вікно логіну
+    function closeLoginModal() {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+    }
+
+    // Спроба входу
+    function attemptLogin() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        // Перевірка логіну та паролю
+        if (username === 'admin123450' && password === 'password123450') {
+            isAdmin = true;
+            closeLoginModal();
+            updateUIForUserRole();
+            alert('Успішний вхід як адміністратор');
+        } else {
+            alert('Невірний логін або пароль');
+        }
+    }
+
+    // Вийти
+    function logout() {
+        isAdmin = false;
+        updateUIForUserRole();
+        alert('Вихід виконано');
+    }
+
+    // Оновити UI відповідно до ролі користувача
+    function updateUIForUserRole() {
+        const loginBtn = document.querySelector('.login-btn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        if (isAdmin) {
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
+        } else {
+            loginBtn.style.display = 'block';
+            logoutBtn.style.display = 'none';
+        }
+    }
+
+    // Налаштування обробників подій
+    function setupEventListeners() {
+        // Закриття модальних вікон по кліку на затемнений фон
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+        
+        // Обробка клавіші ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeLoginModal();
+                isAddTargetMode = false;
+            }
+        });
+        
+        // Автозаповнення назви цілі
+        document.getElementById('targetName').addEventListener('focus', function() {
+            if (!this.value) {
+                this.value = 'Ціль-' + (targets.length + 1);
+            }
+        });
+    }
+
+    // Оновити карту
+    function updateMap() {
+        // Очистити всі маркери
+        Object.values(markers).forEach(marker => {
+            map.removeLayer(marker);
+        });
+        markers = {};
+        
+        // Очистити всі траєкторії
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        polylines = {};
+        
+        // Додати цілі на карту
+        targets.forEach(target => {
+            addTargetToMap(target);
+        });
+    }
+
+    // Ініціалізація при завантаженні сторінки
+    document.addEventListener('DOMContentLoaded', function() {
+        initApp();
+    });
+
+    // Глобальні функції для виклику з HTML
+    window.addTargetAtCenter = addTargetAtCenter;
+    window.addRandomTarget = addRandomTarget;
+    window.toggleTrajectories = toggleTrajectories;
+    window.clearAllTargets = clearAllTargets;
+    window.exportTargets = exportTargets;
+    window.importTargets = importTargets;
+    window.togglePanel = togglePanel;
+    window.showLoginModal = showLoginModal;
+    window.closeLoginModal = closeLoginModal;
+    window.attemptLogin = attemptLogin;
+    window.logout = logout;
+    window.enableAddTargetMode = enableAddTargetMode;
+</script>
+</body>
+</html>
