@@ -691,6 +691,65 @@
 
 <input type="file" id="importFile" style="display: none;" accept=".json">
     <script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script>
+  // ⚙️ Firebase config (оставь свой!)
+  const firebaseConfig = {
+      apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
+    authDomain: "air-tracking-site.firebaseapp.com",
+    databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "air-tracking-site",
+    storageBucket: "air-tracking-site.firebasestorage.app",
+    messagingSenderId: "185790784262",
+    appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
+    measurementId: "G-XW9Y6JKCPG"
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  let isAdmin = false;
+
+  firebase.auth().onAuthStateChanged(function(user) {
+      if (user) {
+          isAdmin = true;
+          closeLoginModal();
+          updateUIForUserRole();
+      } else {
+          isAdmin = false;
+          updateUIForUserRole();
+      }
+  });
+
+  async function attemptLogin() {
+      const email = document.getElementById("loginUsername").value;
+      const password = document.getElementById("loginPassword").value;
+      try {
+          await firebase.auth().signInWithEmailAndPassword(email, password);
+          alert("Успішний вхід як адміністратор");
+      } catch (error) {
+          alert("Невірний логін або пароль");
+      }
+  }
+
+  function logout() {
+      firebase.auth().signOut();
+      alert("Вихід виконано");
+  }
+
+  function updateUIForUserRole() {
+      const loginBtn = document.querySelector(".login-btn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (isAdmin) {
+          loginBtn.style.display = "none";
+          logoutBtn.style.display = "block";
+      } else {
+          loginBtn.style.display = "block";
+          logoutBtn.style.display = "none";
+      }
+  }
+
+  function showLoginModal() { document.getElementById("loginModal").style.display = "block"; }
+  function closeLoginModal() { document.getElementById("loginModal").style.display = "none"; }
+</script>
 // Глобальные переменные
 let map;
 let targets = [];
