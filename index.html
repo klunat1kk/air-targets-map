@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карта Повітряних Цілей</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0c0e2a 0%, #1e2142 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #2d3436 0%, #2c3e50 100%);
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #00cec9;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00cec9;
+            text-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 50%;
+        }
+
+        .header h1 i {
+            margin-right: 8px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+
+        .header-btn {
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .header-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+            position: relative;
+        }
+
+        /* Скрываем кнопку добавления цели на карте */
+        .add-target-button {
+            display: none;
+        }
+
+        /* Прицел по центру */
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 206, 201, 0.8);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 40px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .panel {
+            width: 100%;
+            height: 300px;
+            background: rgba(30, 33, 66, 0.95);
+            padding: 15px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            border-top: 2px solid #00cec9;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+
+        .panel.collapsed {
+            height: 50px;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            margin-bottom: 15px;
+            background: rgba(44, 62, 80, 0.6);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #34495e;
+        }
+
+        .panel-section h2 {
+            color: #00cec9;
+            margin-bottom: 12px;
+            font-size: 16px;
+            border-bottom: 2px solid #00cec9;
+            padding-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-section h2 i {
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #dfe6e9;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #34495e;
+            border-radius: 5px;
+            background: #2d3436;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00cec9;
+            box-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(90deg, #7f8c8d 0%, #636e72 100%);
+        }
+
+        .targets-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .target-item {
+            background: rgba(52, 73, 94, 0.6);
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #00cec9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .target-item:hover {
+            background: rgba(52, 73, 94, 0.9);
+            transform: translateX(5px);
+        }
+
+        .target-item h4 {
+            color: #00cec9;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .target-item p {
+            color: #dfe6e9;
+            font-size: 12px;
+            margin: 2px 0;
+        }
+
+        .target-item .target-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .target-item .target-actions button {
+            flex: 1;
+            padding: 6px;
+            font-size: 11px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-card {
+            background: rgba(52, 73, 94, 0.6);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #34495e;
+        }
+
+        .stat-card h3 {
+            color: #00cec9;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #dfe6e9;
+            font-size: 12px;
+        }
+
+        .status-bar {
+            background: rgba(44, 62, 80, 0.9);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid #00cec9;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00b894;
+            animation: pulse 2s infinite;
+        }
+
+        .offline-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d63031;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #2d3436 0%, #2c3e50 100%);
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 350px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            border: 2px solid #00cec9;
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #00cec9;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .course-notification {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0, 206, 201, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Стили для поворачивающихся PNG иконок */
+        .png-icon-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .rotatable-png-icon {
+            width: 40px;
+            height: 40px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: transform 0.5s ease;
+            transform-origin: center;
+        }
+
+        /* Стили для кластеров */
+        .marker-cluster {
+            background: rgba(231, 76, 60, 0.8);
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid white;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+        }
+
+        .marker-cluster-small {
+            width: 40px;
+            height: 40px;
+            font-size: 14px;
+        }
+
+        .marker-cluster-medium {
+            width: 50px;
+            height: 50px;
+            font-size: 16px;
+        }
+
+        .marker-cluster-large {
+            width: 60px;
+            height: 60px;
+            font-size: 18px;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 18px;
+                max-width: 40%;
+            }
+            
+            .header-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .panel {
+                height: 280px;
+            }
+            
+            .panel.collapsed {
+                height: 45px;
+            }
+            
+            .modal-content {
+                width: 90%;
+                margin: 20% auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 16px;
+                max-width: 35%;
+            }
+            
+            .header-btn {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
+            
+            .header-btn i {
+                margin-right: 0;
+            }
+            
+            .header-btn span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h1><i class="fas fa-crosshairs"></i><span>Карта Повітряних Цілей</span></h1>
+            <div class="header-controls">
+                <button class="header-btn toggle-panel-btn" onclick="togglePanel()">
+                    <i class="fas fa-eye-slash"></i><span>Панель</span>
+                </button>
+                <button class="header-btn login-btn" onclick="showLoginModal()">
+                    <i class="fas fa-user"></i><span>Увійти</span>
+                </button>
+                <button class="header-btn logout-btn" onclick="logout()" id="logoutBtn" style="display: none;">
+                    <i class="fas fa-sign-out-alt"></i><span>Вийти</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="map">
+                <!-- Кнопка добавления цели скрыта -->
+                <button class="add-target-button" onclick="enableAddTargetMode()" style="display: none;">
+                    <i class="fas fa-plus"></i>Додати ціль
+                </button>
+                <div class="crosshair"></div>
+            </div>
+                    <div class="panel" id="sidePanel">
+            <div class="panel-section">
+                <h2><i class="fas fa-plus-circle"></i>Додати ціль</h2>
+                <div class="form-group">
+                    <label for="targetName">Назва цілі:</label>
+                    <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
+                </div>
+                <div class="form-group">
+                    <label for="targetType">Тип цілі:</label>
+                    <select id="targetType">
+                        <option value="дрон">Дрон</option>
+                        <option value="ракета">Ракета</option>
+                        <option value="винищувач">Винищувач</option>
+                        <option value="бомба">Бомба</option>
+                        <option value="корабль">Корабель</option>
+                        <option value="вертоліт">Вертоліт</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="targetCourse">Курс (градуси):</label>
+                    <input type="number" id="targetCourse" min="0" max="359" placeholder="0-359" value="45">
+                </div>
+                <div class="form-group">
+                    <label for="targetSpeed">Швидкість (км/год):</label>
+                    <input type="number" id="targetSpeed" min="0" placeholder="Швидкість" value="120">
+                </div>
+                <button class="btn" onclick="addTarget()">Додати ціль</button>
+            </div>
+            
+            <div class="panel-section">
+                <h2><i class="fas fa-list"></i>Список цілей</h2>
+                <div class="targets-list" id="targetsList">
+                    <!-- Цели будут добавляться здесь -->
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h2><i class="fas fa-chart-bar"></i>Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalTargets">0</h3>
+                        <p>Всього цілей</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="activeTargets">0</h3>
+                        <p>Активних цілей</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="online-dot" id="statusDot"></div>
+                <span id="statusText">Підключення до сервера...</span>
+            </div>
+            <div id="currentTime">--:--:--</div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-exclamation-triangle"></i>Підтвердження видалення</h3>
+            <p>Ви впевнені, що хочете видалити цю ціль?</p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Скасувати</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Видалити</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно входа -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-user"></i>Вхід в систему</h3>
+            <div class="form-group">
+                <label for="loginEmail">Електронна пошта:</label>
+                <input type="email" id="loginEmail" placeholder="Введіть email">
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Пароль:</label>
+                <input type="password" id="loginPassword" placeholder="Введіть пароль">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="login()">Увійти</button>
+                <button class="btn btn-secondary" onclick="closeModal('loginModal')">Скасувати</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC0P3v3u9Vq2hU5p3QwQkY4L5Xb6Y7Z8A9",
+            authDomain: "air-targets-map.firebaseapp.com",
+            databaseURL: "https://air-targets-map-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "air-targets-map",
+            storageBucket: "air-targets-map.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef123456"
+        };
+        
+        // Инициализация Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+        
+        // Переменные для хранения данных
+        let map;
+        let markers = [];
+        let markerCluster;
+        let targets = {};
+        let isLoggedIn = false;
+        let currentUser = null;
+        let targetToDelete = null;
+        let addTargetMode = false;
+        
+        // Инициализация карты
+        function initMap() {
+            // Центр карты - Украина
+            map = L.map('map').setView([49.0, 31.0], 6);
+            
+            // Добавление слоя OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Инициализация кластеризации маркеров
+            markerCluster = L.markerClusterGroup({
+                chunkedLoading: true,
+                maxClusterRadius: 80
+            });
+            map.addLayer(markerCluster);
+            
+            // Добавление перекрестия в центр карты
+            const crosshair = document.querySelector('.crosshair');
+            map.getContainer().appendChild(crosshair);
+            
+            // Обработчик клика по карте
+            map.on('click', function(e) {
+                if (addTargetMode && isLoggedIn) {
+                    // Добавление цели при клике на карту
+                    document.getElementById('targetCourse').value = Math.floor(Math.random() * 360);
+                    document.getElementById('targetSpeed').value = Math.floor(Math.random() * 300) + 50;
+                    addTargetAtPosition(e.latlng);
+                }
+            });
+            
+            // Загрузка целей из Firebase
+            loadTargetsFromFirebase();
+            
+            // Обновление времени
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // Проверка статуса аутентификации
+            checkAuthState();
+        }
+        
+        // Проверка состояния аутентификации
+        function checkAuthState() {
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    // Пользователь вошел в систему
+                    currentUser = user;
+                    isLoggedIn = true;
+                    document.getElementById('logoutBtn').style.display = 'block';
+                    document.querySelector('.login-btn').style.display = 'none';
+                    updateStatus('Підключено до Firebase', true);
+                } else {
+                    // Пользователь вышел из системы
+                    currentUser = null;
+                    isLoggedIn = false;
+                    document.getElementById('logoutBtn').style.display = 'none';
+                    document.querySelector('.login-btn').style.display = 'block';
+                    updateStatus('Не підключено до Firebase', false);
+                }
+            });
+        }
+        
+        // Вход в систему
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showNotification('Будь ласка, заповніть всі поля', 'error');
+                return;
+            }
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Вход выполнен успешно
+                    closeModal('loginModal');
+                    showNotification('Вхід виконано успішно');
+                })
+                .catch((error) => {
+                    // Обработка ошибок
+                    showNotification('Помилка входу: ' + error.message, 'error');
+                });
+        }
+        
+        // Выход из системы
+        function logout() {
+            auth.signOut()
+                .then(() => {
+                    showNotification('Вихід виконано успішно');
+                })
+                .catch((error) => {
+                    showNotification('Помилка виходу: ' + error.message, 'error');
+                });
+        }
+        
+        // Загрузка целей из Firebase
+        function loadTargetsFromFirebase() {
+            database.ref('targets').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    targets = data;
+                    renderTargets();
+                    updateStats();
+                }
+            });
+        }
+        
+        // Сохранение цели в Firebase
+        function saveTargetToFirebase(targetId, targetData) {
+            database.ref('targets/' + targetId).set(targetData)
+                .then(() => {
+                    console.log('Ціль збережено в Firebase');
+                })
+                .catch((error) => {
+                    showNotification('Помилка збереження: ' + error.message, 'error');
+                });
+        }
+        
+         // Удаление цели из Firebase
+        function deleteTargetFromFirebase(targetId) {
+            database.ref('targets/' + targetId).remove()
+                .then(() => {
+                    console.log('Ціль видалено з Firebase');
+                })
+                .catch((error) => {
+                    showNotification('Помилка видалення: ' + error.message, 'error');
+                });
+        }
+        
+        // Остальной код без изменений (функции addTarget, addTargetAtPosition, renderTargets, updateStats и т.д.)
+        // ... (остальной код JavaScript остается без изменений, за исключением удаления упоминаний)
+        
+        // Показать модальное окно входа
+        function showLoginModal() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+        
+        // Функция для переключения видимости панели
+        function togglePanel() {
+            const panel = document.getElementById('sidePanel');
+            panel.classList.toggle('collapsed');
+        }
+        
+        // Функция для добавления цели
+        function addTarget() {
+            if (!isLoggedIn) {
+                showNotification('Будь ласка, увійдіть в систему', 'error');
+                return;
+            }
+            
+            const name = document.getElementById('targetName').value;
+            const type = document.getElementById('targetType').value;
+            const course = parseInt(document.getElementById('targetCourse').value);
+            const speed = parseInt(document.getElementById('targetSpeed').value);
+            
+            if (!name || isNaN(course) || isNaN(speed)) {
+                showNotification('Будь ласка, заповніть всі поля коректно', 'error');
+                return;
+            }
+            
+            // Получаем текущий центр карты
+            const center = map.getCenter();
+            addTargetAtPosition(center, name, type, course, speed);
+        }
+        
+        // Функция для добавления цели в указанной позиции
+        function addTargetAtPosition(latlng, name, type, course, speed) {
+            if (!isLoggedIn) {
+                showNotification('Будь ласка, увійдіть в систему', 'error');
+                return;
+            }
+            
+            name = name || document.getElementById('targetName').value;
+            type = type || document.getElementById('targetType').value;
+            course = course || parseInt(document.getElementById('targetCourse').value);
+            speed = speed || parseInt(document.getElementById('targetSpeed').value);
+            
+            // Генерируем уникальный ID для цели
+            const targetId = 'target_' + Date.now();
+            
+            // Создаем объект цели
+            const target = {
+                id: targetId,
+                name: name,
+                type: type,
+                lat: latlng.lat,
+                lng: latlng.lng,
+                course: course,
+                speed: speed,
+                timestamp: Date.now()
+            };
+            
+            // Сохраняем цель в Firebase
+            saveTargetToFirebase(targetId, target);
+            
+            showNotification('Ціль "' + name + '" додана');
+        }
+        
+        // Функция для отрисовки всех целей на карте
+        function renderTargets() {
+            // Очищаем маркеры
+            markerCluster.clearLayers();
+            markers = [];
+            
+            // Очищаем список целей
+            const targetsList = document.getElementById('targetsList');
+            targetsList.innerHTML = '';
+            
+            // Добавляем каждую цель на карту и в список
+            for (const targetId in targets) {
+                if (targets.hasOwnProperty(targetId)) {
+                    const target = targets[targetId];
+                    addMarkerForTarget(target);
+                    addTargetToList(target);
+                }
+            }
+        }
+        
+        // Функция для добавления маркера для цели
+        function addMarkerForTarget(target) {
+            // Определяем цвет иконки в зависимости от типа цели
+            let iconColor;
+            switch(target.type) {
+                case 'дрон': iconColor = '#ff9f43'; break;
+                case 'ракета': iconColor = '#ee5253'; break;
+                case 'винищувач': iconColor = '#0abde3'; break;
+                case 'бомба': iconColor = '#341f97'; break;
+                case 'корабль': iconColor = '#10ac84'; break;
+                case 'вертоліт': iconColor = '#5f27cd'; break;
+                default: iconColor = '#00d2d3';
+            }
+            
+            // Создаем кастомную иконку с поворотом по курсу
+            const iconHtml = `
+                <div class="rotatable-png-icon" style="
+                    transform: rotate(${target.course}deg);
+                    background-image: url('https://cdn-icons-png.flaticon.com/512/167/167755.png');
+                "></div>
+            `;
+            
+            // Создаем кастомную иконку
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'png-icon-marker',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            });
+            
+            // Создаем маркер
+            const marker = L.marker([target.lat, target.lng], { icon: customIcon });
+            
+            // Добавляем всплывающую подсказку
+            marker.bindPopup(`
+                <b>${target.name}</b><br>
+                Тип: ${target.type}<br>
+                Курс: ${target.course}°<br>
+                Швидкість: ${target.speed} км/год
+            `);
+            
+            // Добавляем маркер в кластер
+            markerCluster.addLayer(marker);
+            markers.push(marker);
+        }
+        
+        // Функция для добавления цели в список
+        function addTargetToList(target) {
+            const targetsList = document.getElementById('targetsList');
+            
+            const targetItem = document.createElement('div');
+            targetItem.className = 'target-item';
+            targetItem.dataset.id = target.id;
+            
+            targetItem.innerHTML = `
+                <h4>${target.name} <span>${target.type}</span></h4>
+                <p>Курс: ${target.course}°</p>
+                <p>Швидкість: ${target.speed} км/год</p>
+                <div class="target-actions">
+                    <button class="btn btn-danger" onclick="requestDeleteTarget('${target.id}')">Видалити</button>
+                    <button class="btn" onclick="centerOnTarget('${target.id}')">Центрувати</button>
+                </div>
+            `;
+            
+            targetsList.appendChild(targetItem);
+        }
+        
+        // Функция для центрирования карты на цели
+        function centerOnTarget(targetId) {
+            const target = targets[targetId];
+            if (target) {
+                map.setView([target.lat, target.lng], 10);
+            }
+        }
+        
+        // Функция для запроса удаления цели
+        function requestDeleteTarget(targetId) {
+            if (!isLoggedIn) {
+                showNotification('Будь ласка, увійдіть в систему', 'error');
+                return;
+            }
+            
+            targetToDelete = targetId;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+        
+        // Функция для подтверждения удаления цели
+        function confirmDelete() {
+            if (targetToDelete) {
+                deleteTargetFromFirebase(targetToDelete);
+                closeModal('deleteModal');
+                showNotification('Ціль видалена');
+                targetToDelete = null;
+            }
+        }
+        
+        // Функция для обновления статистики
+        function updateStats() {
+            const total = Object.keys(targets).length;
+            document.getElementById('totalTargets').textContent = total;
+            document.getElementById('activeTargets').textContent = total;
+        }
+        
+        // Функция для обновления времени
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('uk-UA');
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+        
+        // Функция для обновления статуса подключения
+        function updateStatus(message, isOnline) {
+            document.getElementById('statusText').textContent = message;
+            const statusDot = document.getElementById('statusDot');
+            
+            if (isOnline) {
+                statusDot.className = 'online-dot';
+            } else {
+                statusDot.className = 'offline-dot';
+            }
+        }
+        
+        // Функция для показа уведомления
+        function showNotification(message, type = 'success') {
+            // Создаем элемент уведомления
+            const notification = document.createElement('div');
+            notification.className = `course-notification ${type === 'error' ? 'error' : ''}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i>
+                ${message}
+            `;
+            
+            // Добавляем уведомление на страницу
+            document.body.appendChild(notification);
+            
+            // Удаляем уведомление через 3 секунды
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+        
+        // Функция для закрытия модального окна
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Функция для включения режима добавления цели
+        function enableAddTargetMode() {
+            if (!isLoggedIn) {
+                showNotification('Будь ласка, увійдіть в систему', 'error');
+                return;
+            }
+            
+            addTargetMode = !addTargetMode;
+            const btn = document.querySelector('.add-target-button');
+            
+            if (addTargetMode) {
+                btn.style.backgroundColor = '#00cec9';
+                showNotification('Режим додавання цілей активовано. Клацніть на карту, щоб додати ціль.');
+            } else {
+                btn.style.backgroundColor = '';
+                showNotification('Режим додавання цілей вимкнено.');
+            }
+        }
+        
+        // Инициализация карты после загрузки страницы
+        window.onload = initMap;
+    </script>
+</body>
+</html>
+           
