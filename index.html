@@ -721,6 +721,8 @@ let lastStatsUpdate = Date.now();
 let lastSyncTargets = '';
 let lastSyncDeleted = '';
 let pausedTargets = new Set(); // ⭐ НОВАЯ ПЕРЕМЕННАЯ - для временной остановки целей
+let lastUpdateTime = localStorage.getItem('lastUpdateTime') ? 
+    parseInt(localStorage.getItem('lastUpdateTime')) : Date.now();
 
 // ВАШІ НАЛАШТУВАННЯ FIREBASE
 const firebaseConfig = {
