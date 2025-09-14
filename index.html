@@ -556,7 +556,7 @@
                 </div>
                 <div class="form-group">
                     <label for="targetSpeed">Швидкість (км/год):</label>
-                    <input type="number" id="targetSpeed" value="150" min="0" max="10000">
+                    <input type="number" id="targetSpeed" value="150" min="0" max="30000">
                 </div>
                 <div class="form-group">
                     <label for="targetCourse">Курс (0-360°):</label>
@@ -1146,8 +1146,8 @@ function addTargetAtPosition(latlng) {
         return;
     }
     
-    if (isNaN(speed) || speed < 0 || speed > 10000) {
-        alert('Швидкість повинна бути від 0 до 10000 км/год');
+    if (isNaN(speed) || speed < 0 || speed > 30000) {
+        alert('Швидкість повинна бути від 0 до 30000 км/год');
         return;
     }
     
