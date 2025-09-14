@@ -1324,6 +1324,12 @@ function updateMarkerRotation(target) {
     if (markers[target.id]) {
         const newIcon = getIconForType(target.type, target.course);
         markers[target.id].setIcon(newIcon);
+        // Немедленно обновляем поворот
+        if (markers[target.id]._icon) {
+            markers[target.id]._icon.style.transform = `rotate(${target.course}deg)`;
+        }
+    }
+}
         
         // Форматируем дату создания
         const createdDate = new Date(target.createdAt);
@@ -1432,10 +1438,13 @@ function moveTargets() {
         }
         
         // Оновлення маркера
-        if (markers[target.id]) {
-            markers[target.id].setLatLng([target.latitude, target.longitude]);
-            updateMarkerRotation(target);
-        }
+if (markers[target.id]) {
+    markers[target.id].setLatLng([target.latitude, target.longitude]);
+    // Немедленно обновляем поворот с новым значением
+    if (markers[target.id]._icon) {
+        markers[target.id]._icon.style.transform = `rotate(${target.rotation}deg)`;
+    }
+}
         
         // Оновлення траєкторії
         if (!targetHistory[target.id]) {
