@@ -1049,4 +1049,608 @@ function toggleClustering() {
         button.innerHTML = '<i class="fas fa-object-group"></i>Вимкнути кластеризацію';
         // Перемещаем все маркеры из individual в кластер
         individualTargets.eachLayer(function(marker) {
-            markerCluster
+                    markerCluster.addLayer(marker);
+    });
+    individualTargets.clearLayers();
+    } else {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Увімкнути кластеризацію';
+        // Перемещаем все маркеры из кластера в individual
+        markerCluster.eachLayer(function(marker) {
+            individualTargets.addLayer(marker);
+        });
+        markerCluster.clearLayers();
+    }
+}
+
+function updateTargetClusters() {
+    const currentZoom = map.getZoom();
+    
+    if (currentZoom > 10) {
+        markerCluster.options.maxClusterRadius = 30;
+    } else {
+        markerCluster.options.maxClusterRadius = 80;
+    }
+    
+    markerCluster.refreshClusters();
+}
+
+function addTrajectory(target) {
+    if (polylines[target.id]) {
+        map.removeLayer(polylines[target.id]);
+    }
+    
+    if (targetHistory[target.id] && targetHistory[target.id].length > 0) {
+        const polyline = L.polyline(targetHistory[target.id].map(point => [point.lat, point.lng]), {
+            color: '#00cec9',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '5, 10'
+        });
+        
+        if (showTrajectories) {
+            polyline.addTo(map);
+        }
+        polylines[target.id] = polyline;
+    }
+}
+
+function updateTrajectories() {
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    if (showTrajectories) {
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id) && targetHistory[target.id]) {
+                addTrajectory(target);
+            }
+        });
+    }
+}
+
+// ====== ЧАСТЬ 4: ОСТАЛЬНЫЕ ФУНКЦИИ ======
+function moveTargets() {
+    const now = Date.now();
+    const deltaTime = (now - lastUpdateTime) / 1000;
+    lastUpdateTime = now;
+    
+    targets.forEach(target => {
+        if (deletedTargets.has(target.id) || pausedTargets.has(target.id)) return;
+        
+        const distance = (target.speed * 1000 / 3600) * deltaTime;
+        const bearing = target.course * Math.PI / 180;
+        
+        const lat1 = target.latitude * Math.PI / 180;
+        const lon1 = target.longitude * Math.PI / 180;
+        
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / 6371000) +
+                             Math.cos(lat1) * Math.sin(distance / 6371000) * Math.cos(bearing));
+        
+        const lon2 = lon1 + Math.atan2(Math.sin(bearing) * Math.sin(distance / 6371000) * Math.cos(lat1),
+                                     Math.cos(distance / 6371000) - Math.sin(lat1) * Math.sin(lat2));
+        
+        target.latitude = lat2 * 180 / Math.PI;
+        target.longitude = lon2 * 180 / Math.PI;
+        target.distance += distance;
+        
+        if (target.speed > target.maxSpeed) {
+            target.maxSpeed = target.speed;
+        }
+        
+        if (markers[target.id]) {
+            markers[target.id].setLatLng([target.latitude, target.longitude]);
+            updateMarkerRotation(target);
+        }
+        
+        if (!targetHistory[target.id]) {
+            targetHistory[target.id] = [];
+        }
+        targetHistory[target.id].push({
+            lat: target.latitude,
+            lng: target.longitude,
+            timestamp: now
+        });
+        
+        if (showTrajectories && polylines[target.id]) {
+            polylines[target.id].setLatLngs(
+                targetHistory[target.id].map(point => [point.lat, point.lng])
+            );
+        }
+        
+        target.lastTrajectoryUpdate = now;
+        target.updatedAt = now;
+    });
+    
+    document.getElementById('lastUpdate').textContent = 
+        `Оновлено: ${new Date().toLocaleTimeString()}`;
+    
+    if (Date.now() - lastStatsUpdate > 1000) {
+        updateStats();
+        lastStatsUpdate = Date.now();
+    }
+}
+
+function updateMarkerRotation(target) {
+    if (markers[target.id]) {
+        const newIcon = getIconForType(target.type, target.course);
+        markers[target.id].setIcon(newIcon);
+        
+        const createdDate = new Date(target.createdAt);
+        const formattedDate = createdDate.toLocaleString('uk-UA');
+        
+        const popupContent = `
+            <div class="target-info-window">
+                <h4>${target.name}</h4>
+                <p><strong>Тип:</strong> ${target.type}</p>
+                <p><strong>Швидкість:</strong> ${target.speed} км/год</p>
+                <p><strong>Курс:</strong> ${target.course}°</p>
+                <p><strong>Відстань:</strong> ${(target.distance / 1000).toFixed(1)} км</p>
+                <p><strong>Додано:</strong> ${formattedDate}</p>
+                ${isAdmin ? `
+                <div class="action-buttons">
+                    <button class="action-button edit-btn" onclick="event.stopPropagation(); editTarget('${target.id}')">
+                        <i class="fas fa-edit"></i> Редагувати
+                    </button>
+                    <button class="action-button delete-btn" onclick="event.stopPropagation(); deleteTarget('${target.id}')">
+                        <i class="fas fa-trash"></i> Видалити
+                    </button>
+                    <button class="action-button course-btn" onclick="event.stopPropagation(); showCourseSelectionModal('${target.id}')">
+                        <i class="fas fa-route"></i> Курс
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        markers[target.id].setPopupContent(popupContent);
+    }
+}
+
+function editTarget(targetId) {
+    if (!isAdmin) return;
+    
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    currentEditTargetId = targetId;
+    document.getElementById('editName').value = target.name;
+    document.getElementById('editType').value = target.type;
+    document.getElementById('editSpeed').value = target.speed;
+    document.getElementById('editCourse').value = target.course;
+    
+    document.getElementById('editModal').style.display = 'block';
+}
+
+function saveTargetEdit() {
+    if (!currentEditTargetId) return;
+    
+    const target = targets.find(t => t.id === currentEditTargetId);
+    if (!target) return;
+    
+    target.name = document.getElementById('editName').value;
+    target.type = document.getElementById('editType').value;
+    target.speed = parseInt(document.getElementById('editSpeed').value);
+    target.course = parseInt(document.getElementById('editCourse').value);
+    target.updatedAt = Date.now();
+    
+    updateMarkerRotation(target);
+    closeEditModal();
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+function deleteTarget(targetId) {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ви впевнені, що хочете видалити цю ціль?')) return;
+    
+    deletedTargets.add(targetId);
+    targets = targets.filter(t => t.id !== targetId);
+    
+    if (markers[targetId]) {
+        if (isClusteringEnabled) {
+            markerCluster.removeLayer(markers[targetId]);
+        } else {
+            individualTargets.removeLayer(markers[targetId]);
+        }
+        delete markers[targetId];
+    }
+    
+    removeTrajectory(targetId);
+    delete targetHistory[targetId];
+    
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+function removeTrajectory(targetId) {
+    if (polylines[targetId]) {
+        map.removeLayer(polylines[targetId]);
+        delete polylines[targetId];
+    }
+}
+
+function updateTargetsList() {
+    const targetsList = document.getElementById('targetsList');
+    targetsList.innerHTML = '';
+    
+    targets.forEach(target => {
+        if (deletedTargets.has(target.id)) return;
+        
+        const createdDate = new Date(target.createdAt);
+        const formattedDate = createdDate.toLocaleString('uk-UA');
+        
+        const targetItem = document.createElement('div');
+        targetItem.className = 'target-item';
+        targetItem.innerHTML = `
+            <h4>${target.name} <span style="font-size: 12px; color: #00cec9;">${target.type}</span></h4>
+            <p>Швидкість: ${target.speed} км/год</p>
+            <p>Курс: ${target.course}°</p>
+            <p>Відстань: ${(target.distance / 1000).toFixed(1)} км</p>
+            <p>Додано: ${formattedDate}</p>
+            ${isAdmin ? `
+            <div class="target-actions">
+                <button class="btn" onclick="editTarget('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-danger" onclick="deleteTarget('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="showCourseSelectionModal('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-route"></i>
+                </button>
+            </div>
+            ` : ''}
+        `;
+        targetsList.appendChild(targetItem);
+    });
+}
+
+function updateStats() {
+    const activeTargets = targets.filter(t => !deletedTargets.has(t.id));
+    
+    document.getElementById('totalTargets').textContent = activeTargets.length;
+    document.getElementById('activeTargets').textContent = activeTargets.filter(t => t.speed > 0).length;
+    
+    const maxSpeed = activeTargets.reduce((max, target) => 
+        target.speed > max ? target.speed : max, 0
+    );
+    document.getElementById('maxSpeed').textContent = maxSpeed;
+    
+    const totalDistance = activeTargets.reduce((sum, target) => 
+        sum + target.distance, 0
+    );
+    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1);
+}
+
+function toggleTrajectories() {
+    showTrajectories = !showTrajectories;
+    
+    if (showTrajectories) {
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id)) {
+                addTrajectory(target);
+            }
+        });
+    } else {
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        polylines = {};
+    }
+    
+    alert(`Траєкторії ${showTrajectories ? 'увімкнено' : 'вимкнено'}`);
+}
+
+// ====== ФУНКЦИИ АВТОСОХРАНЕНИЯ И СИНХРОНИЗАЦИИ ======
+function startAnimationLoop() {
+    function animationLoop() {
+        moveTargets();
+        updateTargetClusters();
+        animationFrameId = requestAnimationFrame(animationLoop);
+    }
+    animationFrameId = requestAnimationFrame(animationLoop);
+}
+
+function startAutoSave() {
+    autoSaveInterval = setInterval(function() {
+        saveTargets();
+    }, 5000);
+}
+
+function startAutoSync() {
+    lastSyncTargets = JSON.stringify(targets);
+    lastSyncDeleted = JSON.stringify(Array.from(deletedTargets));
+    
+    syncInterval = setInterval(function() {
+        if (!isOnline || isSyncing) return;
+        
+        const currentTargets = JSON.stringify(targets);
+        const currentDeleted = JSON.stringify(Array.from(deletedTargets));
+        
+        if (currentTargets !== lastSyncTargets || currentDeleted !== lastSyncDeleted) {
+            syncWithFirebase();
+            lastSyncTargets = currentTargets;
+            lastSyncDeleted = currentDeleted;
+        }
+        
+        if (Date.now() - lastSyncTime > 5000) {
+            loadFromFirebase();
+            lastSyncTime = Date.now();
+        }
+    }, 1000);
+}
+
+function debouncedSave() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveTargets();
+    }, 1000);
+}
+
+function saveTargets() {
+    localStorage.setItem('deletedTargets', JSON.stringify(Array.from(deletedTargets)));
+    saveTargetsToLocalStorage();
+    
+    if (isOnline) {
+        syncWithFirebase();
+    }
+}
+
+function saveTargetsToLocalStorage() {
+    try {
+        localStorage.setItem('airTargets', JSON.stringify(targets));
+        localStorage.setItem('airTargetsHistory', JSON.stringify(targetHistory));
+        console.log("Цілі збережено в локальне сховище");
+    } catch (error) {
+        console.error("Помилка збереження в локальне сховище:", error);
+    }
+}
+
+function loadTargetsFromLocalStorage() {
+    try {
+        const savedTargets = localStorage.getItem('airTargets');
+        const savedHistory = localStorage.getItem('airTargetsHistory');
+        const savedDeleted = localStorage.getItem('deletedTargets');
+        
+        if (savedTargets) {
+            targets = JSON.parse(savedTargets);
+            console.log("Цілі завантажено з локального сховища:", targets.length);
+        }
+        
+        if (savedHistory) {
+            targetHistory = JSON.parse(savedHistory);
+        }
+        
+        if (savedDeleted) {
+            deletedTargets = new Set(JSON.parse(savedDeleted));
+        }
+        
+        updateMap();
+        updateStats();
+        updateTargetsList();
+    } catch (error) {
+        console.error("Помилка завантаження з локального сховища:", error);
+        targets = [];
+        targetHistory = {};
+        deletedTargets = new Set();
+    }
+}
+
+function updateMap() {
+    markerCluster.clearLayers();
+    individualTargets.clearLayers();
+    markers = {};
+    
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    targets.forEach(target => {
+        if (!deletedTargets.has(target.id)) {
+            addTargetToMap(target);
+        }
+    });
+}
+
+// ====== FIREBASE ФУНКЦИИ ======
+function initFirebase() {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        isOnline = true;
+        console.log("Firebase успішно підключено!");
+        setupRealtimeListeners();
+    } catch (error) {
+        console.log("Помилка підключення до Firebase, використовуємо офлайн-режим:", error);
+        isOnline = false;
+    }
+    updateStatus();
+}
+
+function setupRealtimeListeners() {
+    if (!isOnline) return;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
+        
+        targetsRef.on('value', (snapshot) => {
+            const firebaseTargets = snapshot.val() || {};
+            
+            if (isSyncing) {
+                isSyncing = false;
+                return;
+            }
+            
+            console.log("Отримано оновлення з Firebase");
+            mergeTargetsFromFirebase(firebaseTargets);
+        });
+        
+        deletedRef.on('value', (snapshot) => {
+            const firebaseDeleted = snapshot.val() || [];
+            
+            firebaseDeleted.forEach(id => {
+                if (!deletedTargets.has(id)) {
+                    deletedTargets.add(id);
+                    const targetIndex = targets.findIndex(t => t.id === id);
+                    if (targetIndex !== -1) {
+                        targets.splice(targetIndex, 1);
+                    }
+                    if (markers[id]) {
+                        if (isClusteringEnabled) {
+                            markerCluster.removeLayer(markers[id]);
+                        } else {
+                            individualTargets.removeLayer(markers[id]);
+                        }
+                        delete markers[id];
+                    }
+                    removeTrajectory(id);
+                    delete targetHistory[id];
+                    
+                    updateStats();
+                    updateTargetsList();
+                }
+            });
+        });
+        
+        historyRef.on('value', (snapshot) => {
+            const firebaseHistory = snapshot.val() || {};
+            
+            Object.keys(firebaseHistory).forEach(targetId => {
+                if (!deletedTargets.has(targetId)) {
+                    targetHistory[targetId] = firebaseHistory[targetId];
+                    
+                    if (showTrajectories && polylines[targetId]) {
+                        polylines[targetId].setLatLngs(
+                            targetHistory[targetId].map(point => [point.lat, point.lng])
+                        );
+                    }
+                }
+            });
+        });
+        
+        const usersRef = db.ref('onlineUsers');
+        const userRef = usersRef.push();
+        
+        userRef.set({
+            connected: true,
+            lastSeen: Date.now(),
+            isAdmin: isAdmin,
+            userAgent: navigator.userAgent,
+            sessionId: userSessionId
+        });
+        
+        userRef.onDisconnect().remove();
+        
+        usersRef.on('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            const activeUsers = Object.values(users).filter(user => 
+                user.connected && Date.now() - user.lastSeen < 30000
+            );
+            
+            document.getElementById('onlineUsers').textContent = `Онлайн: ${activeUsers.length}`;
+        });
+    } catch (error) {
+        console.error('Помилка Firebase:', error);
+        isOnline = false;
+        updateStatus();
+    }
+}
+
+function loadFromFirebase() {
+    if (!isOnline) return;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
+        
+        targetsRef.once('value').then((snapshot) => {
+            const firebaseTargets = snapshot.val() || {};
+            console.log("Завантажено цілі з Firebase");
+            mergeTargetsFromFirebase(firebaseTargets);
+        });
+        
+        deletedRef.once('value').then((snapshot) => {
+            const firebaseDeleted = snapshot.val() || [];
+            firebaseDeleted.forEach(id => {
+                if (!deletedTargets.has(id)) {
+                    deletedTargets.add(id);
+                }
+            });
+        });
+        
+        historyRef.once('value').then((snapshot) => {
+            const firebaseHistory = snapshot.val() || {};
+            console.log("Завантажено історію траєкторій з Firebase");
+            
+            Object.keys(firebaseHistory).forEach(targetId => {
+                if (!deletedTargets.has(targetId)) {
+                    targetHistory[targetId] = firebaseHistory[targetId];
+                }
+            });
+            
+            if (showTrajectories) {
+                updateTrajectories();
+            }
+        });
+    } catch (error) {
+        console.error('Помилка завантаження з Firebase:', error);
+    }
+}
+
+function mergeTargetsFromFirebase(firebaseTargets) {
+    const firebaseTargetsArray = Object.values(firebaseTargets);
+    
+    firebaseTargetsArray.forEach(firebaseTarget => {
+        if (deletedTargets.has(firebaseTarget.id)) {
+            return;
+        }
+        
+        const existingTarget = targets.find(t => t.id === firebaseTarget.id);
+        if (!existingTarget) {
+            targets.push(firebaseTarget);
+            console.log("Додано ціль з Firebase:", firebaseTarget.name);
+            addTargetToMap(firebaseTarget);
+        } else if (firebaseTarget.updatedAt > existingTarget.updatedAt) {
+            Object.assign(existingTarget, firebaseTarget);
+            updateMarkerRotation(existingTarget);
+        }
+    });
+    
+    saveTargetsToLocalStorage();
+    updateStats();
+    updateTargetsList();
+}
+
+function syncWithFirebase() {
+    if (!isOnline || isSyncing) return;
+    
+    isSyncing = true;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
+        
+        const activeTargets = targets.filter(target => !deletedTargets.has(target.id));
+        
+        const targetsObject = {};
+        activeTargets.forEach(target => {
+            targetsObject[target.id] = target;
+        });
+        
+        targetsRef.set(targetsObject)
+            .then(() => {
+                console.log("Дані цілей синхронізовані з Firebase");
+            })
+            .catch((error) => {
+                console.error("Помилка синхронізації цілей:", error);
+                isOnline = fal
