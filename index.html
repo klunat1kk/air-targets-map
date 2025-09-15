@@ -1988,4 +1988,219 @@ function logout() {
 // Оновити UI відповідно до ролі користувача
 function updateUIForUserRole() {
     const loginBtn = document.querySelector('.login-btn');
-    const logout
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminElements = document.querySelectorAll('.admin-only');
+    
+    if (isAdmin) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        adminElements.forEach(el => el.style.display = 'block');
+    } else {
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        adminElements.forEach(el => el.style.display = 'none';
+    }
+}
+
+// НОВЫЕ ФУНКЦИИ ДЛЯ СТРЕЛОК И КЛАСТЕРИЗАЦИИ
+
+// Переключение кластеризации
+function toggleClustering() {
+    isClusteringEnabled = !isClusteringEnabled;
+    const button = document.getElementById('toggleClusterBtn');
+    
+    if (isClusteringEnabled) {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Вимкнути кластеризацію';
+        // Перемещаем маркеры обратно в кластер
+        individualTargets.eachLayer(function(marker) {
+            markerCluster.addLayer(marker);
+        });
+        individualTargets.clearLayers();
+    } else {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Увімкнути кластеризацію';
+        // Извлекаем маркеры из кластера и добавляем по отдельности
+        markerCluster.eachLayer(function(marker) {
+            individualTargets.addLayer(marker);
+        });
+        markerCluster.clearLayers();
+    }
+}
+
+// Переключение режима стрелки
+function toggleArrowMode() {
+    arrowMode = !arrowMode;
+    const button = document.getElementById('toggleArrowBtn');
+    
+    if (arrowMode) {
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Вийти з режиму стрілок';
+    } else {
+        button.style.backgroundColor = '';
+        button.style.color = '';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Режим стрілок';
+        // Видаляємо тимчасову лінію, якщо режим вимкнуто
+        if (tempArrowLine) {
+            map.removeLayer(tempArrowLine);
+            tempArrowLine = null;
+        }
+        tempArrowStartLatLng = null;
+    }
+}
+
+// Обработчик клика для рисования стрелок
+function handleArrowClick(e) {
+    if (!arrowMode) return;
+
+    if (!tempArrowStartLatLng) {
+        // Первый клик - начало стрелки
+        tempArrowStartLatLng = e.latlng;
+        tempArrowLine = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red'}).addTo(map);
+    } else {
+        // Второй клик - конец стрелки
+        const arrowIcon = L.icon({
+            iconUrl: 'icons/strelka.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        const arrowHead = L.marker(e.latlng, {icon: arrowIcon});
+        const arrowBody = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red', weight: 3});
+
+        // Добавляем контекстное меню для удаления стрелки
+        arrowHead.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+        arrowBody.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+
+        // Добавляем стрелку на карту и в группу
+        allArrows.addLayer(arrowHead);
+        allArrows.addLayer(arrowBody);
+
+        // Сбрасываем временные переменные
+        map.removeLayer(tempArrowLine);
+        tempArrowLine = null;
+        tempArrowStartLatLng = null;
+    }
+}
+
+// Налаштування обробників подій
+function setupEventListeners() {
+    // Закриття модальних вікон по кліку на затемнений фон
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isAddTargetMode = false;
+                isCourseSelectionMode = false;
+            }
+        });
+    });
+    
+    // Обробка клавіші ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoginModal();
+            closeEditModal();
+            cancelCourseSelection();
+            isAddTargetMode = false;
+        }
+    });
+    
+    // Автозаповнення назви цілі
+    document.getElementById('targetName').addEventListener('focus', function() {
+        if (!this.value) {
+            this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    // Додаємо обробник для імпорту файлів
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        // Обробка імпортованих даних
+                        importedData.forEach(target => {
+                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
+                            target.createdAt = Date.now();
+                            target.updatedAt = Date.now();
+                            target.createdBy = userSessionId;
+                            targets.push(target);
+                        });
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        alert('Дані успішно імпортовані!');
+                    }
+                } catch (error) {
+                    alert('Помилка при імпорті файлу: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    console.log("Обробники подій успішно налаштовані");
+}
+
+// Оновити карту
+function updateMap() {
+    // Очистити всі маркери
+    markerCluster.clearLayers();
+    individualTargets.clearLayers();
+    markers = {};
+    
+    // Очистити всі траєкторії
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    // Додати цілі на карту (кроме удаленных)
+    targets.forEach(target => {
+        if (!deletedTargets.has(target.id)) {
+            addTargetToMap(target);
+        }
+    });
+}
+
+// Ініціалізація при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+});
+
+// Глобальні функції для виклику з HTML
+window.addTargetAtCenter = addTargetAtCenter;
+window.toggleTrajectories = toggleTrajectories;
+window.toggleClustering = toggleClustering;
+window.toggleArrowMode = toggleArrowMode;
+window.clearAllTargets = clearAllTargets;
+window.exportTargets = exportTargets;
+window.importTargets = importTargets;
+window.togglePanel = togglePanel;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.attemptLogin = attemptLogin;
+window.logout = logout;
+window.enableAddTargetMode = enableAddTargetMode;
+window.editTarget = editTarget;
+window.deleteTarget = deleteTarget;
+window.saveTargetEdit = saveTargetEdit;
+window.closeEditModal = closeEditModal;
+window.showCourseSelectionModal = showCourseSelectionModal;
+window.confirmCourseSelection = confirmCourseSelection;
+window.cancelCourseSelection = cancelCourseSelection;
+window.setTargetCourseFromMap = setTargetCourseFromMap;
+</script>
+</body>
+</html>
