@@ -812,8 +812,38 @@ function initApp() {
 }
 
 // Инициализация карты
-function initMap() {
-    map = L.map('map').setView([50.4500, 30.5233], 6);
+function initApp() {
+    // Проверка загрузки библиотек
+    if (typeof L === 'undefined') {
+        console.error('Leaflet не завантажився');
+        alert('Помилка: Бібліотека карт не завантажилась. Перевірте підключення до інтернету');
+        return;
+    }
+    
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase не завантажився');
+        alert('Помилка: Firebase не завантажився. Деякі функції будуть обмежені');
+    }
+    
+    try {
+        initMap();
+        loadTargetsFromLocalStorage();
+        initFirebase();
+        setupEventListeners();
+        updateStats();
+        updateStatus();
+        startAutoSave();
+        startAutoSync();
+        updateUIForUserRole();
+        
+        startAnimationLoop();
+        
+        console.log("Додаток успішно ініціалізовано");
+    } catch (error) {
+        console.error('Помилка ініціалізації:', error);
+        alert('Помилка ініціалізації: ' + error.message);
+    }
+}
 
     // Добавляем темную тему карты
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
