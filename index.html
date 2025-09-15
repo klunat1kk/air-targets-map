@@ -1290,6 +1290,7 @@ function addTargetAtCenter() {
 // Функція для отримання іконки за типом цілі
 function getIconForType(type, course = 0) {
     const iconUrl = targetTypes[type]?.iconUrl;
+    
     if (iconUrl) {
         return L.divIcon({
             html: `<div class="rotatable-png-icon" style="transform: rotate(${course + 90}deg); 
@@ -1298,7 +1299,30 @@ function getIconForType(type, course = 0) {
             iconSize: [40, 40],
             iconAnchor: [20, 20]
         });
-    } else {
+    }
+    
+    // Простой маркер для неизвестных типов
+    return L.divIcon({
+        html: `<div style="
+            background: #00cec9;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            transform: rotate(${course}deg);
+        ">●</div>`,
+        iconSize: [35, 35],
+        iconAnchor: [17, 17]
+    });
+}
         // Fallback для типов, яких немає в targetTypes
         const colors = {
             'винищувач': '#48dbfb',
