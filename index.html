@@ -1653,4 +1653,379 @@ function syncWithFirebase() {
             })
             .catch((error) => {
                 console.error("Помилка синхронізації цілей:", error);
-                isOnline = fal
+                isOnline = false;
+                updateStatus();
+            });
+            
+        const deletedArray = Array.from(deletedTargets);
+        deletedRef.set(deletedArray)
+            .then(() => {
+                console.log("Видалені цілі синхронізовані з Firebase");
+            })
+            .catch((error) => {
+                console.error("Помилка синхронізації видалених цілей:", error);
+            });
+            
+        const historyChanges = {};
+        Object.keys(targetHistory).forEach(targetId => {
+            if (!deletedTargets.has(targetId)) {
+                historyChanges[targetId] = targetHistory[targetId].slice(-50);
+            }
+        });
+
+        historyRef.update(historyChanges)
+            .then(() => {
+                console.log("Історія траєкторій синхронізована з Firebase");
+            })
+            .catch((error) => {
+                console.error("Помилка синхронізації історії траєкторій:", error);
+            })
+            .finally(() => {
+                isSyncing = false;
+            });
+    } catch (error) {
+        console.error("Помилка Firebase:", error);
+        isOnline = false;
+        updateStatus();
+        isSyncing = false;
+    }
+}
+
+// ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+function updateStatus() {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    
+    if (isOnline) {
+        statusDot.className = 'online-dot';
+        statusText.textContent = 'Онлайн';
+    } else {
+        statusDot.className = 'offline-dot';
+        statusText.textContent = 'Офлайн';
+    }
+}
+
+function togglePanel() {
+    const panel = document.getElementById('sidePanel');
+    panel.classList.toggle('collapsed');
+    isPanelExpanded = !isPanelExpanded;
+    
+    const button = document.querySelector('.toggle-panel-btn');
+    button.innerHTML = isPanelExpanded ? 
+        '<i class="fas fa-eye-slash"></i><span>Сховати</span>' : 
+        '<i class="fas fa-eye"></i><span>Панель</span>';
+}
+
+function showLoginModal() {
+    document.getElementById('loginModal').style.display = 'block';
+}
+
+function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentEditTargetId = null;
+}
+
+function attemptLogin() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (username === 'admin123450' && password === 'password123450') {
+        isAdmin = true;
+        closeLoginModal();
+        updateUIForUserRole();
+        alert('Успішний вхід як адміністратор');
+    } else {
+        alert('Невірний логін або пароль');
+    }
+}
+
+function logout() {
+    isAdmin = false;
+    updateUIForUserRole();
+    alert('Вихід виконано');
+}
+
+function updateUIForUserRole() {
+    const loginBtn = document.querySelector('.login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminElements = document.querySelectorAll('.admin-only');
+    
+    if (!loginBtn || !logoutBtn) {
+        console.error('Не знайдено кнопки логіну/виходу');
+        return;
+    }
+    
+    if (isAdmin) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'block';
+        });
+    } else {
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'none';
+        });
+    }
+}
+
+function showCourseSelectionModal(targetId) {
+    if (!isAdmin) return;
+    
+    selectedTargetForCourse = targetId;
+    isCourseSelectionMode = true;
+    document.getElementById('courseSelectionModal').style.display = 'block';
+    alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс');
+}
+
+function confirmCourseSelection() {
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+function cancelCourseSelection() {
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+function setTargetCourseFromMap(latlng) {
+    if (!selectedTargetForCourse) return;
+    
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (!target) return;
+    
+    const currentLatLng = L.latLng(target.latitude, target.longitude);
+    const course = calculateCourse(currentLatLng, latlng);
+    
+    target.course = course;
+    target.updatedAt = Date.now();
+    
+    updateMarkerRotation(target);
+    debouncedSave();
+    cancelCourseSelection();
+    
+    console.log(`Курс цілі ${target.name} змінено на: ${course}°`);
+}
+
+function calculateCourse(from, to) {
+    const dLon = (to.lng - from.lng) * Math.PI / 180;
+    const lat1 = from.lat * Math.PI / 180;
+    const lat2 = to.lat * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+             Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    
+    let course = Math.atan2(y, x) * 180 / Math.PI;
+    course = (course + 360) % 360;
+    
+    return Math.round(course);
+}
+
+function toggleArrowMode() {
+    arrowMode = !arrowMode;
+    const button = document.getElementById('toggleArrowBtn');
+    
+    if (arrowMode) {
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Вийти з режиму стрілок';
+    } else {
+        button.style.backgroundColor = '';
+        button.style.color = '';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Режим стрілок';
+        if (tempArrowLine) {
+            map.removeLayer(tempArrowLine);
+            tempArrowLine = null;
+        }
+        tempArrowStartLatLng = null;
+    }
+}
+
+function handleArrowClick(e) {
+    if (!arrowMode) return;
+
+    if (!tempArrowStartLatLng) {
+        tempArrowStartLatLng = e.latlng;
+        tempArrowLine = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red'}).addTo(map);
+    } else {
+        const arrowIcon = L.icon({
+            iconUrl: 'icons/strelka.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        const arrowHead = L.marker(e.latlng, {icon: arrowIcon});
+        const arrowBody = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red', weight: 3});
+
+        arrowHead.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+        arrowBody.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+
+        allArrows.addLayer(arrowHead);
+        allArrows.addLayer(arrowBody);
+
+        map.removeLayer(tempArrowLine);
+        tempArrowLine = null;
+        tempArrowStartLatLng = null;
+    }
+}
+
+function clearAllTargets() {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+    
+    targets.forEach(target => {
+        deletedTargets.add(target.id);
+    });
+    
+    markerCluster.clearLayers();
+    individualTargets.clearLayers();
+    markers = {};
+    
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    targets = [];
+    targetHistory = {};
+    
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+function exportTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може експортувати цілі');
+        return;
+    }
+    
+    try {
+        const activeTargets = targets.filter(t => !deletedTargets.has(t.id));
+        const dataStr = JSON.stringify(activeTargets, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'air-targets-' + new Date().toISOString().slice(0, 10) + '.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    } catch (error) {
+        console.error("Помилка експорту:", error);
+        alert('Помилка при експорті даних');
+    }
+}
+
+function importTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може імпортувати цілі');
+        return;
+    }
+    
+    document.getElementById('importFile').click();
+}
+
+function setupEventListeners() {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isAddTargetMode = false;
+                isCourseSelectionMode = false;
+            }
+        });
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoginModal();
+            closeEditModal();
+            cancelCourseSelection();
+            isAddTargetMode = false;
+        }
+    });
+    
+    document.getElementById('targetName').addEventListener('focus', function() {
+        if (!this.value) {
+            this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        importedData.forEach(target => {
+                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 11);
+                            target.createdAt = Date.now();
+                            target.updatedAt = Date.now();
+                            target.createdBy = userSessionId;
+                            targets.push(target);
+                        });
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        alert('Дані успішно імпортовані!');
+                    }
+                } catch (error) {
+                    alert('Помилка при імпорті файлу: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    console.log("Обробники подій успішно налаштовані");
+}
+
+// ====== ИНИЦИАЛИЗАЦИЯ И ГЛОБАЛЬНЫЕ ФУНКЦИИ ======
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+});
+
+window.addTargetAtCenter = addTargetAtCenter;
+window.toggleTrajectories = toggleTrajectories;
+window.toggleClustering = toggleClustering;
+window.toggleArrowMode = toggleArrowMode;
+window.clearAllTargets = clearAllTargets;
+window.exportTargets = exportTargets;
+window.importTargets = importTargets;
+window.togglePanel = togglePanel;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.attemptLogin = attemptLogin;
+window.logout = logout;
+window.enableAddTargetMode = enableAddTargetMode;
+window.editTarget = editTarget;
+window.deleteTarget = deleteTarget;
+window.saveTargetEdit = saveTargetEdit;
+window.closeEditModal = closeEditModal;
+window.showCourseSelectionModal = showCourseSelectionModal;
+window.confirmCourseSelection = confirmCourseSelection;
+window.cancelCourseSelection = cancelCourseSelection;
+window.setTargetCourseFromMap = setTargetCourseFromMap;
+</script>
+</body>
+</html>
