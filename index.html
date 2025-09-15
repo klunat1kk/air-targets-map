@@ -744,7 +744,7 @@ let saveTimeout = null;
 let lastUpdateTime = Date.now();
 let animationFrameId = null;
 let targetClusters = {};
-let userSessionId = Math.random().toString(36).substr(2, 9);
+let userSessionId = Math.random().toString(36).substring(2, 11);
 let syncInterval = null;
 let isAddTargetMode = false;
 let popupOpenTargetId = null;
@@ -833,72 +833,68 @@ const firebaseConfig = {
         
         map = L.map('map').setView([50.4500, 30.5233], 6);
 
-        // Остальной код инициализации карты...
+        // Добавляем темную тему карты
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap, © CartoDB',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Инициализация кластеризации
+        markerCluster = L.markerClusterGroup({
+            chunkedLoading: true,
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                let size = 'small';
+                if (count > 10) size = 'medium';
+                if (count > 25) size = 'large';
+                
+                return L.divIcon({
+                    html: '<div><span>' + count + '</span></div>',
+                    className: 'marker-cluster marker-cluster-' + size,
+                    iconSize: L.point(40, 40)
+                });
+            }
+        });
+        map.addLayer(markerCluster);
         
+        // Добавляем слои для отдельных маркеров и стрелок
+        map.addLayer(individualTargets);
+        map.addLayer(allArrows);
+
+        // Добавляем обработчик клика по карте
+        map.on('click', function(e) {
+            if (isAddTargetMode && isAdmin) {
+                addTargetAtPosition(e.latlng);
+                isAddTargetMode = false;
+            } else if (isCourseSelectionMode && selectedTargetForCourse) {
+                setTargetCourseFromMap(e.latlng);
+            } else if (arrowMode) {
+                handleArrowClick(e);
+            }
+        });
+
+        // Обновляем кластеризацию при изменении зума
+        map.on('zoomend', function() {
+            updateTargetClusters();
+        });
+
+        // Обработчик движения мыши для временной линии стрелки
+        map.on('mousemove', function(e) {
+            if (arrowMode && tempArrowStartLatLng && tempArrowLine) {
+                tempArrowLine.setLatLngs([tempArrowStartLatLng, e.latlng]);
+            }
+        });
+
+        console.log("Карта успішно ініціалізована");
     } catch (error) {
         console.error('Помилка ініціалізації карти:', error);
         alert('Помилка створення карти: ' + error.message);
     }
     }
-
-    // Добавляем темную тему карты
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap, © CartoDB',
-        maxZoom: 19
-    }).addTo(map);
-
-    // Инициализация кластеризации
-    markerCluster = L.markerClusterGroup({
-        chunkedLoading: true,
-        maxClusterRadius: 50,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
-        iconCreateFunction: function(cluster) {
-            const count = cluster.getChildCount();
-            let size = 'small';
-            if (count > 10) size = 'medium';
-            if (count > 25) size = 'large';
-            
-            return L.divIcon({
-                html: '<div><span>' + count + '</span></div>',
-                className: 'marker-cluster marker-cluster-' + size,
-                iconSize: L.point(40, 40)
-            });
-        }
-    });
-    map.addLayer(markerCluster);
-    
-    // Добавляем слои для отдельных маркеров и стрелок
-    map.addLayer(individualTargets);
-    map.addLayer(allArrows);
-
-    // Добавляем обработчик клика по карте
-    map.on('click', function(e) {
-        if (isAddTargetMode && isAdmin) {
-            addTargetAtPosition(e.latlng);
-            isAddTargetMode = false;
-        } else if (isCourseSelectionMode && selectedTargetForCourse) {
-            setTargetCourseFromMap(e.latlng);
-        } else if (arrowMode) {
-            handleArrowClick(e);
-        }
-    });
-
-    // Обновляем кластеризацию при изменении зума
-    map.on('zoomend', function() {
-        updateTargetClusters();
-    });
-
-    // Обработчик движения мыши для временной линии стрелки
-    map.on('mousemove', function(e) {
-        if (arrowMode && tempArrowStartLatLng) {
-            tempArrowLine.setLatLngs([tempArrowStartLatLng, e.latlng]);
-        }
-    });
-
-    console.log("Карта успішно ініціалізована");
-}
 
 // Инициализация Firebase
 function initFirebase() {
@@ -1047,7 +1043,7 @@ function setupRealtimeListeners() {
             connected: true,
             lastSeen: Date.now(),
             isAdmin: isAdmin,
-            userAgent: navigator.userAgent,
+            userAgent: navig.userAgent,
             sessionId: userSessionId
         });
         
@@ -1318,53 +1314,6 @@ function getIconForType(type, course = 0) {
         iconSize: [35, 35],
         iconAnchor: [17, 17]
     });
-}
-        // Fallback для типов, яких немає в targetTypes
-        const colors = {
-            'винищувач': '#48dbfb',
-            'бомба': '#ff9ff3',
-            'корабль': '#1dd1a1',
-            'вертоліт': '#f368e0'
-        };
-        const color = colors[type] || '#ffffff';
-        const symbol = getTypeSymbol(type);
-        
-        return L.divIcon({
-            className: 'target-marker',
-            html: `
-                <div style="
-                    background-color: ${color};
-                    width: 35px;
-                    height: 35px;
-                    border-radius: 50%;
-                    border: 3px solid white;
-                    box-shadow: 0 0 15px rgba(0,0,0,0.8);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 18px;
-                    color: white;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
-                    transform: rotate(${course}deg);
-                ">
-                    ${symbol}
-                </div>
-            `,
-            iconSize: [35, 35],
-            iconAnchor: [17, 17]
-        });
-    }
-}
-
-function getTypeSymbol(type) {
-    const symbols = {
-        'винищувач': '✈',
-        'бомба': '💣',
-        'корабль': '⚓',
-        'вертоліт': '🚁'
-    };
-    return symbols[type] || '●';
 }
 
 // Додати ціль на карту
@@ -2075,7 +2024,7 @@ function updateUIForUserRole() {
 
 // НОВЫЕ ФУНКЦИИ ДЛЯ СТРЕЛОК И КЛАСТЕРИЗАЦИИ
 
-// Переключение кластеризации
+    // Переключение кластеризации
 function toggleClustering() {
     isClusteringEnabled = !isClusteringEnabled;
     const button = document.getElementById('toggleClusterBtn');
