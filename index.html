@@ -2033,14 +2033,23 @@ function updateUIForUserRole() {
     const logoutBtn = document.getElementById('logoutBtn');
     const adminElements = document.querySelectorAll('.admin-only');
     
+    if (!loginBtn || !logoutBtn) {
+        console.error('Не знайдено кнопки логіну/виходу');
+        return;
+    }
+    
     if (isAdmin) {
         loginBtn.style.display = 'none';
         logoutBtn.style.display = 'block';
-        adminElements.forEach(el => el.style.display = 'block');
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'block';
+        });
     } else {
         loginBtn.style.display = 'block';
         logoutBtn.style.display = 'none';
-        adminElements.forEach(el => el.style.display = 'none';
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'none';
+        });
     }
 }
 
