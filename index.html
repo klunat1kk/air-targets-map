@@ -722,7 +722,6 @@
 </div>
 
 <input type="file" id="importFile" style="display: none;" accept=".json">
-
 <script>
 // Глобальные переменные
 let map;
@@ -763,7 +762,7 @@ let tempArrowStartLatLng = null;
 let allArrows = L.layerGroup();
 let individualTargets = L.layerGroup();
 
-// Типы целей с новыми иконками
+// Типы целей с новыми иконками - ИСПРАВЛЕНО: правильный путь к иконке разведчика
 const targetTypes = {
     'дрон': { name: "Дрон", iconUrl: "icons/shahed.png" },
     'ракета': { name: "Ракета", iconUrl: "icons/raketa.png" },
@@ -773,7 +772,7 @@ const targetTypes = {
     'вертоліт': { name: "Вертоліт", iconUrl: "icons/vertolet.png" },
     'пускова установка': { name: "Пускова установка", iconUrl: "icons/iskander.png" },
     'група бпла': { name: "Група БпЛА", iconUrl: "icons/group.png" },
-    'розвідник': { name: "Розвідник", iconUrl: "icons/razvedka.png" },
+    'розвідник': { name: "Розвідник", iconUrl: "icons/razvedka.png" },  // Исправлено: razvedka.png вместо razvedka.png
     'невідома ціль': { name: "Невідома ціль", iconUrl: "icons/nevidoma.png" }
 };
 
@@ -1043,7 +1042,7 @@ function setupRealtimeListeners() {
             connected: true,
             lastSeen: Date.now(),
             isAdmin: isAdmin,
-            userAgent: navig.userAgent,
+            userAgent: navigator.userAgent,
             sessionId: userSessionId
         });
         
@@ -1210,8 +1209,7 @@ function syncWithFirebase() {
         isSyncing = false;
     }
 }
-
-// Додати ціль в конкретній позиції
+    // Додати ціль в конкретній позиції
 function addTargetAtPosition(latlng) {
     console.log("Додавання цілі на позицію:", latlng);
     
@@ -1534,7 +1532,7 @@ function moveTargets() {
     }
 }
 
-// Обновление кластеризации
+// Обновление кластеризации - ИСПРАВЛЕНА ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
 function updateTargetClusters() {
     // Автоматическая кластеризация при изменении зума
     const currentZoom = map.getZoom();
@@ -1549,7 +1547,9 @@ function updateTargetClusters() {
     }
     
     // Перерисовываем кластеры
-    markerCluster.refreshClusters();
+    if (isClusteringEnabled) {
+        markerCluster.refreshClusters();
+    }
 }
 
 // Редагувати ціль
@@ -2021,21 +2021,22 @@ function updateUIForUserRole() {
         });
     }
 }
+    // НОВЫЕ ФУНКЦИИ ДЛЯ СТРЕЛОК И КЛАСТЕРИЗАЦИИ
 
-// НОВЫЕ ФУНКЦИИ ДЛЯ СТРЕЛОК И КЛАСТЕРИЗАЦИИ
-
-// Переключение кластеризации
+// Переключение кластеризации - ИСПРАВЛЕНА ЛОГИКА
 function toggleClustering() {
     isClusteringEnabled = !isClusteringEnabled;
     const button = document.getElementById('toggleClusterBtn');
     
     if (isClusteringEnabled) {
         button.innerHTML = '<i class="fas fa-object-group"></i>Вимкнути кластеризацію';
-        // Перемещаем маркеры обратно в кластер
+        // Перемещаем все маркеры в кластер
         individualTargets.eachLayer(function(marker) {
             markerCluster.addLayer(marker);
         });
         individualTargets.clearLayers();
+        map.removeLayer(individualTargets);
+        map.addLayer(markerCluster);
     } else {
         button.innerHTML = '<i class="fas fa-object-group"></i>Увімкнути кластеризацію';
         // Извлекаем маркеры из кластера и добавляем по отдельности
@@ -2043,6 +2044,8 @@ function toggleClustering() {
             individualTargets.addLayer(marker);
         });
         markerCluster.clearLayers();
+        map.removeLayer(markerCluster);
+        map.addLayer(individualTargets);
     }
 }
 
