@@ -1354,5 +1354,786 @@ function showLoginModal() {
 
 function closeLoginModal() {
     document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+function showEditModal(target) {
+    document.getElementById('editName').value = target.name;
+    document.getElementById('editType').value = target.type;
+    document.getElementById('editSpeed').value = target.speed;
+    document.getElementById('editCourse').value = target.course;
+    document.getElementById('editModal').style.display = 'block';
+    currentEditTargetId = target.id;
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentEditTargetId = null;
+}
+
+function closeAllModals() {
+    closeLoginModal();
+    closeEditModal();
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+// Функции для работы с целями
+function centerOnTarget(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        map.setView([target.lat, target.lng], 13);
+    }
+}
+
+function editTarget(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        showEditModal(target);
+    }
+}
+
+function saveTargetEdit() {
+    if (!currentEditTargetId) return;
     
-      
+    const targetIndex = targets.findIndex(t => t.id === currentEditTargetId);
+    if (targetIndex !== -1) {
+        targets[targetIndex].name = document.getElementById('editName').value;
+        targets[targetIndex].type = document.getElementById('editType').value;
+        targets[targetIndex].speed = parseInt(document.getElementById('editSpeed').value);
+        const newCourse = parseInt(document.getElementById('editCourse').value);
+        
+        // Обновляем курс только если он изменился
+        if (targets[targetIndex].course !== newCourse) {
+            targets[targetIndex].course = newCourse;
+            // Показываем уведомление о новом курсе
+            showCourseNotification(newCourse);
+        }
+        
+        // Обновляем маркер
+        createTargetMarker(targets[targetIndex]);
+        updateTargetsList();
+        updateStats();
+        scheduleSave();
+        scheduleSync();
+    }
+    
+    closeEditModal();
+}
+
+function deleteTarget(targetId) {
+    if (confirm('Видалити цю ціль?')) {
+        // Удаляем маркер
+        if (markers[targetId]) {
+            if (isClusteringEnabled) {
+                markerCluster.removeLayer(markers[targetId]);
+            } else {
+                individualTargets.removeLayer(markers[targetId]);
+            }
+            delete markers[targetId];
+        }
+        
+        // Удаляем траекторию
+        if (polylines[targetId]) {
+            map.removeLayer(polylines[targetId]);
+            delete polylines[targetId];
+        }
+        
+        // Удаляем из массива целей
+        targets = targets.filter(t => t.id !== targetId);
+        
+        // Добавляем в список удаленных для синхронизации
+        deletedTargets.add(targetId);
+        
+        // Удаляем историю
+        delete targetHistory[targetId];
+        
+        updateTargetsList();
+        updateStats();
+        scheduleSave();
+        scheduleSync();
+    }
+}
+
+function pauseTarget(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        target.isPaused = true;
+        pausedTargets.add(targetId);
+        updateTargetsList();
+        scheduleSave();
+        scheduleSync();
+        
+        // Обновляем попап
+        if (popupOpenTargetId === targetId && markers[targetId]) {
+            markers[targetId].setPopupContent(createTargetPopup(target));
+        }
+    }
+}
+
+function resumeTarget(targetId) {
+    const target = targets.find(t => t.id === targetId);
+    if (target) {
+        target.isPaused = false;
+        pausedTargets.delete(targetId);
+        updateTargetsList();
+        scheduleSave();
+        scheduleSync();
+        
+        // Обновляем попап
+        if (popupOpenTargetId === targetId && markers[targetId]) {
+            markers[targetId].setPopupContent(createTargetPopup(target));
+        }
+    }
+}
+
+function setTargetCourse(targetId) {
+    selectedTargetForCourse = targetId;
+    isCourseSelectionMode = true;
+    document.getElementById('courseSelectionModal').style.display = 'block';
+}
+
+function handleCourseSelection(latlng) {
+    if (!selectedTargetForCourse) return;
+    
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (target) {
+        // Рассчитываем курс от цели к выбранной точке
+        const course = calculateBearing(target.lat, target.lng, latlng.lat, latlng.lng);
+        target.course = Math.round(course);
+        
+        // Обновляем маркер
+        createTargetMarker(target);
+        updateTargetsList();
+        scheduleSave();
+        scheduleSync();
+        
+        // Показываем уведомление
+        showCourseNotification(target.course);
+    }
+}
+
+function confirmCourseSelection() {
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+function cancelCourseSelection() {
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+// Функции для работы с поиском
+function toggleSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    if (searchContainer.style.display === 'none') {
+        searchContainer.style.display = 'block';
+        document.getElementById('searchInput').focus();
+    } else {
+        searchContainer.style.display = 'none';
+        clearSearchResults();
+    }
+}
+
+function handleSearchInput(query) {
+    clearTimeout(searchTimeout);
+    
+    if (query.length < 2) {
+        clearSearchResults();
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        performSearch(query);
+    }, 300);
+}
+
+function performSearch(query) {
+    const results = ukrainianCities.filter(city => 
+        city.name.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 10); // Ограничиваем результаты
+    
+    displaySearchResults(results);
+}
+
+function displaySearchResults(results) {
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = '';
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-result-item">Нічого не знайдено</div>';
+        return;
+    }
+    
+    results.forEach(city => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.textContent = city.name;
+        item.onclick = () => {
+            centerOnCity(city);
+            clearSearchResults();
+            document.getElementById('searchContainer').style.display = 'none';
+        };
+        resultsContainer.appendChild(item);
+    });
+}
+
+function centerOnCity(city) {
+    map.setView([city.lat, city.lng], 10);
+    
+    // Добавляем маркер для найденного города
+    if (searchMarker) {
+        map.removeLayer(searchMarker);
+    }
+    
+    searchMarker = L.marker([city.lat, city.lng]).addTo(map)
+        .bindPopup(`<b>${city.name}</b>`)
+        .openPopup();
+}
+
+function clearSearchResults() {
+    document.getElementById('searchResults').innerHTML = '';
+}
+
+// Функции для математических расчетов
+function calculateBearing(lat1, lng1, lat2, lng2) {
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δλ = (lng2 - lng1) * Math.PI / 180;
+    
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    const θ = Math.atan2(y, x);
+    
+    return (θ * 180 / Math.PI + 360) % 360;
+}
+
+function calculateDestinationPoint(lat, lng, bearing, distance) {
+    const R = 6371; // Радиус Земли в км
+    const δ = distance / R; // Угловое расстояние
+    const θ = bearing * Math.PI / 180;
+    
+    const φ1 = lat * Math.PI / 180;
+    const λ1 = lng * Math.PI / 180;
+    
+    const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + 
+                        Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+    
+    const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
+                              Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+    
+    return {
+        lat: φ2 * 180 / Math.PI,
+        lng: λ2 * 180 / Math.PI
+    };
+}
+
+// Функции для работы с localStorage
+function saveTargetsToLocalStorage() {
+    try {
+        const data = {
+            targets: targets,
+            targetHistory: targetHistory,
+            lastUpdate: Date.now()
+        };
+        localStorage.setItem('airTargets', JSON.stringify(data));
+        console.log('Цілі збережено локально');
+    } catch (error) {
+        console.error('Помилка збереження в localStorage:', error);
+    }
+}
+
+function loadTargetsFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('airTargets');
+        if (saved) {
+            const data = JSON.parse(saved);
+            targets = data.targets || [];
+            targetHistory = data.targetHistory || {};
+            
+            // Восстанавливаем маркеры
+            targets.forEach(target => {
+                createTargetMarker(target);
+            });
+            
+            updateTargetsList();
+            updateStats();
+            console.log('Цілі завантажено з localStorage:', targets.length);
+        }
+    } catch (error) {
+        console.error('Помилка завантаження з localStorage:', error);
+        targets = [];
+        targetHistory = {};
+    }
+}
+
+function scheduleSave() {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+    saveTimeout = setTimeout(() => {
+        saveTargetsToLocalStorage();
+    }, 1000);
+}
+
+// Функции для работы с Firebase
+function startAutoSync() {
+    if (typeof firebase === 'undefined') return;
+    
+    syncInterval = setInterval(() => {
+        if (isOnline && !isSyncing) {
+            syncWithFirebase();
+        }
+    }, 5000); // Синхронизация каждые 5 секунд
+}
+
+function scheduleSync() {
+    if (isOnline && !isSyncing) {
+        setTimeout(syncWithFirebase, 1000);
+    }
+}
+
+async function syncWithFirebase() {
+    if (isSyncing || typeof firebase === 'undefined') return;
+    
+    isSyncing = true;
+    try {
+        const db = firebase.database();
+        const syncRef = db.ref('sync');
+        
+        // Получаем текущее состояние из Firebase
+        const snapshot = await syncRef.once('value');
+        const remoteData = snapshot.val() || {};
+        
+        // Обновляем наши цели из удаленных данных
+        if (remoteData.targets) {
+            mergeTargets(remoteData.targets);
+        }
+        
+        // Отправляем наши изменения
+        await syncRef.set({
+            targets: targets,
+            deleted: Array.from(deletedTargets),
+            lastUpdate: Date.now(),
+            user: userSessionId
+        });
+        
+        // Очищаем список удаленных после успешной синхронизации
+        deletedTargets.clear();
+        
+        lastSyncTime = Date.now();
+        console.log('Синхронізація успішна');
+        
+    } catch (error) {
+        console.error('Помилка синхронізації:', error);
+        isOnline = false;
+        updateStatus();
+    } finally {
+        isSyncing = false;
+    }
+}
+
+function mergeTargets(remoteTargets) {
+    if (!Array.isArray(remoteTargets)) return;
+    
+    // Обновляем существующие цели и добавляем новые
+    remoteTargets.forEach(remoteTarget => {
+        const localIndex = targets.findIndex(t => t.id === remoteTarget.id);
+        
+        if (localIndex === -1) {
+            // Новая цель - добавляем
+            targets.push(remoteTarget);
+            createTargetMarker(remoteTarget);
+        } else if (remoteTarget.timestamp > targets[localIndex].timestamp) {
+            // Удаленная цель имеет более новые данные - обновляем
+            targets[localIndex] = remoteTarget;
+            createTargetMarker(remoteTarget);
+        }
+    });
+    
+    // Удаляем цели, которые были удалены удаленно
+    targets = targets.filter(target => !deletedTargets.has(target.id));
+    
+    updateTargetsList();
+    updateStats();
+}
+
+// Функции для анимации
+function startAnimationLoop() {
+    function animate() {
+        if (!isSyncing) {
+            updateTargetPositions();
+        }
+        animationFrameId = requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+function updateTargetPositions() {
+    const now = Date.now();
+    const deltaTime = (now - lastUpdateTime) / 1000; // В секундах
+    lastUpdateTime = now;
+    
+    targets.forEach(target => {
+        if (!target.isPaused) {
+            moveTarget(target, deltaTime);
+        }
+    });
+    
+    // Обновляем статистику каждую секунду
+    if (now - lastStatsUpdate >= 1000) {
+        updateStats();
+    }
+}
+
+function moveTarget(target, deltaTime) {
+    if (target.isPaused) return;
+    
+    // Рассчитываем новую позицию на основе курса и скорости
+    const distance = (target.speed * deltaTime) / 3600; // км за дельту времени
+    const newPos = calculateDestinationPoint(
+        target.lat, target.lng, target.course, distance
+    );
+    
+    // Обновляем позицию цели
+    target.lat = newPos.lat;
+    target.lng = newPos.lng;
+    target.timestamp = Date.now();
+    
+    // Обновляем маркер на карте
+    if (markers[target.id]) {
+        markers[target.id].setLatLng([target.lat, target.lng]);
+        
+        // Обновляем траекторию
+        if (showTrajectories && polylines[target.id]) {
+            createTargetTrajectory(target);
+        }
+        
+        // Обновляем стрелку
+        if (arrowMode) {
+            createTargetArrow(target);
+        }
+    }
+}
+
+// Функции для экспорта/импорта
+function exportTargets() {
+    const data = JSON.stringify(targets, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `air-targets-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importTargets() {
+    document.getElementById('importFile').click();
+}
+
+function handleFileImport(file) {
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedTargets = JSON.parse(e.target.result);
+            if (Array.isArray(importedTargets)) {
+                // Добавляем импортированные цели
+                importedTargets.forEach(target => {
+                    // Генерируем новый ID для избежания конфликтов
+                    target.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                    targets.push(target);
+                    createTargetMarker(target);
+                });
+                
+                updateTargetsList();
+                updateStats();
+                scheduleSave();
+                scheduleSync();
+                
+                alert(`Успішно імпортовано ${importedTargets.length} цілей`);
+            } else {
+                alert('Невірний формат файлу');
+            }
+        } catch (error) {
+            console.error('Помилка імпорту:', error);
+            alert('Помилка при імпорті файлу');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Функции для управления режимами
+function toggleTrajectories() {
+    showTrajectories = !showTrajectories;
+    
+    if (showTrajectories) {
+        // Показываем все траектории
+        Object.values(polylines).forEach(polyline => {
+            if (!map.hasLayer(polyline)) {
+                polyline.addTo(map);
+            }
+        });
+    } else {
+        // Скрываем все траектории
+        Object.values(polylines).forEach(polyline => {
+            if (map.hasLayer(polyline)) {
+                map.removeLayer(polyline);
+            }
+        });
+    }
+}
+
+function toggleClustering() {
+    isClusteringEnabled = !isClusteringEnabled;
+    const button = document.getElementById('toggleClusterBtn');
+    
+    if (isClusteringEnabled) {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Вимкнути кластеризацію';
+        // Перемещаем все маркеры в кластер
+        Object.values(markers).forEach(marker => {
+            if (individualTargets.hasLayer(marker)) {
+                individualTargets.removeLayer(marker);
+                markerCluster.addLayer(marker);
+            }
+        });
+    } else {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Увімкнути кластеризацію';
+        // Перемещаем все маркеры из кластера в индивидуальный слой
+        markerCluster.clearLayers();
+        Object.values(markers).forEach(marker => {
+            individualTargets.addLayer(marker);
+        });
+    }
+}
+
+function toggleArrowMode() {
+    arrowMode = !arrowMode;
+    const button = document.getElementById('toggleArrowBtn');
+    
+    if (arrowMode) {
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Режим стрілок';
+        // Создаем стрелки для всех целей
+        targets.forEach(target => {
+            createTargetArrow(target);
+        });
+    } else {
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Режим стрілок';
+        // Удаляем все стрелки
+        allArrows.clearLayers();
+    }
+}
+
+function enableAddTargetMode() {
+    isAddTargetMode = true;
+    document.querySelector('.add-target-button').style.display = 'none';
+    alert('Режим додавання цілей увімкнено. Клацніть на карті, щоб додати ціль.');
+}
+
+function disableAddTargetMode() {
+    isAddTargetMode = false;
+    document.querySelector('.add-target-button').style.display = 'block';
+}
+
+// Функции для аутентификации
+function attemptLogin() {
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    // Простая проверка логина и пароля
+    if (username === 'admin' && password === 'password') {
+        isAdmin = true;
+        updateUIForUserRole();
+        closeLoginModal();
+        alert('Успішний вхід як адміністратор');
+    } else {
+        alert('Невірний логін або пароль');
+    }
+}
+
+function logout() {
+    isAdmin = false;
+    updateUIForUserRole();
+    alert('Вихід виконано успішно');
+}
+
+function updateUIForUserRole() {
+    const loginBtn = document.querySelector('.login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    
+    if (isAdmin) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        // Показываем дополнительные элементы для администратора
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'block';
+        });
+    } else {
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        // Скрываем элементы для администратора
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = 'none';
+        });
+    }
+}
+
+function clearAllTargets() {
+    if (!isAdmin) {
+        alert('Тільки адміністратор може видаляти всі цілі');
+        return;
+    }
+    
+    if (confirm('Ви впевнені, що хочете видалити всі цілі?')) {
+        // Удаляем все маркеры
+        if (isClusteringEnabled) {
+            markerCluster.clearLayers();
+        } else {
+            individualTargets.clearLayers();
+        }
+        
+        // Удаляем все траектории
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        
+        // Удаляем все стрелки
+        allArrows.clearLayers();
+        
+        // Очищаем массивы
+        targets = [];
+        markers = {};
+        polylines = {};
+        targetHistory = {};
+        deletedTargets.clear();
+        pausedTargets.clear();
+        
+        // Обновляем интерфейс
+        updateTargetsList();
+        updateStats();
+        scheduleSave();
+        scheduleSync();
+        
+        alert('Всі цілі успішно видалені');
+    }
+}
+
+// Функция для показа контекстного меню цели
+function showTargetContextMenu(e, target) {
+    // Создаем контекстное меню
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.cssText = `
+        position: absolute;
+        left: ${e.originalEvent.clientX}px;
+        top: ${e.originalEvent.clientY}px;
+        background: #2c3e50;
+        border: 1px solid #34495e;
+        border-radius: 5px;
+        padding: 10px;
+        z-index: 10000;
+        min-width: 150px;
+    `;
+    
+    menu.innerHTML = `
+        <div style="color: #00cec9; font-weight: bold; margin-bottom: 10px;">${target.name}</div>
+        <button onclick="centerOnTarget('${target.id}')" style="width: 100%; padding: 5px; margin: 2px 0;">
+            <i class="fas fa-crosshairs"></i> Центрувати
+        </button>
+        <button onclick="editTarget('${target.id}')" style="width: 100%; padding: 5px; margin: 2px 0;">
+            <i class="fas fa-edit"></i> Редагувати
+        </button>
+        <button onclick="deleteTarget('${target.id}')" style="width: 100%; padding: 5px; margin: 2px 0; color: #e74c3c;">
+            <i class="fas fa-trash"></i> Видалити
+        </button>
+    `;
+    
+    // Добавляем меню на страницу
+    document.body.appendChild(menu);
+    
+    // Функция для закрытия меню
+    function closeMenu() {
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
+        document.removeEventListener('click', closeMenu);
+    }
+    
+    // Закрываем меню при клике вне его
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+    }, 100);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+    
+    // Глобальные обработчики
+    document.addEventListener('keydown', function(e) {
+        // ESC - закрыть все модальные окна
+        if (e.key === 'Escape') {
+            closeAllModals();
+            if (isCourseSelectionMode) {
+                cancelCourseSelection();
+            }
+            if (isAddTargetMode) {
+                disableAddTargetMode();
+            }
+        }
+        
+        // Ctrl+S - сохранить
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveTargetsToLocalStorage();
+            alert('Цілі збережено');
+        }
+        
+        // Ctrl+O - открыть
+        if (e.ctrlKey && e.key === 'o') {
+            e.preventDefault();
+            importTargets();
+        }
+        
+        // Ctrl+E - экспорт
+        if (e.ctrlKey && e.key === 'e') {
+            e.preventDefault();
+            exportTargets();
+        }
+    });
+});
+
+// Глобальные функции для доступа из HTML
+window.addTargetAtCenter = addTargetAtCenter;
+window.toggleTrajectories = toggleTrajectories;
+window.toggleClustering = toggleClustering;
+window.toggleArrowMode = toggleArrowMode;
+window.clearAllTargets = clearAllTargets;
+window.exportTargets = exportTargets;
+window.importTargets = importTargets;
+window.togglePanel = togglePanel;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.attemptLogin = attemptLogin;
+window.logout = logout;
+window.editTarget = editTarget;
+window.deleteTarget = deleteTarget;
+window.saveTargetEdit = saveTargetEdit;
+window.closeEditModal = closeEditModal;
+window.showCourseSelectionModal = setTargetCourse;
+window.confirmCourseSelection = confirmCourseSelection;
+window.cancelCourseSelection = cancelCourseSelection;
+window.toggleSearch = toggleSearch;
+window.centerOnTarget = centerOnTarget;
+window.pauseTarget = pauseTarget;
+window.resumeTarget = resumeTarget;
+</script>
+</body>
+</html>
