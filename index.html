@@ -478,6 +478,45 @@
     font-size: 18px;
 }
 
+/* Стили для поиска */
+.search-container {
+    position: absolute;
+    top: 70px;
+    right: 15px;
+    z-index: 1000;
+    background: rgba(30, 33, 66, 0.9);
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #00cec9;
+    width: 300px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #34495e;
+    border-radius: 5px;
+    background: #2d3436;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.search-results {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.search-result-item {
+    padding: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #34495e;
+}
+
+.search-result-item:hover {
+    background: rgba(0, 206, 201, 0.2);
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
     .header h1 {
@@ -501,6 +540,11 @@
     .modal-content {
         width: 90%;
         margin: 20% auto;
+    }
+    
+    .search-container {
+        width: 250px;
+        top: 60px;
     }
 }
 
@@ -526,6 +570,12 @@
     .header-btn span {
         display: none;
     }
+    
+    .search-container {
+        width: 200px;
+        top: 55px;
+        right: 10px;
+    }
 }
 </style>
 </head>
@@ -536,6 +586,9 @@
         <div class="header-controls">
             <button class="header-btn toggle-panel-btn" onclick="togglePanel()">
                 <i class="fas fa-eye-slash"></i><span>Панель</span>
+            </button>
+            <button class="header-btn search-btn" onclick="toggleSearch()">
+                <i class="fas fa-search"></i><span>Пошук НП</span>
             </button>
             <button class="header-btn login-btn" onclick="showLoginModal()">
                 <i class="fas fa-user"></i><span>Увійти</span>
@@ -721,6 +774,12 @@
     </div>
 </div>
 
+<!-- Контейнер поиска -->
+<div id="searchContainer" class="search-container" style="display: none;">
+    <input type="text" id="searchInput" class="search-input" placeholder="Пошук населених пунктів...">
+    <div class="search-results" id="searchResults"></div>
+</div>
+
 <input type="file" id="importFile" style="display: none;" accept=".json">
 <script>
 // Глобальные переменные
@@ -762,7 +821,12 @@ let tempArrowStartLatLng = null;
 let allArrows = L.layerGroup();
 let individualTargets = L.layerGroup();
 
-// Типы целей с новыми иконками - ИСПРАВЛЕНО: правильный путь к иконке разведчика
+// Переменные для поиска
+let searchMarker = null;
+let searchTimeout = null;
+let ukrainianCities = []; // Будет загружено из файла
+
+// Типы целей с новыми иконками
 const targetTypes = {
     'дрон': { name: "Дрон", iconUrl: "icons/shahed.png" },
     'ракета': { name: "Ракета", iconUrl: "icons/raketa.png" },
@@ -772,7 +836,7 @@ const targetTypes = {
     'вертоліт': { name: "Вертоліт", iconUrl: "icons/vertolet.png" },
     'пускова установка': { name: "Пускова установка", iconUrl: "icons/iskander.png" },
     'група бпла': { name: "Група БпЛА", iconUrl: "icons/group.png" },
-    'розвідник': { name: "Розвідник", iconUrl: "icons/razvedka.png" },  // Исправлено: razvedka.png вместо razvedka.png
+    'розвідник': { name: "Розвідник", iconUrl: "icons/razvedka.png" },
     'невідома ціль': { name: "Невідома ціль", iconUrl: "icons/nevidoma.png" }
 };
 
@@ -789,7 +853,7 @@ const firebaseConfig = {
 };
 
 // Инициализация приложения
-    function initApp() {
+function initApp() {
     // Проверка загрузки библиотек
     if (typeof L === 'undefined') {
         console.error('Leaflet не завантажився');
@@ -812,6 +876,7 @@ const firebaseConfig = {
         startAutoSave();
         startAutoSync();
         updateUIForUserRole();
+        loadUkrainianCities(); // Загружаем данные для поиска
         
         startAnimationLoop();
         
@@ -820,10 +885,90 @@ const firebaseConfig = {
         console.error('Помилка ініціалізації:', error);
         alert('Помилка ініціалізації: ' + error.message);
     }
+}
+
+// Загрузка данных украинских городов для поиска
+async function loadUkrainianCities() {
+    try {
+        const response = await fetch('https://raw.githubusercontent.com/klunat1kk/ukrainian-cities/main/cities.json');
+        if (response.ok) {
+            ukrainianCities = await response.json();
+            console.log('Завантажено населені пункти:', ukrainianCities.length);
+        } else {
+            // Fallback данные если файл недоступен
+            ukrainianCities = [
+                {name: "Київ", lat: 50.4501, lng: 30.5234},
+                {name: "Харків", lat: 49.9935, lng: 36.2304},
+                {name: "Одеса", lat: 46.4825, lng: 30.7233},
+                {name: "Дніпро", lat: 48.4647, lng: 35.0462},
+                {name: "Донецьк", lat: 48.0159, lng: 37.8029},
+                {name: "Запоріжжя", lat: 47.8388, lng: 35.1396},
+                {name: "Львів", lat: 49.8397, lng: 24.0297},
+                {name: "Кривий Ріг", lat: 47.9105, lng: 33.3918},
+                {name: "Миколаїв", lat: 46.9750, lng: 31.9946},
+                {name: "Маріуполь", lat: 47.0971, lng: 37.5434}
+            ];
+        }
+    } catch (error) {
+        console.error('Помилка завантаження міст:', error);
+                // Базовые города на случай ошибки
+        ukrainianCities = [
+            {name: "Київ", lat: 50.4501, lng: 30.5234},
+            {name: "Харків", lat: 49.9935, lng: 36.2304},
+            {name: "Одеса", lat: 46.4825, lng: 30.7233},
+            {name: "Дніпро", lat: 48.4647, lng: 35.0462},
+            {name: "Донецьк", lat: 48.0159, lng: 37.8029},
+            {name: "Запоріжжя", lat: 47.8388, lng: 35.1396},
+            {name: "Львів", lat: 49.8397, lng: 24.0297},
+            {name: "Кривий Ріг", lat: 47.9105, lng: 33.3918},
+            {name: "Миколаїв", lat: 46.9750, lng: 31.9946},
+            {name: "Маріуполь", lat: 47.0971, lng: 37.5434},
+            {name: "Вінниця", lat: 49.2331, lng: 28.4682},
+            {name: "Чернігів", lat: 51.4982, lng: 31.2893},
+            {name: "Полтава", lat: 49.5883, lng: 34.5514},
+            {name: "Херсон", lat: 46.6354, lng: 32.6169},
+            {name: "Черкаси", lat: 49.4444, lng: 32.0598},
+            {name: "Суми", lat: 50.9077, lng: 34.7981},
+            {name: "Житомир", lat: 50.2547, lng: 28.6587},
+            {name: "Чернівці", lat: 48.2917, lng: 25.9352},
+            {name: "Рівне", lat: 50.6199, lng: 26.2516},
+            {name: "Івано-Франківськ", lat: 48.9226, lng: 24.7111},
+            {name: "Кам'янець-Подільський", lat: 48.6805, lng: 26.5809},
+            {name: "Кропивницький", lat: 48.5132, lng: 32.2597},
+            {name: "Тернопіль", lat: 49.5535, lng: 25.5948},
+            {name: "Луцьк", lat: 50.7593, lng: 25.3424},
+            {name: "Ужгород", lat: 48.6208, lng: 22.2879},
+            {name: "Біла Церква", lat: 49.7956, lng: 30.1168},
+            {name: "Краматорськ", lat: 48.7382, lng: 37.5842},
+            {name: "Мелітополь", lat: 46.8483, lng: 35.3653},
+            {name: "Нікополь", lat: 47.5672, lng: 34.3945},
+            {name: "Слов'янськ", lat: 48.8533, lng: 37.6059},
+            {name: "Бердянськ", lat: 46.7590, lng: 36.7844},
+            {name: "Алчевськ", lat: 48.4688, lng: 38.7986},
+            {name: "Северодонецьк", lat: 48.9483, lng: 38.4917},
+            {name: "Лисичанськ", lat: 48.8894, lng: 38.4319},
+            {name: "Хмельницький", lat: 49.4229, lng: 26.9871},
+            {name: "Павлоград", lat: 48.5204, lng: 35.8717},
+            {name: "Макіївка", lat: 48.0556, lng: 37.9509},
+            {name: "Горлівка", lat: 48.2933, lng: 38.0352},
+            {name: "Дружківка", lat: 48.6203, lng: 37.5279},
+            {name: "Конотоп", lat: 51.2369, lng: 33.2027},
+            {name: "Умань", lat: 48.7505, lng: 30.2214},
+            {name: "Бровари", lat: 50.5113, lng: 30.7905},
+            {name: "Мукачево", lat: 48.4392, lng: 22.7178},
+            {name: "Ялта", lat: 44.4952, lng: 34.1663},
+            {name: "Севастополь", lat: 44.6167, lng: 33.5254},
+            {name: "Сімферополь", lat: 44.9521, lng: 34.1024},
+            {name: "Керч", lat: 45.3561, lng: 36.4674},
+            {name: "Євпаторія", lat: 45.1905, lng: 33.3669},
+            {name: "Феодосія", lat: 45.0319, lng: 35.3824},
+            {name: "Алушта", lat: 44.6764, lng: 34.4100}
+        ];
     }
+}
 
 // Инициализация карты
-    function initMap() {
+function initMap() {
     try {
         const mapElement = document.getElementById('map');
         if (!mapElement) {
@@ -893,7 +1038,7 @@ const firebaseConfig = {
         console.error('Помилка ініціалізації карти:', error);
         alert('Помилка створення карти: ' + error.message);
     }
-    }
+}
 
 // Инициализация Firebase
 function initFirebase() {
@@ -960,7 +1105,7 @@ function debouncedSave() {
     }, 1000);
 }
 
-// Настройка слушателей Firebase
+// Настройка слушателей Firebase - УЛУЧШЕННАЯ СИНХРОНИЗАЦИЯ
 function setupRealtimeListeners() {
     if (!isOnline) return;
     
@@ -970,18 +1115,69 @@ function setupRealtimeListeners() {
         const deletedRef = db.ref('deletedTargets');
         const historyRef = db.ref('targetHistory');
         
-        // Слушатель изменений целей
-        targetsRef.on('value', (snapshot) => {
-            const firebaseTargets = snapshot.val() || {};
+        // Слушатель изменений целей в реальном времени
+        targetsRef.on('child_added', (snapshot) => {
+            if (isSyncing) return;
             
-            // Игнорируем собственные изменения
-            if (isSyncing) {
-                isSyncing = false;
-                return;
+            const firebaseTarget = snapshot.val();
+            if (!firebaseTarget || deletedTargets.has(firebaseTarget.id)) return;
+            
+            const existingTarget = targets.find(t => t.id === firebaseTarget.id);
+            if (!existingTarget) {
+                // Новая цель от другого пользователя
+                targets.push(firebaseTarget);
+                console.log("Отримано нову ціль від іншого користувача:", firebaseTarget.name);
+                
+                // Создаем маркер и траекторию
+                addTargetToMap(firebaseTarget);
+                updateStats();
+                updateTargetsList();
             }
+        });
+        
+        // Слушатель изменений существующих целей
+        targetsRef.on('child_changed', (snapshot) => {
+            if (isSyncing) return;
             
-            console.log("Отримано оновлення з Firebase");
-            mergeTargetsFromFirebase(firebaseTargets);
+            const firebaseTarget = snapshot.val();
+            if (!firebaseTarget || deletedTargets.has(firebaseTarget.id)) return;
+            
+            const existingTarget = targets.find(t => t.id === firebaseTarget.id);
+            if (existingTarget && firebaseTarget.updatedAt > existingTarget.updatedAt) {
+                // Обновляем существующую цель от другого пользователя
+                Object.assign(existingTarget, firebaseTarget);
+                updateMarkerRotation(existingTarget);
+                console.log("Оновлено ціль від іншого користувача:", existingTarget.name);
+            }
+        });
+        
+        // Слушатель удаленных целей
+        targetsRef.on('child_removed', (snapshot) => {
+            if (isSyncing) return;
+            
+            const targetId = snapshot.key;
+            if (deletedTargets.has(targetId)) return;
+            
+            // Удаляем цель, удаленную другим пользователем
+            const targetIndex = targets.findIndex(t => t.id === targetId);
+            if (targetIndex !== -1) {
+                console.log("Видалено ціль іншим користувачем:", targets[targetIndex].name);
+                targets.splice(targetIndex, 1);
+                
+                if (markers[targetId]) {
+                    if (isClusteringEnabled) {
+                        markerCluster.removeLayer(markers[targetId]);
+                    } else {
+                        individualTargets.removeLayer(markers[targetId]);
+                    }
+                    delete markers[targetId];
+                }
+                removeTrajectory(targetId);
+                delete targetHistory[targetId];
+                
+                updateStats();
+                updateTargetsList();
+            }
         });
         
         // Слушатель удаленных целей
@@ -995,6 +1191,7 @@ function setupRealtimeListeners() {
                     // Немедленно удаляем цель локально
                     const targetIndex = targets.findIndex(t => t.id === id);
                     if (targetIndex !== -1) {
+                        console.log("Видалено ціль (синхронізація):", targets[targetIndex].name);
                         targets.splice(targetIndex, 1);
                     }
                     if (markers[id]) {
@@ -1734,7 +1931,7 @@ function updateTargetsList() {
         const targetItem = document.createElement('div');
         targetItem.className = 'target-item';
         targetItem.innerHTML = `
-            <h4>${target.name} <span style="font-size: 12px; color: #00cec9;">${target.type}</span></h4>
+            <h4>${target.name} <span style="font-size: 12px; color: #00cec9;">${target.type</span></h4>
             <p>Швидкість: ${target.speed} км/год</p>
             <p>Курс: ${target.course}°</p>
             <p>Відстань: ${(target.distance / 1000).toFixed(1)} км</p>
@@ -2111,6 +2308,90 @@ function handleArrowClick(e) {
     }
 }
 
+// ФУНКЦИИ ПОИСКА НАСЕЛЕННЫХ ПУНКТОВ
+
+// Переключение поиска
+function toggleSearch() {
+    const searchContainer = document.getElementById('searchContainer');
+    if (searchContainer.style.display === 'none') {
+        searchContainer.style.display = 'block';
+        document.getElementById('searchInput').focus();
+    } else {
+        searchContainer.style.display = 'none';
+        clearSearchResults();
+        removeSearchMarker();
+    }
+}
+
+// Поиск населенных пунктов
+function searchCities(query) {
+    if (!query || query.length < 2) {
+        clearSearchResults();
+        return;
+    }
+    
+    const searchTerm = query.toLowerCase();
+    const results = ukrainianCities.filter(city => 
+        city.name.toLowerCase().includes(searchTerm)
+    );
+    
+    displaySearchResults(results);
+}
+
+// Отображение результатов поиска
+function displaySearchResults(results) {
+    const resultsContainer = document.getElementById('searchResults');
+    resultsContainer.innerHTML = '';
+    
+    if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-result-item">Нічого не знайдено</div>';
+        return;
+    }
+    
+    results.slice(0, 10).forEach(city => {
+        const item = document.createElement('div');
+        item.className = 'search-result-item';
+        item.textContent = city.name;
+        item.onclick = () => {
+            selectCity(city);
+        };
+        resultsContainer.appendChild(item);
+    });
+}
+
+// Очистка результатов поиска
+function clearSearchResults() {
+    document.getElementById('searchResults').innerHTML = '';
+}
+
+// Выбор города из результатов поиска
+function selectCity(city) {
+    // Удаляем предыдущий маркер поиска
+    removeSearchMarker();
+    
+    // Создаем маркер для выбранного города
+    searchMarker = L.marker([city.lat, city.lng])
+        .addTo(map)
+        .bindPopup(`<b>${city.name}</b>`)
+        .openPopup();
+    
+        // Центрируем карту на выбранном городе
+    map.setView([city.lat, city.lng], 10);
+    
+    // Скрываем панель поиска
+    document.getElementById('searchContainer').style.display = 'none';
+    
+    console.log(`Вибрано місто: ${city.name}`);
+}
+
+// Удаление маркера поиска
+function removeSearchMarker() {
+    if (searchMarker) {
+        map.removeLayer(searchMarker);
+        searchMarker = null;
+    }
+}
+
 // Налаштування обробників подій
 function setupEventListeners() {
     // Закриття модальних вікон по кліку на затемнений фон
@@ -2132,6 +2413,8 @@ function setupEventListeners() {
             closeEditModal();
             cancelCourseSelection();
             isAddTargetMode = false;
+            // Скрываем поиск при нажатии ESC
+            document.getElementById('searchContainer').style.display = 'none';
         }
     });
     
@@ -2139,6 +2422,30 @@ function setupEventListeners() {
     document.getElementById('targetName').addEventListener('focus', function() {
         if (!this.value) {
             this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    // Обработчик поиска
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        // Дебаунс поиска
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+        
+        searchTimeout = setTimeout(() => {
+            searchCities(query);
+        }, 300);
+    });
+
+    // Обработчик нажатия Enter в поиске
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const query = e.target.value.trim();
+            if (query.length >= 2) {
+                searchCities(query);
+            }
         }
     });
 
@@ -2170,6 +2477,19 @@ function setupEventListeners() {
                 }
             };
             reader.readAsText(file);
+        }
+    });
+
+    // Закрытие поиска при клике вне области
+    document.addEventListener('click', function(e) {
+        const searchContainer = document.getElementById('searchContainer');
+        const searchBtn = document.querySelector('.search-btn');
+        
+        if (searchContainer.style.display === 'block' && 
+            !searchContainer.contains(e.target) && 
+            !searchBtn.contains(e.target)) {
+            searchContainer.style.display = 'none';
+            clearSearchResults();
         }
     });
 
@@ -2224,6 +2544,7 @@ window.showCourseSelectionModal = showCourseSelectionModal;
 window.confirmCourseSelection = confirmCourseSelection;
 window.cancelCourseSelection = cancelCourseSelection;
 window.setTargetCourseFromMap = setTargetCourseFromMap;
+window.toggleSearch = toggleSearch;
 </script>
 </body>
 </html>
