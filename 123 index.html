@@ -1,0 +1,3328 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Карта Повітряних Цілей</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+      crossorigin="anonymous"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" 
+      crossorigin="anonymous"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" 
+      crossorigin="anonymous"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" 
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" 
+      crossorigin="anonymous" referrerpolicy="no-referrer"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.contextmenu@1.4.0/dist/leaflet.contextmenu.css" 
+      crossorigin="anonymous"/>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"
+            crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet.contextmenu@1.4.0/dist/leaflet.contextmenu.min.js"
+            crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0c0e2a 0%, #1e2142 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #2d3436 0%, #2c3e50 100%);
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid #00cec9;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00cec9;
+            text-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 30%;
+        }
+
+        .header h1 i {
+            margin-right: 8px;
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+            margin: 0 20px;
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            border: 2px solid #34495e;
+            border-radius: 25px;
+            background: #2d3436;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #00cec9;
+            box-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #00cec9;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #2d3436;
+            border: 2px solid #34495e;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .search-result-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #34495e;
+            transition: background-color 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #34495e;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+
+        .header-btn {
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .header-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+            position: relative;
+        }
+
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 206, 201, 0.8);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 40px;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .map-switcher {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(44, 62, 80, 0.9);
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #00cec9;
+        }
+
+        .map-switcher select {
+            background: #2d3436;
+            color: white;
+            border: 1px solid #34495e;
+            border-radius: 3px;
+            padding: 5px;
+        }
+
+        .panel {
+            width: 100%;
+            height: 300px;
+            background: rgba(30, 33, 66, 0.95);
+            padding: 15px;
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            border-top: 2px solid #00cec9;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+
+        .panel.collapsed {
+            height: 50px;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .panel-section {
+            margin-bottom: 15px;
+            background: rgba(44, 62, 80, 0.6);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #34495e;
+        }
+
+        .panel-section h2 {
+            color: #00cec9;
+            margin-bottom: 12px;
+            font-size: 16px;
+            border-bottom: 2px solid #00cec9;
+            padding-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-section h2 i {
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #dfe6e9;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #34495e;
+            border-radius: 5px;
+            background: #2d3436;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00cec9;
+            box-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 206, 201, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(90deg, #7f8c8d 0%, #636e72 100%);
+        }
+
+        .btn-margin {
+            margin-top: 10px;
+        }
+
+        .targets-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .target-item {
+            background: rgba(52, 73, 94, 0.6);
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #00cec9;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .target-item:hover {
+            background: rgba(52, 73, 94, 0.9);
+            transform: translateX(5px);
+        }
+
+        .target-item h4 {
+            color: #00cec9;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .target-item p {
+            color: #dfe6e9;
+            font-size: 12px;
+            margin: 2px 0;
+        }
+
+        .target-item .target-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .target-item .target-actions button {
+            flex: 1;
+            padding: 6px;
+            font-size: 11px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-card {
+            background: rgba(52, 73, 94, 0.6);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #34495e;
+        }
+
+        .stat-card h3 {
+            color: #00cec9;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #dfe6e9;
+            font-size: 12px;
+        }
+
+        .status-bar {
+            background: rgba(44, 62, 80, 0.9);
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid #00cec9;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .online-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00b894;
+            animation: pulse 2s infinite;
+        }
+
+        .offline-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d63031;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #2d3436 0%, #2c3e50 100%);
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 12px;
+            width: 350px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            border: 2px solid #00cec9;
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #00cec9;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .course-notification {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(90deg, #0984e3 0%, #00cec9 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            z-index: 1001;
+            box-shadow: 0 4px 15px rgba(0, 206, 201, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .png-icon-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .rotatable-png-icon {
+            width: 40px;
+            height: 40px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: transform 0.5s ease;
+            transform-origin: center;
+        }
+
+        .marker-cluster {
+            background: rgba(231, 76, 60, 0.8);
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid white;
+            box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+        }
+
+        .marker-cluster-small {
+            width: 40px;
+            height: 40px;
+            font-size: 14px;
+        }
+
+        .marker-cluster-medium {
+            width: 50px;
+            height: 50px;
+            font-size: 16px;
+        }
+
+        .marker-cluster-large {
+            width: 60px;
+            height: 60px;
+            font-size: 18px;
+        }
+
+        .search-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 18px;
+                max-width: 30%;
+            }
+            
+            .search-container {
+                max-width: 250px;
+                margin: 0 10px;
+            }
+            
+            .header-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .panel {
+                height: 280px;
+            }
+            
+            .panel.collapsed {
+                height: 45px;
+            }
+            
+            .modal-content {
+                width: 90%;
+                margin: 20% auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 10px;
+                flex-wrap: wrap;
+            }
+            
+            .header h1 {
+                font-size: 16px;
+                max-width: 100%;
+                margin-bottom: 10px;
+                order: 1;
+            }
+            
+            .search-container {
+                order: 3;
+                max-width: 100%;
+                margin: 10px 0 0 0;
+            }
+            
+            .header-controls {
+                order: 2;
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .header-btn {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
+            
+            .header-btn span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Модальное окно с предупреждением -->
+<div id="warningModal" class="modal" style="display: block;">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3><i class="fas fa-exclamation-triangle" style="color: #f39c12;"></i> УВАГА</h3>
+        <div style="max-height: 300px; overflow-y: auto; margin: 15px 0;">
+            <p style="color: #dfe6e9; line-height: 1.6; font-size: 14px;">
+                <strong>Дані беруться з відкритих джерел (Telegram тощо) та можуть містити похибки.</strong><br><br>
+                
+                • Всі цілі додаються на карту вручну<br>
+                • Сервіс не є офіційною системою оповіщення<br>
+                • Не замінює сигналів Повітряної тривоги<br>
+                • Не використовуйте інформацію для коригування вогню<br>
+                • Не розкривайте позиції Сил Оборони<br><br>
+                
+                <strong>Завжди дотримуйтесь вказівок офіційних органів!</strong>
+            </p>
+        </div>
+        <div class="modal-buttons">
+            <button onclick="closeWarningModal()" style="background: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);">Зрозуміло</button>
+        </div>
+    </div>
+</div>
+    
+<div class="app-container">
+    <div class="header">
+        <h1><i class="fas fa-crosshairs"></i><span>Карта Повітряних Цілей</span></h1>
+        
+        <div class="search-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Пошук міста або села...">
+                <button class="search-btn" onclick="performSearch()">
+                    <i class="fas fa-search"></i>
+                </button>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <button class="header-btn toggle-panel-btn" onclick="togglePanel()">
+                <i class="fas fa-eye-slash"></i><span>Панель</span>
+            </button>
+            <button class="header-btn login-btn" onclick="showLoginModal()">
+                <i class="fas fa-user"></i><span>Увійти</span>
+            </button>
+            <button class="header-btn logout-btn" onclick="logout()" id="logoutBtn" style="display: none;">
+                <i class="fas fa-sign-out-alt"></i><span>Вийти</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="map">
+            <div class="crosshair"></div>
+            <div class="map-switcher">
+                <select id="mapStyleSelector" onchange="changeMapStyle()">
+                    <option value="dark">Темна карта</option>
+                    <option value="standard">Стандартна</option>
+                    <option value="satellite">Супутник</option>
+                </select>
+            </div>
+        </div>
+        <div class="panel" id="sidePanel">
+            <div class="panel-section">
+                <h2><i class="fas fa-plus-circle"></i>Додати ціль</h2>
+                <div class="form-group">
+                    <label for="targetName">Назва цілі:</label>
+                    <input type="text" id="targetName" placeholder="Введіть назву цілі" value="Ціль-1">
+                </div>
+                <div class="form-group">
+                    <label for="targetType">Тип цілі:</label>
+                    <select id="targetType">
+                        <option value="дрон">Дрон</option>
+                        <option value="ракета">Ракета</option>
+                        <option value="винищувач">Винищувач</option>
+                        <option value="бомба">Бомба</option>
+                        <option value="корабль">Корабель</option>
+                        <option value="вертоліт">Вертоліт</option>
+                        <option value="пускова установка">Пускова установка</option>
+                        <option value="група бпла">Група БпЛА</option>
+                        <option value="розвідник">Розвідник</option>
+                        <option value="невідома ціль">Невідома ціль</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="targetSpeed">Швидкість (км/год):</label>
+                    <input type="number" id="targetSpeed" value="150" min="0" max="30000">
+                </div>
+                <div class="form-group">
+                    <label for="targetCourse">Курс (0-360°):</label>
+                    <input type="number" id="targetCourse" value="0" min="0" max="360">
+                </div>
+                <button class="btn" onclick="addTargetAtCenter()">
+                    <i class="fas fa-plus"></i>Додати в центр
+                </button>
+            </div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-bullseye"></i>Цілі</h2>
+                <div class="targets-list" id="targetsList"></div>
+            </div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-chart-bar"></i>Статистика</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalTargets">0</h3>
+                        <p>Всього цілей</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="activeTargets">0</h3>
+                        <p>Активних</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="maxSpeed">0</h3>
+                        <p>Макс. швидкість</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalDistance">0</h3>
+                        <p>Загальна відстань</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h2><i class="fas fa-sliders-h"></i>Налаштування</h2>
+                <button class="btn" onclick="toggleTrajectories()">
+                    <i class="fas fa-route"></i>Траєкторії
+                </button>
+                <button class="btn btn-margin" onclick="toggleClustering()" id="toggleClusterBtn">
+                    <i class="fas fa-object-group"></i>Вимкнути кластеризацію
+                </button>
+                <button class="btn btn-margin" onclick="toggleArrowMode()" id="toggleArrowBtn">
+                    <i class="fas fa-draw-polygon"></i>Режим стрілок
+                </button>
+                <button class="btn btn-secondary btn-margin" onclick="clearAllTargets()">
+                    <i class="fas fa-trash"></i>Очистити цілі
+                </button>
+                <button class="btn btn-secondary btn-margin" onclick="exportTargets()">
+                    <i class="fas fa-download"></i>Експорт
+                </button>
+                <button class="btn btn-secondary btn-margin" onclick="importTargets()">
+                    <i class="fas fa-upload"></i>Імпорт
+                </button>
+                <button class="btn btn-danger btn-margin" onclick="clearLocalStorage()">
+                    <i class="fas fa-trash-alt"></i>Очистити локальне сховище
+                <button class="header-btn" onclick="checkFirebaseSimple()">
+    <i class="fas fa-wifi"></i><span>Проверить подключение</span>
+                <button class="header-btn" onclick="reconnectFirebase()">
+    <i class="fas fa-sync-alt"></i><span>Переподключиться</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div id="statusDot" class="offline-dot"></div>
+            <span id="statusText">Офлайн</span>
+        </div>
+        <div id="onlineUsers">Онлайн: 0</div>
+        <div id="lastUpdate">Оновлено: --:--:--</div>
+    </div>
+</div>
+
+<!-- Модальне вікно логіну -->
+<div id="loginModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-user-shield"></i>Вхід для адміністратора</h3>
+        <div class="form-group">
+            <label for="loginEmail">Email:</label>
+            <input type="email" id="loginEmail" placeholder="Введіть email">
+        </div>
+        <div class="form-group">
+            <label for="loginPassword">Пароль:</label>
+            <input type="password" id="loginPassword" placeholder="Введіть пароль">
+        </div>
+        <div class="modal-buttons">
+            <button onclick="attemptLogin()">Увійти</button>
+            <button onclick="closeLoginModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно редагування -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-edit"></i>Редагувати ціль</h3>
+        <div class="form-group">
+            <label for="editName">Назва цілі:</label>
+            <input type="text" id="editName">
+        </div>
+        <div class="form-group">
+            <label for="editType">Тип цілі:</label>
+            <select id="editType">
+                <option value="дрон">Дрон</option>
+                <option value="ракета">Ракета</option>
+                <option value="винищувач">Винищувач</option>
+                <option value="бомба">Бомба</option>
+                <option value="корабль">Корабель</option>
+                <option value="вертоліт">Вертоліт</option>
+                <option value="пускова установка">Пускова установка</option>
+                <option value="група бпла">Група БпЛА</option>
+                <option value="розвідник">Розвідник</option>
+                <option value="невідома ціль">Невідома ціль</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="editSpeed">Швидкість (км/год):</label>
+            <input type="number" id="editSpeed">
+        </div>
+        <div class="form-group">
+            <label for="editCourse">Курс (0-360°):</label>
+            <input type="number" id="editCourse" min="0" max="360">
+        </div>
+        <div class="modal-buttons">
+            <button onclick="saveTargetEdit()">Зберегти</button>
+            <button onclick="closeEditModal()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно вибору курсу -->
+<div id="courseSelectionModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fas fa-route"></i> Вибір курсу</h3>
+        <p>Клацніть по карті, щоб встановити напрямок руху цілі</p>
+        <div class="modal-buttons">
+            <button onclick="confirmCourseSelection()">Підтвердити</button>
+            <button onclick="cancelCourseSelection()" style="background: linear-gradient(90deg, #ff6b6b 0%, #ee5a24 100%);">Скасувати</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="importFile" style="display: none;" accept=".json">
+    <script>
+// Глобальные переменные
+let map;
+let targets = [];
+let markers = {};
+let polylines = {};
+let targetHistory = {};
+let showTrajectories = true;
+let isPanelExpanded = true;
+let isCourseSelectionMode = false;
+let selectedTargetForCourse = null;
+let autoSaveInterval = null;
+let isAdmin = false;
+let currentEditTargetId = null;
+let saveTimeout = null;
+let lastUpdateTime = Date.now();
+let animationFrameId = null;
+let isAddTargetMode = false;
+let popupOpenTargetId = null;
+let deletedTargets = new Set();
+let markerCluster;
+let lastStatsUpdate = Date.now();
+let pausedTargets = new Set();
+let isOnline = false;
+let isSyncing = false;
+let lastSyncTime = Date.now();
+let syncInterval = null;
+let userSessionId = Math.random().toString(36).substring(2, 11);
+let lastSyncTargets = '';
+let lastSyncDeleted = '';
+let locallyModifiedTargets = new Set();
+let modificationTimeouts = {};
+
+// Переменные для поиска
+let searchMarker = null;
+let searchResults = [];
+let searchTimeout = null;
+
+// Переменные для функционала стрелок и кластеризации
+let isClusteringEnabled = true;
+let arrowMode = false;
+let tempArrowLine = null;
+let tempArrowStartLatLng = null;
+let allArrows = L.layerGroup();
+let individualTargets = L.layerGroup();
+
+// Текущий стиль карты
+let currentMapStyle = 'dark';
+
+// Слои карты
+let baseLayers = {
+    'dark': null,
+    'standard': null,
+    'satellite': null
+};
+
+// Конфигурация иконок для разных стилей карты
+const iconConfig = {
+    'dark': {
+        'дрон': "icons/shahed.png",
+        'ракета': "icons/raketa.png",
+        'винищувач': "icons/suchka.png",
+        'бомба': "icons/KAB.png",
+        'корабль': "icons/ship.png",
+        'вертоліт': "icons/vertolet.png",
+        'пускова установка': "icons/iskander.png",
+        'група бпла': "icons/group.png",
+        'розвідник': "icons/razvedka.png",
+        'невідома ціль': "icons/nevidoma.png"
+    },
+    'standard': {
+        'дрон': "icons/shahed-red.png",
+        'ракета': "icons/raketa-red.png",
+        'винищувач': "icons/suchka-red.png",
+        'бомба': "icons/KAB-red.png",
+        'корабль': "icons/ship-red.png",
+        'вертоліт': "icons/vertolet.png",
+        'пускова установка': "icons/iskander.png",
+        'група бпла': "icons/group-red.png",
+        'розвідник': "icons/razvedka-orange.png",
+        'невідома ціль': "icons/nevidoma.png"
+    },
+    'satellite': {
+        'дрон': "icons/shahed-red.png",
+        'ракета': "icons/raketa-red.png",
+        'винищувач': "icons/suchka-red.png",
+        'бомба': "icons/KAB-red.png",
+        'корабль': "icons/ship-red.png",
+        'вертоліт': "icons/vertolet.png",
+        'пускова установка': "icons/iskander.png",
+        'група бпла': "icons/group-red.png",
+        'розвідник': "icons/razvedka-orange.png",
+        'невідома ціль': "icons/nevidoma.png"
+    }
+};
+
+// Функция для получения URL иконки цели с учетом текущего стиля карты
+function getTargetIconUrl(type) {
+    return iconConfig[currentMapStyle][type] || iconConfig['dark'][type];
+}
+
+// Закрыть предупреждение
+function closeWarningModal() {
+    document.getElementById('warningModal').style.display = 'none';
+    // Сохраняем в localStorage, что предупреждение было показано
+    localStorage.setItem('warningShown', 'true');
+}
+
+// Переподключиться
+function reconnectFirebase() {
+    console.log("Принудительное переподключение...");
+    isOnline = false;
+    updateStatus();
+    
+    // Очищаем кеш Firebase
+    if (firebase.apps.length) {
+        firebase.app().delete();
+    }
+    
+    // Пытаемся переподключиться
+    setTimeout(() => {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            isOnline = true;
+            updateStatus();
+            alert("Переподключение успешно!");
+        } catch (error) {
+            console.error("Ошибка переподключения:", error);
+            alert("Ошибка переподключения: " + error.message);
+        }
+    }, 1000);
+}
+
+// Простая проверка Firebase
+function checkFirebaseSimple() {
+    console.log("Проверка Firebase...");
+    console.log("Firebase доступен:", typeof firebase !== 'undefined');
+    
+    if (typeof firebase !== 'undefined') {
+        try {
+            firebase.database().ref('test').set({test: 1})
+                .then(() => console.log("Firebase запись успешна"))
+                .catch(e => console.log("Firebase ошибка записи:", e));
+        } catch (error) {
+            console.log("Ошибка инициализации Firebase:", error);
+        }
+    }
+}
+
+// База данных всех населенных пунктов Украины
+const ukraineCities = [
+    // Областные центры
+{ name: "Київ", lat: 50.4501, lng: 30.5234, type: "столиця" },
+{ name: "Харків", lat: 49.9935, lng: 36.2304, type: "обласний центр" },
+{ name: "Одеса", lat: 46.4825, lng: 30.7233, type: "обласний центр" },
+{ name: "Дніпро", lat: 48.4647, lng: 35.0462, type: "обласний центр" },
+{ name: "Донецьк", lat: 48.0159, lng: 37.8029, type: "обласний центр" },
+{ name: "Запоріжжя", lat: 47.8388, lng: 35.1396, type: "обласний центр" },
+{ name: "Львів", lat: 49.8397, lng: 24.0297, type: "обласний центр" },
+{ name: "Кривий Ріг", lat: 47.9105, lng: 33.3918, type: "місто" },
+{ name: "Миколаїв", lat: 46.9750, lng: 31.9946, type: "обласний центр" },
+{ name: "Маріуполь", lat: 47.0971, lng: 37.5434, type: "місто" },
+{ name: "Луганськ", lat: 48.5740, lng: 39.3078, type: "обласний центр" },
+{ name: "Вінниця", lat: 49.2331, lng: 28.4682, type: "обласний центр" },
+{ name: "Севастополь", lat: 44.6167, lng: 33.5254, type: "місто" },
+{ name: "Сімферополь", lat: 44.9521, lng: 34.1024, type: "обласний центр" },
+{ name: "Херсон", lat: 46.6354, lng: 32.6169, type: "обласний центр" },
+{ name: "Полтава", lat: 49.5883, lng: 34.5514, type: "обласний центр" },
+{ name: "Чернігів", lat: 51.4982, lng: 31.2893, type: "обласний центр" },
+{ name: "Черкаси", lat: 49.4444, lng: 32.0598, type: "обласний центр" },
+{ name: "Житомир", lat: 50.2547, lng: 28.6587, type: "обласний центр" },
+{ name: "Суми", lat: 50.9077, lng: 34.7981, type: "обласний центр" },
+{ name: "Хмельницький", lat: 49.4229, lng: 26.9871, type: "обласний центр" },
+{ name: "Чернівці", lat: 48.2917, lng: 25.9352, type: "обласний центр" },
+{ name: "Рівне", lat: 50.6199, lng: 26.2516, type: "обласний центр" },
+{ name: "Івано-Франківськ", lat: 48.9226, lng: 24.7111, type: "обласний центр" },
+{ name: "Тернопіль", lat: 49.5535, lng: 25.5948, type: "обласний центр" },
+{ name: "Луцьк", lat: 50.7472, lng: 25.3254, type: "обласний центр" },
+{ name: "Ужгород", lat: 48.6208, lng: 22.2879, type: "обласний центр" },
+
+// Запорожская область - города
+{ name: "Бердянськ", lat: 46.7590, lng: 36.7884, type: "місто" },
+{ name: "Василівка", lat: 47.4333, lng: 35.2833, type: "місто" },
+{ name: "Вільнянськ", lat: 47.9436, lng: 35.4300, type: "місто" },
+{ name: "Гуляйполе", lat: 47.6667, lng: 36.2667, type: "місто" },
+{ name: "Дніпрорудне", lat: 47.3833, lng: 35.0000, type: "місто" },
+{ name: "Енергодар", lat: 47.5000, lng: 34.4667, type: "місто" },
+{ name: "Запоріжжя", lat: 47.8388, lng: 35.1396, type: "місто" },
+{ name: "Кам'янка-Дніпровська", lat: 47.4833, lng: 34.4167, type: "місто" },
+{ name: "Мелітополь", lat: 46.8480, lng: 35.3653, type: "місто" },
+{ name: "Молочанськ", lat: 47.2000, lng: 35.6000, type: "місто" },
+{ name: "Оріхів", lat: 47.5667, lng: 35.7833, type: "місто" },
+{ name: "Пологи", lat: 47.4833, lng: 36.2667, type: "місто" },
+{ name: "Приморськ", lat: 46.7333, lng: 36.3500, type: "місто" },
+{ name: "Токмак", lat: 47.2500, lng: 35.7000, type: "місто" },
+
+// Запорожская область - ПГТ и села
+{ name: "Андріївка", lat: 47.5333, lng: 35.3500, type: "село" },
+{ name: "Балабине", lat: 47.7333, lng: 35.2167, type: "село" },
+{ name: "Біленьке", lat: 47.6167, lng: 35.4167, type: "село" },
+{ name: "Водяне", lat: 47.4833, lng: 35.4833, type: "село" },
+{ name: "Вознесенка", lat: 47.5667, lng: 35.7833, type: "село" },
+{ name: "Гаврилівка", lat: 47.6667, lng: 35.2667, type: "село" },
+{ name: "Дмитрівка", lat: 47.3833, lng: 35.1000, type: "село" },
+{ name: "Жеребець", lat: 47.4500, lng: 35.3333, type: "село" },
+{ name: "Кам'янка", lat: 47.4000, lng: 35.4500, type: "село" },
+{ name: "Комишуваха", lat: 47.7167, lng: 35.5333, type: "село" },
+{ name: "Костянтинівка", lat: 47.8333, lng: 35.2167, type: "село" },
+{ name: "Любимівка", lat: 47.6500, lng: 35.1500, type: "село" },
+{ name: "Мала Токмачка", lat: 47.5333, lng: 35.9000, type: "село" },
+{ name: "Мирне", lat: 47.5833, lng: 35.3167, type: "село" },
+{ name: "Новоолександрівка", lat: 47.7167, lng: 35.3333, type: "село" },
+{ name: "Новопетрівка", lat: 47.6000, lng: 35.5167, type: "село" },
+{ name: "Олександрівка", lat: 47.8167, lng: 35.1833, type: "село" },
+{ name: "Петро-Михайлівка", lat: 47.5500, lng: 35.2667, type: "село" },
+{ name: "Преображенка", lat: 47.5667, lng: 35.8167, type: "село" },
+{ name: "Розівка", lat: 47.3833, lng: 37.0667, type: "село" },
+{ name: "Степногірськ", lat: 47.5667, lng: 35.3167, type: "село" },
+{ name: "Тернувате", lat: 47.8333, lng: 36.1333, type: "село" },
+{ name: "Чернігівка", lat: 47.2000, lng: 36.2000, type: "село" },
+{ name: "Широке", lat: 47.6833, lng: 36.2833, type: "село" },
+{ name: "Якимівка", lat: 46.7000, lng: 35.1667, type: "село" },
+
+// Днепропетровская область - города
+{ name: "Апостолове", lat: 47.6667, lng: 33.7167, type: "місто" },
+{ name: "Верхньодніпровськ", lat: 48.6500, lng: 34.3333, type: "місто" },
+{ name: "Верховцеве", lat: 48.4833, lng: 34.2500, type: "місто" },
+{ name: "Вільногірськ", lat: 48.4833, lng: 34.0167, type: "місто" },
+{ name: "Дніпро", lat: 48.4647, lng: 35.0462, type: "місто" },
+{ name: "Жовті Води", lat: 48.3500, lng: 33.5167, type: "місто" },
+{ name: "Зеленодольськ", lat: 48.6333, lng: 33.5167, type: "місто" },
+{ name: "Кам'янське", lat: 48.5167, lng: 34.6167, type: "місто" },
+{ name: "Кривий Ріг", lat: 47.9105, lng: 33.3918, type: "місто" },
+{ name: "Марганець", lat: 47.6500, lng: 34.6167, type: "місто" },
+{ name: "Нікополь", lat: 47.5672, lng: 34.3949, type: "місто" },
+{ name: "Новомосковськ", lat: 48.6333, lng: 35.2167, type: "місто" },
+{ name: "Павлоград", lat: 48.5204, lng: 35.8706, type: "місто" },
+{ name: "Перещепине", lat: 49.0167, lng: 35.3667, type: "місто" },
+{ name: "Першотравенськ", lat: 48.3333, lng: 36.4000, type: "місто" },
+{ name: "Підгородне", lat: 48.5667, lng: 35.1000, type: "місто" },
+{ name: "Покров", lat: 47.9833, lng: 36.2333, type: "місто" },
+{ name: "П'ятихатки", lat: 48.4167, lng: 33.7000, type: "місто" },
+{ name: "Синельникове", lat: 48.3167, lng: 35.5167, type: "місто" },
+{ name: "Тернівка", lat: 48.5333, lng: 36.0833, type: "місто" },
+{ name: "Юр'ївка", lat: 48.7333, lng: 36.0167, type: "місто" },
+
+// Днепропетровская область - ПГТ и села
+{ name: "Авдіївка", lat: 48.1333, lng: 37.7500, type: "село" },
+{ name: "Богданівка", lat: 48.2167, lng: 35.5333, type: "село" },
+{ name: "Васильківка", lat: 48.2000, lng: 36.0167, type: "село" },
+{ name: "Великомихайлівка", lat: 48.1167, lng: 36.4333, type: "село" },
+{ name: "Верхівцеве", lat: 48.4833, lng: 34.2500, type: "село" },
+{ name: "Губиниха", lat: 48.8000, lng: 35.2500, type: "село" },
+{ name: "Демурине", lat: 48.5333, lng: 34.7833, type: "село" },
+{ name: "Діброва", lat: 48.4333, lng: 35.0667, type: "село" },
+{ name: "Іларіонове", lat: 48.4000, lng: 35.2667, type: "село" },
+{ name: "Кирилівка", lat: 48.3500, lng: 35.1167, type: "село" },
+{ name: "Котовське", lat: 48.6333, lng: 35.0833, type: "село" },
+{ name: "Кринички", lat: 48.3667, lng: 34.4667, type: "село" },
+{ name: "Любимівка", lat: 48.2833, lng: 35.1667, type: "село" },
+{ name: "Магдалинівка", lat: 48.9167, lng: 34.9167, type: "село" },
+{ name: "Межова", lat: 48.2500, lng: 36.7333, type: "село" },
+{ name: "Новопокровка", lat: 48.0500, lng: 36.6333, type: "село" },
+{ name: "Олександрівка", lat: 48.5833, lng: 35.1167, type: "село" },
+{ name: "Петриківка", lat: 48.7167, lng: 34.6333, type: "село" },
+{ name: "Петропавлівка", lat: 48.4500, lng: 36.4333, type: "село" },
+{ name: "Письменне", lat: 48.3167, lng: 35.8667, type: "село" },
+{ name: "Покровське", lat: 48.2667, lng: 36.1833, type: "село" },
+{ name: "Славгород", lat: 48.5333, lng: 35.5833, type: "село" },
+{ name: "Софіївка", lat: 48.2667, lng: 33.8667, type: "село" },
+{ name: "Таромське", lat: 48.5333, lng: 35.0167, type: "село" },
+{ name: "Царичанка", lat: 48.9333, lng: 34.4667, type: "село" },
+{ name: "Червоний Поділ", lat: 48.3833, lng: 35.0167, type: "село" },
+{ name: "Широке", lat: 48.6667, lng: 35.1000, type: "село" },
+{ name: "Юр'ївка", lat: 48.7333, lng: 36.0167, type: "село" },
+
+// Российские города близ границы с Украиной
+{ name: "Ростов-на-Дону", lat: 47.2221, lng: 39.7203, type: "російське місто" },
+{ name: "Белгород", lat: 50.5955, lng: 36.5873, type: "російське місто" },
+{ name: "Курск", lat: 51.7304, lng: 36.1926, type: "російське місто" },
+{ name: "Воронеж", lat: 51.6720, lng: 39.1843, type: "російське місто" },
+{ name: "Брянск", lat: 53.2436, lng: 34.3634, type: "російське місто" },
+{ name: "Краснодар", lat: 45.0355, lng: 38.9753, type: "російське місто" },
+{ name: "Таганрог", lat: 47.2362, lng: 38.8969, type: "російське місто" },
+{ name: "Новороссийск", lat: 44.7235, lng: 37.7687, type: "російське місто" },
+{ name: "Сочи", lat: 43.5855, lng: 39.7231, type: "російське місто" },
+{ name: "Севастополь", lat: 44.6167, lng: 33.5254, type: "російське місто" },
+{ name: "Симферополь", lat: 44.9521, lng: 34.1024, type: "російське місто" },
+{ name: "Керчь", lat: 45.3561, lng: 36.4674, type: "російське місто" },
+{ name: "Ялта", lat: 44.5022, lng: 34.1662, type: "російське місто" },
+{ name: "Феодосия", lat: 45.0333, lng: 35.3833, type: "російське місто" },
+{ name: "Евпатория", lat: 45.1906, lng: 33.3670, type: "російське місто" },
+{ name: "Анапа", lat: 44.8944, lng: 37.3167, type: "російське місто" },
+{ name: "Геленджик", lat: 44.5608, lng: 38.0767, type: "російське місто" },
+{ name: "Туапсе", lat: 44.1000, lng: 39.0833, type: "російське місто" },
+{ name: "Майкоп", lat: 44.6000, lng: 40.0833, type: "російське місто" },
+{ name: "Ставрополь", lat: 45.0500, lng: 41.9833, type: "російське місто" },
+
+// Крупные города
+    { name: "Біла Церква", lat: 49.7956, lng: 30.1167, type: "місто" },
+    { name: "Краматорськ", lat: 48.7382, lng: 37.5842, type: "місто" },
+    { name: "Мелітополь", lat: 46.8480, lng: 35.3653, type: "місто" },
+    { name: "Керч", lat: 45.3561, lng: 36.4674, type: "місто" },
+    { name: "Слов'янськ", lat: 48.8534, lng: 37.6053, type: "місто" },
+    { name: "Бердянськ", lat: 46.7590, lng: 36.7884, type: "місто" },
+    { name: "Нікополь", lat: 47.5672, lng: 34.3949, type: "місто" },
+    { name: "Павлоград", lat: 48.5204, lng: 35.8706, type: "місто" },
+    { name: "Калуш", lat: 49.0429, lng: 24.3597, type: "місто" },
+    { name: "Ковель", lat: 51.2153, lng: 24.7086, type: "місто" },
+    { name: "Умань", lat: 48.7500, lng: 30.2167, type: "місто" },
+    { name: "Бровари", lat: 50.5113, lng: 30.7905, type: "місто" },
+    { name: "Мукачево", lat: 48.4415, lng: 22.7136, type: "місто" },
+    { name: "Ялта", lat: 44.5022, lng: 34.1662, type: "місто" },
+    { name: "Євпаторія", lat: 45.1906, lng: 33.3670, type: "місто" },
+    { name: "Алчевськ", lat: 48.4675, lng: 38.7986, type: "місто" },
+    { name: "Дрогобич", lat: 49.3517, lng: 23.5050, type: "місто" },
+    { name: "Кам'янець-Подільський", lat: 48.6806, lng: 26.5806, type: "місто" },
+    { name: "Конотоп", lat: 51.2369, lng: 33.2027, type: "місто" },
+    { name: "Костопіль", lat: 50.8833, lng: 26.4500, type: "місто" },
+    { name: "Кременчук", lat: 49.0737, lng: 33.4080, type: "місто" },
+    { name: "Лисичанськ", lat: 48.9167, lng: 38.4167, type: "місто" },
+    { name: "Нова Каховка", lat: 46.7500, lng: 33.3667, type: "місто" },
+    { name: "Олександрія", lat: 48.6667, lng: 33.1167, type: "місто" },
+    { name: "Рівне", lat: 50.6199, lng: 26.2516, type: "місто" },
+    { name: "Ромни", lat: 50.7500, lng: 33.4667, type: "місто" },
+    { name: "Сєвєродонецьк", lat: 48.9500, lng: 38.5000, type: "місто" },
+    { name: "Стаханов", lat: 48.5667, lng: 38.6500, type: "місто" },
+    { name: "Шостка", lat: 51.8667, lng: 33.4833, type: "місто" },
+    
+    // Города поменьше
+    { name: "Бердичів", lat: 49.8917, lng: 28.6000, type: "місто" },
+    { name: "Ніжин", lat: 51.0500, lng: 31.8833, type: "місто" },
+    { name: "Феодосія", lat: 45.0333, lng: 35.3833, type: "місто" },
+    { name: "Чернівці", lat: 48.3000, lng: 25.9333, type: "місто" },
+    { name: "Ізмаїл", lat: 45.3500, lng: 28.8333, type: "місто" },
+    { name: "Ірпінь", lat: 50.5167, lng: 30.2500, type: "місто" },
+    { name: "Коростень", lat: 50.9500, lng: 28.6333, type: "місто" },
+    { name: "Красний Луч", lat: 48.1333, lng: 38.9333, type: "місто" },
+    { name: "Лубни", lat: 50.0167, lng: 33.0000, type: "місто" },
+    { name: "Макіївка", lat: 48.0667, lng: 38.0667, type: "місто" },
+    { name: "Марганець", lat: 47.6500, lng: 34.6167, type: "місто" },
+    { name: "Миргород", lat: 49.9667, lng: 33.6000, type: "місто" },
+    { name: "Новомосковськ", lat: 48.6333, lng: 35.2167, type: "місто" },
+    { name: "Охтирка", lat: 50.3000, lng: 34.9000, type: "місто" },
+    { name: "Первомайськ", lat: 48.0500, lng: 30.8500, type: "місто" },
+    { name: "Пологи", lat: 47.4833, lng: 36.2667, type: "місто" },
+    { name: "Прилуки", lat: 50.6000, lng: 32.4000, type: "місто" },
+    { name: "Свердловськ", lat: 48.0833, lng: 39.6500, type: "місто" },
+    { name: "Сміла", lat: 49.2167, lng: 31.8667, type: "місто" },
+    { name: "Сніжне", lat: 48.0333, lng: 38.7667, type: "місто" },
+    { name: "Старий Крим", lat: 45.0333, lng: 35.0833, type: "місто" },
+    { name: "Торез", lat: 48.0333, lng: 38.6333, type: "місто" },
+    { name: "Хуст", lat: 48.1833, lng: 23.3000, type: "місто" },
+    { name: "Часів Яр", lat: 48.5833, lng: 37.8333, type: "місто" },
+    { name: "Шепетівка", lat: 50.1833, lng: 27.0667, type: "місто" },
+    
+    // Поселки городского типа (ПГТ)
+    { name: "Виноградів", lat: 48.1333, lng: 23.0333, type: "селище міського типу" },
+    { name: "Волочиськ", lat: 49.5333, lng: 26.2167, type: "селище міського типу" },
+    { name: "Городок", lat: 49.1667, lng: 26.5667, type: "селище міського типу" },
+    { name: "Деражня", lat: 49.2667, lng: 27.4333, type: "селище міського типу" },
+    { name: "Дубровиця", lat: 51.5667, lng: 26.5667, type: "селище міського типу" },
+    { name: "Заліщики", lat: 48.6500, lng: 25.7333, type: "селище міського типу" },
+    { name: "Ізяслав", lat: 50.1167, lng: 26.8000, type: "селище міського типу" },
+    { name: "Корець", lat: 50.6167, lng: 27.1667, type: "селище міського типу" },
+    { name: "Красногорівка", lat: 48.0167, lng: 37.5000, type: "селище міського типу" },
+    { name: "Курахове", lat: 47.9833, lng: 37.2833, type: "селище міського типу" },
+    { name: "Лиман", lat: 48.9833, lng: 37.8167, type: "селище міського типу" },
+    { name: "Мена", lat: 51.5167, lng: 32.2167, type: "селище міського типу" },
+    { name: "Новгород-Сіверський", lat: 52.0064, lng: 33.2731, type: "селище міського типу" },
+    { name: "Овруч", lat: 51.3167, lng: 28.8000, type: "селище міського типу" },
+    { name: "Олешки", lat: 46.6167, lng: 32.7167, type: "селище міського типу" },
+    { name: "Підгайці", lat: 49.2667, lng: 25.1333, type: "селище міського типу" },
+    { name: "Радивилів", lat: 50.1333, lng: 25.2667, type: "селище міського типу" },
+    { name: "Рожище", lat: 50.9167, lng: 25.2667, type: "селище міського типу" },
+    { name: "Сарни", lat: 51.3333, lng: 26.6000, type: "селище міського типу" },
+    { name: "Скалат", lat: 49.4333, lng: 25.9833, type: "селище міського типу" },
+    { name: "Славута", lat: 50.3000, lng: 26.8667, type: "селище міського типу" },
+    { name: "Сокиряни", lat: 48.4500, lng: 27.4167, type: "селище міського типу" },
+    { name: "Стара Вижівка", lat: 51.4333, lng: 24.4333, type: "селище міського типу" },
+    { name: "Тетіїв", lat: 49.3667, lng: 29.6833, type: "селище міського типу" },
+    { name: "Турка", lat: 49.1500, lng: 23.0333, type: "селище міського типу" },
+    { name: "Узин", lat: 49.8167, lng: 30.4333, type: "селище міського типу" },
+    { name: "Ходорів", lat: 49.4167, lng: 24.3167, type: "селище міського типу" },
+    { name: "Чоп", lat: 48.4333, lng: 22.2000, type: "селище міського типу" },
+    { name: "Яремче", lat: 48.4500, lng: 24.5500, type: "селище міського типу" },
+    
+    // Села и деревни (только некоторые примеры)
+    { name: "Андріївка", lat: 46.5667, lng: 30.5167, type: "село" },
+    { name: "Бабинці", lat: 50.3167, lng: 30.2333, type: "село" },
+    { name: "Бережани", lat: 49.4500, lng: 24.9333, type: "село" },
+    { name: "Білогородка", lat: 50.4000, lng: 30.2167, type: "село" },
+    { name: "Буча", lat: 50.5500, lng: 30.2167, type: "село" },
+    { name: "Великий Березний", lat: 48.9000, lng: 22.4667, type: "село" },
+    { name: "Верховина", lat: 48.1500, lng: 24.8167, type: "село" },
+    { name: "Ворзель", lat: 50.5500, lng: 30.1500, type: "село" },
+    { name: "Гатне", lat: 50.3333, lng: 30.4667, type: "село" },
+    { name: "Гостомель", lat: 50.5833, lng: 30.2667, type: "село" },
+    { name: "Демидів", lat: 50.4167, lng: 25.3333, type: "село" },
+    { name: "Жовтневе", lat: 50.4833, lng: 30.4500, type: "село" },
+    { name: "Зарічне", lat: 48.9167, lng: 22.4667, type: "село" },
+    { name: "Іванків", lat: 50.9333, lng: 29.9000, type: "село" },
+    { name: "Козин", lat: 50.2167, lng: 30.6333, type: "село" },
+    { name: "Копилів", lat: 49.1167, lng: 28.7833, type: "село" },
+    { name: "Корсунь-Шевченківський", lat: 49.4167, lng: 31.2667, type: "село" },
+    { name: "Красилівка", lat: 50.1167, lng: 30.7500, type: "село" },
+    { name: "Кривий Ріг", lat: 47.9105, lng: 33.3918, type: "село" },
+    { name: "Летичів", lat: 49.3833, lng: 27.6167, type: "село" },
+    { name: "Лісники", lat: 50.3500, lng: 30.5333, type: "село" },
+    { name: "Мар'янівка", lat: 50.4500, lng: 30.3333, type: "село" },
+    { name: "Мирне", lat: 45.3167, lng: 33.0333, type: "село" },
+    { name: "Нові Петрівці", lat: 50.6333, lng: 30.4333, type: "село" },
+    { name: "Обухів", lat: 50.1167, lng: 30.6333, type: "село" },
+    { name: "Петропавлівська Борщагівка", lat: 50.4333, lng: 30.3500, type: "село" },
+    { name: "Рокитне", lat: 49.6833, lng: 30.4667, type: "село" },
+    { name: "Семиполки", lat: 50.3667, lng: 30.9167, type: "село" },
+    { name: "Софіївська Борщагівка", lat: 50.4000, lng: 30.3667, type: "село" },
+    { name: "Тарасівка", lat: 50.5333, lng: 30.5000, type: "село" },
+    { name: "Хотів", lat: 50.3333, lng: 30.4667, type: "село" },
+    { name: "Чайки", lat: 50.5167, lng: 30.4000, type: "село" },
+    { name: "Шпитьки", lat: 50.4000, lng: 30.4333, type: "село" },
+    { name: "Юрівка", lat: 50.0167, lng: 31.1000, type: "село" },
+    
+    // Добавим еще несколько важных населенных пунктов
+    { name: "Бахмут", lat: 48.5956, lng: 38.0000, type: "місто" },
+    { name: "Авдіївка", lat: 48.1333, lng: 37.7500, type: "місто" },
+    { name: "Вугледар", lat: 47.7833, lng: 37.2500, type: "місто" },
+    { name: "Куп'янськ", lat: 49.7167, lng: 37.6167, type: "місто" },
+    { name: "Лиман", lat: 48.9833, lng: 37.8167, type: "місто" },
+    { name: "Балаклія", lat: 49.4667, lng: 36.8667, type: "місто" },
+    { name: "Ізюм", lat: 49.2167, lng: 37.2833, type: "місто" },
+    { name: "Костянтинівка", lat: 48.5333, lng: 37.7167, type: "місто" },
+    { name: "Покровськ", lat: 48.2833, lng: 37.1833, type: "місто" },
+    { name: "Слов'янськ", lat: 48.8534, lng: 37.6053, type: "місто" },
+    { name: "Краматорськ", lat: 48.7382, lng: 37.5842, type: "місто" },
+    { name: "Чугуїв", lat: 49.8333, lng: 36.6833, type: "місто" },
+    { name: "Новоград-Волинський", lat: 50.5833, lng: 27.6333, type: "місто" },
+    { name: "Звягель", lat: 50.5833, lng: 27.6333, type: "місто" },
+    { name: "Коростишів", lat: 50.3167, lng: 29.0667, type: "місто" },
+    { name: "Малин", lat: 50.7667, lng: 29.2667, type: "місто" },
+    { name: "Овруч", lat: 51.3167, lng: 28.8000, type: "місто" },
+    { name: "Коростень", lat: 50.9500, lng: 28.6333, type: "місто" }
+];
+
+// ВАШІ НАЛАШТУВАННЯ FIREBASE
+const firebaseConfig = {
+    apiKey: "AIzaSyCXB-klfdlwFb8QzbeqolqSghBpPrmFwio",
+    authDomain: "air-tracking-site.firebaseapp.com",
+    databaseURL: "https://air-tracking-site-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "air-tracking-site",
+    storageBucket: "air-tracking-site.firebasestorage.app",
+    messagingSenderId: "185790784262",
+    appId: "1:185790784262:web:bc28d6942b6d9792b8b487",
+    measurementId: "G-XW9Y6JKCPG"
+};
+
+// Типы целей с названиями
+const targetTypes = {
+    'дрон': { name: "Дрон" },
+    'ракета': { name: "Ракета" },
+    'винищувач': { name: "Винищувач" },
+    'бомба': { name: "Бомба" },
+    'корабль': { name: "Корабель" },
+    'вертоліт': { name: "Вертоліт" },
+    'пускова установка': { name: "Пускова установка" },
+    'група бпла': { name: "Група БпЛА" },
+    'розвідник': { name: "Розвідник" },
+    'невідома ціль': { name: "Невідома ціль" }
+};
+
+// Инициализация приложения
+function initApp() {
+    // Добавьте эту проверку
+console.log("=== ДИАГНОСТИКА ТЕЛЕФОНА ===");
+console.log("User Agent:", navigator.userAgent);
+console.log("Cookies:", navigator.cookieEnabled);
+console.log("LocalStorage:", !!window.localStorage);
+console.log("IndexedDB:", !!window.indexedDB);
+console.log("Online status:", navigator.onLine);
+
+    // Проверка Firebase
+    if (typeof firebase === 'undefined') {
+    console.error("Firebase не загрузился!");
+    } else {
+    console.log("Firebase загружен");
+  }
+  
+    // ↓↓↓ ДОБАВЬТЕ ЭТО В САМОЕ НАЧАЛО ФУНКЦИИ ↓↓↓
+    console.log("Firebase status:", {
+        isOnline: isOnline,
+        isSyncing: isSyncing,
+        targetsCount: targets.length,
+        modifiedTargets: locallyModifiedTargets.size
+    });
+    // ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
+    
+    // ↓↓↓ ДОБАВЬТЕ ЭТОТ КОД ЗДЕСЬ ↓↓↓
+console.log("Режим синхронизации: ", isOnline ? "ОНЛАЙН" : "ОФФЛАЙН");
+console.log("Количество целей: ", targets.length);
+console.log("User session ID: ", userSessionId);
+// ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
+
+    // Принудительная синхронизация при загрузке
+function forceFirebaseInit() {
+    setTimeout(() => {
+        if (!isOnline && typeof firebase !== 'undefined') {
+            console.log("Принудительная инициализация Firebase...");
+            try {
+                firebase.initializeApp(firebaseConfig);
+                isOnline = true;
+                updateStatus();
+                console.log("Firebase принудительно инициализирован");
+            } catch (e) {
+                console.log("Ошибка принудительной инициализации:", e);
+            }
+        }
+    }, 3000);
+}
+
+    // Вызовите в initApp()
+    forceFirebaseInit();
+    
+    // Проверка загрузки библиотек
+    if (typeof L === 'undefined') {
+        console.error('Leaflet не завантажився');
+        alert('Помилка: Бібліотека карт не завантажилась. Перевірте підключення до інтернету');
+        return;
+    }
+    
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase не завантажився');
+        alert('Помилка: Firebase не завантажився. Деякі функції будуть обмежені');
+    }
+    
+    try {
+        initMap();
+        loadTargetsFromLocalStorage();
+        initFirebase();
+        setupEventListeners();
+        updateStats();
+        updateStatus();
+        startAutoSave();
+        updateUIForUserRole();
+        
+        startAnimationLoop();
+        
+        // Показываем предупреждение только при первом посещении
+        if (!localStorage.getItem('warningShown')) {
+            document.getElementById('warningModal').style.display = 'block';
+        }
+        
+        console.log("Додаток успішно ініціалізовано");
+    } catch (error) {
+        console.error('Помилка ініціалізації:', error);
+        alert('Помилка ініціалізації: ' + error.message);
+    }
+}
+
+// Исправленная функция инициализации карты
+function initMap() {
+    try {
+        const mapElement = document.getElementById('map');
+        if (!mapElement) {
+            throw new Error('Елемент карти не знайдено');
+        }
+        
+        // Проверяем, не инициализирована ли карта уже
+        if (map) {
+            map.remove();
+            map = null;
+            markers = {};
+            polylines = {};
+        }
+        
+        // Очищаем контейнер карты
+        mapElement.innerHTML = '<div class="crosshair"></div><div class="map-switcher"><select id="mapStyleSelector" onchange="changeMapStyle()"><option value="dark">Темна карта</option><option value="standard">Стандартна</option><option value="satellite">Супутник</option></select></div>';
+        
+        map = L.map('map').setView([50.4500, 30.5233], 6);
+
+        // ТЁМНАЯ КАРТА
+        baseLayers.dark = L.tileLayer('https://api.maptiler.com/maps/basic-v2-dark/{z}/{x}/{y}.png?key=FwLDJ8CDh1JptvWufV7a', {
+            attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">© MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+            maxZoom: 19,
+            tileSize: 512,
+            zoomOffset: -1
+        }).addTo(map);
+
+        // СТАНДАРТНАЯ КАРТА
+        baseLayers.standard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        });
+
+        // СПУТНИКОВАЯ КАРТА с названиями
+        const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 19
+        });
+
+        // Слой с названиями для спутниковой карты
+        const satelliteLabels = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            opacity: 0.6,
+            maxZoom: 19
+        });
+
+        // Создаем группу для спутниковой карты с названиями
+        baseLayers.satellite = L.layerGroup([satelliteBase, satelliteLabels]);
+
+        // Инициализация кластеризации
+        markerCluster = L.markerClusterGroup({
+            chunkedLoading: true,
+            maxClusterRadius: 50,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                let size = 'small';
+                if (count > 10) size = 'medium';
+                if (count > 25) size = 'large';
+                
+                return L.divIcon({
+                    html: '<div><span>' + count + '</span></div>',
+                    className: 'marker-cluster marker-cluster-' + size,
+                    iconSize: L.point(40, 40)
+                });
+            }
+        });
+        map.addLayer(markerCluster);
+        
+        // Добавляем слои для отдельных маркеров и стрелок
+        map.addLayer(individualTargets);
+        map.addLayer(allArrows);
+
+        // Добавляем обработчик клика по карте
+        map.on('click', function(e) {
+            if (isAddTargetMode && isAdmin) {
+                addTargetAtPosition(e.latlng);
+                isAddTargetMode = false;
+            } else if (isCourseSelectionMode && selectedTargetForCourse) {
+                setTargetCourseFromMap(e.latlng);
+            } else if (arrowMode) {
+                handleArrowClick(e);
+            }
+        });
+
+        // Обновляем кластеризацию при изменении зума
+        map.on('zoomend', function() {
+            updateTargetClusters();
+        });
+
+        // Обработчик движения мыши для временной линии стрелки
+        map.on('mousemove', function(e) {
+            if (arrowMode && tempArrowStartLatLng && tempArrowLine) {
+                tempArrowLine.setLatLngs([tempArrowStartLatLng, e.latlng]);
+            }
+        });
+
+        console.log("Карта успішно ініціалізована");
+    } catch (error) {
+        console.error('Помилка ініціалізації карти:', error);
+        alert('Помилка створення карти: ' + error.message);
+    }
+}
+
+// Исправленная функция смены стиля карты
+function changeMapStyle() {
+    const style = document.getElementById('mapStyleSelector').value;
+    currentMapStyle = style;
+    
+    // Удаляем все текущие базовые слои
+    if (baseLayers.dark && map.hasLayer(baseLayers.dark)) {
+        map.removeLayer(baseLayers.dark);
+    }
+    if (baseLayers.standard && map.hasLayer(baseLayers.standard)) {
+        map.removeLayer(baseLayers.standard);
+    }
+    if (baseLayers.satellite && map.hasLayer(baseLayers.satellite)) {
+        map.removeLayer(baseLayers.satellite);
+    }
+    
+    // Добавляем выбранный слой
+    if (style === 'dark') {
+        baseLayers.dark.addTo(map);
+    } else if (style === 'standard') {
+        baseLayers.standard.addTo(map);
+    } else if (style === 'satellite') {
+        baseLayers.satellite.addTo(map);
+    }
+    
+    // Обновляем все иконки маркеров для нового стиля
+    updateAllMarkerIcons();
+}
+
+// Исправленная функция добавления цели на карту
+function addTargetToMap(target) {
+    if (markers[target.id]) {
+        if (isClusteringEnabled) {
+            markerCluster.removeLayer(markers[target.id]);
+        } else {
+            individualTargets.removeLayer(markers[target.id]);
+        }
+    }
+    
+    const icon = getIconForType(target.type, target.course);
+    const marker = L.marker([target.latitude, target.longitude], { icon: icon });
+    
+    // Форматируем дату создания
+    const createdDate = new Date(target.createdAt);
+    const formattedDate = createdDate.toLocaleString('uk-UA');
+    
+    // Создаем popup с кнопками действий
+    const popupContent = `
+        <div class="target-info-window">
+            <h4>${target.name}</h4>
+            <p><strong>Тип:</strong> ${targetTypes[target.type]?.name || target.type}</p>
+            <p><strong>Швидкість:</strong> ${target.speed} км/год</p>
+            <p><strong>Курс:</strong> ${target.course}°</p>
+            <p><strong>Відстань:</strong> ${(target.distance / 1000).toFixed(1)} км</p>
+            <p><strong>Додано:</strong> ${formattedDate}</p>
+            ${isAdmin ? `
+            <div class="action-buttons">
+                <button class="action-button edit-btn" onclick="event.stopPropagation(); editTarget('${target.id}')">
+                    <i class="fas fa-edit"></i> Редагувати
+                </button>
+                <button class="action-button delete-btn" onclick="event.stopPropagation(); deleteTarget('${target.id}')">
+                    <i class="fas fa-trash"></i> Видалити
+                </button>
+                <button class="action-button course-btn" onclick="event.stopPropagation(); showCourseSelectionModal('${target.id}')">
+                    <i class="fas fa-route"></i> Курс
+                </button>
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    
+    if (isClusteringEnabled) {
+        markerCluster.addLayer(marker);
+    } else {
+        individualTargets.addLayer(marker);
+    }
+    
+    markers[target.id] = marker;
+
+    // Обработчики для остановки при открытии popup
+    marker.on('popupopen', function() {
+        pausedTargets.add(target.id);
+    });
+    
+    marker.on('popupclose', function() {
+        pausedTargets.delete(target.id);
+    });
+    
+    // Добавляем траекторию
+    addTrajectory(target);
+}
+
+// Упрощенная функция получения иконки
+function getIconForType(type, course = 0) {
+    const iconUrl = iconConfig[currentMapStyle][type];
+    
+    if (iconUrl) {
+        return L.divIcon({
+            html: `<div class="rotatable-png-icon" style="transform: rotate(${course + 90}deg); 
+                   background-image: url('${iconUrl}')"></div>`,
+            className: 'png-icon-marker',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+    }
+    
+    // Fallback иконка
+    return createFallbackIcon(type, course);
+}
+
+// Инициализация Firebase
+function initFirebase() {
+    try {
+        // Проверяем, не инициализирован ли Firebase уже
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        isOnline = true;
+        console.log("✅ Firebase успішно підключено!");
+
+        // Генерация или получение deviceId
+        if (!localStorage.getItem("deviceId")) {
+            localStorage.setItem("deviceId", crypto.randomUUID());
+        }
+        const deviceId = localStorage.getItem("deviceId");
+
+        // Слушатель изменения статуса авторизации
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                const uid = user.uid;
+
+                // Проверяем роль устройства в Realtime Database
+                firebase.database().ref("users/" + uid + "/devices/" + deviceId)
+                    .once("value")
+                    .then(snapshot => {
+                        const role = snapshot.val();
+
+                        // По умолчанию — viewer
+                        isAdmin = role === "admin";
+
+                        console.log("👤 UID:", uid);
+                        console.log("📱 DeviceId:", deviceId);
+                        console.log("🎭 Роль из базы:", role);
+                        console.log("🔑 isAdmin =", isAdmin);
+
+                        updateUIForUserRole();
+                    })
+                    .catch(err => {
+                        console.error("❌ Ошибка при получении роли устройства:", err);
+                        isAdmin = false;
+                        updateUIForUserRole();
+                    });
+
+                console.log("Користувач авторизований:", user.email);
+            } else {
+                // Пользователь не авторизован
+                isAdmin = false;
+                console.log("⚠️ Користувач не авторизований");
+                updateUIForUserRole();
+            }
+        });
+
+        setupRealtimeListeners();
+        startAutoSync();
+    } catch (error) {
+        console.log("❌ Помилка підключення до Firebase, використовуємо офлайн-режим:", error);
+        isOnline = false;
+    }
+    updateStatus();
+}
+
+// Настройка обработчиков событий
+function setupEventListeners() {
+    // Поиск при вводе текста
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performSearch();
+        }, 300);
+    });
+
+    // Поиск при нажатии Enter
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    // Закрытие результатов поиска при клике вне области
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-container')) {
+            document.getElementById('searchResults').style.display = 'none';
+        }
+    });
+
+    // Закриття модальних вікон по кліку на затемнений фон
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isAddTargetMode = false;
+                isCourseSelectionMode = false;
+            }
+        });
+    });
+    
+    // Обробка клавіші ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoginModal();
+            closeEditModal();
+            cancelCourseSelection();
+            isAddTargetMode = false;
+        }
+    });
+    
+    // Автозаповнення назви цілі
+    document.getElementById('targetName').addEventListener('focus', function() {
+        if (!this.value) {
+            this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    // Додаємо обробник для імпорту файлів
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        // Обробка імпортованих даних
+                        importedData.forEach(target => {
+                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
+                            target.createdAt = Date.now();
+                            target.updatedAt = Date.now();
+                            target.createdBy = userSessionId;
+                            targets.push(target);
+                        });
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        alert('Дані успішно імпортовані!');
+                    }
+                } catch (error) {
+                    alert('Помилка при імпорті файлу: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    console.log("Обробники подій успішно налаштовані");
+}
+
+// Функция для получения иконки с учетом текущего стиля карты
+function getIconForType(type, course = 0) {
+    const iconUrl = iconConfig[currentMapStyle][type];
+    
+    // Проверяем, загрузилась ли иконка
+    if (iconUrl) {
+        const icon = L.divIcon({
+            html: `<div class="rotatable-png-icon" style="transform: rotate(${course + 90}deg); 
+                   background-image: url('${iconUrl}')"></div>`,
+            className: 'png-icon-marker',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
+        // Проверяем загрузку иконки
+        const testImage = new Image();
+        testImage.onerror = function() {
+            console.warn(`Иконка не найдена: ${iconUrl}`);
+            // Используем fallback иконку
+            markers[target.id]?.setIcon(createFallbackIcon(type, course));
+        };
+        testImage.src = iconUrl;
+        
+        return icon;
+    }
+    
+    return createFallbackIcon(type, course);
+}
+
+// Fallback иконка если основная не загрузилась
+function createFallbackIcon(type, course) {
+    const color = getTargetColor(type);
+    return L.divIcon({
+        html: `<div style="
+            background: ${color};
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+            transform: rotate(${course}deg);
+        ">${type.charAt(0).toUpperCase()}</div>`,
+        iconSize: [35, 35],
+        iconAnchor: [17, 17]
+    });
+}
+
+// Цвета для fallback иконок
+function getTargetColor(type) {
+    const colors = {
+        'дрон': '#e74c3c',
+        'ракета': '#f39c12',
+        'винищувач': '#3498db',
+        'бомба': '#e67e22',
+        'корабль': '#9b59b6',
+        'вертоліт': '#1abc9c',
+        'пускова установка': '#d35400',
+        'група бпла': '#c0392b',
+        'розвідник': '#27ae60',
+        'невідома ціль': '#7f8c8d'
+    };
+    return colors[type] || '#00cec9';
+}
+
+// Поиск населенного пункта
+function performSearch() {
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const resultsContainer = document.getElementById('searchResults');
+    
+    if (query.length < 2) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+    
+    // Фильтруем города по запросу
+    searchResults = ukraineCities.filter(city => 
+        city.name.toLowerCase().includes(query)
+    );
+    
+    // Показываем результаты
+    if (searchResults.length > 0) {
+        resultsContainer.innerHTML = '';
+        
+        searchResults.forEach(city => {
+            const item = document.createElement('div');
+            item.className = 'search-result-item';
+            item.textContent = `${city.name} (${city.type})`;
+            item.onclick = () => {
+                selectSearchResult(city);
+            };
+            resultsContainer.appendChild(item);
+        });
+        
+        resultsContainer.style.display = 'block';
+    } else {
+        resultsContainer.style.display = 'none';
+    }
+}
+
+// Выбор результата поиска
+function selectSearchResult(city) {
+    document.getElementById('searchInput').value = city.name;
+    document.getElementById('searchResults').style.display = 'none';
+    
+    // Центрируем карту на выбранном городе
+    map.setView([city.lat, city.lng], 10);
+    
+    // Показываем маркер
+    if (searchMarker) {
+        map.removeLayer(searchMarker);
+    }
+    
+    searchMarker = L.marker([city.lat, city.lng], {
+        icon: L.divIcon({
+            html: '<div style="background-color: #00cec9; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px rgba(0, 206, 201, 0.8);"></div>',
+            className: 'search-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        })
+    }).addTo(map);
+    
+    searchMarker.bindPopup(`<b>${city.name}</b><br>${city.type}`).openPopup();
+    
+    // Убираем маркер через 3 секунды
+    setTimeout(() => {
+        if (searchMarker) {
+            map.removeLayer(searchMarker);
+            searchMarker = null;
+        }
+    }, 3000);
+}
+
+// Исправленная функция смены стиля карты
+function changeMapStyle() {
+    const style = document.getElementById('mapStyleSelector').value;
+    currentMapStyle = style;
+    
+    // Удаляем все текущие базовые слои
+    if (baseLayers.dark && map.hasLayer(baseLayers.dark)) {
+        map.removeLayer(baseLayers.dark);
+    }
+    if (baseLayers.standard && map.hasLayer(baseLayers.standard)) {
+        map.removeLayer(baseLayers.standard);
+    }
+    if (baseLayers.satellite && map.hasLayer(baseLayers.satellite)) {
+        map.removeLayer(baseLayers.satellite);
+    }
+    
+    // Добавляем выбранный слой
+    if (style === 'dark') {
+        baseLayers.dark.addTo(map);
+    } else if (style === 'standard') {
+        baseLayers.standard.addTo(map);
+    } else if (style === 'satellite') {
+        baseLayers.satellite.addTo(map);
+    }
+    
+    // Обновляем все иконки маркеров для нового стиля
+    updateAllMarkerIcons();
+}
+
+// Функция для обновления всех иконок маркеров
+function updateAllMarkerIcons() {
+    targets.forEach(target => {
+        if (markers[target.id] && !deletedTargets.has(target.id)) {
+            const newIcon = getIconForType(target.type, target.course);
+            markers[target.id].setIcon(newIcon);
+        }
+    });
+}
+
+// Функция для получения URL иконки цели
+function getTargetIconUrl(type) {
+    return iconConfig[currentMapStyle][type] || iconConfig['dark'][type];
+}
+
+// Анимационный цикл
+function startAnimationLoop() {
+    function animationLoop() {
+        moveTargets();
+        updateTargetClusters();
+        animationFrameId = requestAnimationFrame(animationLoop);
+    }
+    animationFrameId = requestAnimationFrame(animationLoop);
+}
+
+// Авто-сохранение каждые 5 секунд
+function startAutoSave() {
+    autoSaveInterval = setInterval(() => {
+        saveTargets();
+    }, 5000);
+}
+
+// Авто-синхронизация Firebase каждые 2 секунды
+function startAutoSync() {
+    setInterval(() => {
+        if (!isOnline || isSyncing) return;
+
+        targets.forEach(target => {
+            if (locallyModifiedTargets.has(target.id)) return; // Пропускаем локально изменённые
+
+            // Обновляем серверные данные для целей, которые не изменялись локально
+            firebase.database().ref('targets/' + target.id).update({
+                name: target.name,
+                type: target.type,
+                speed: target.speed,
+                course: target.course,
+                latitude: target.latitude,
+                longitude: target.longitude,
+                updatedAt: target.updatedAt
+            }).catch(err => console.error("Ошибка авто-синхронизации:", err));
+        });
+    }, 2000);
+}
+
+// Автоматическая синхронизация с Firebase
+function startAutoSync() {
+    setInterval(function() {
+        if (!isOnline || isSyncing) return;
+        
+        // Синхронизируем если есть изменения
+        if (locallyModifiedTargets.size > 0) {
+            syncWithFirebase();
+        }
+    }, 2000); // Синхронизация каждые 2 секунды
+}
+
+// DEBOUNCE ДЛЯ СОХРАНЕНИЯ
+function debouncedSave() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveTargets();
+    }, 1000);
+}
+
+// Очистка локальных целей
+function clearLocalStorage() {
+    if (confirm('Ви впевнені, що хочете повністю очистити локальне сховище? Всі дані будуть втрачені!')) {
+        localStorage.removeItem('airTargets');
+        localStorage.removeItem('airTargetsHistory');
+        localStorage.removeItem('deletedTargets');
+        alert('Локальне сховище очищено!');
+        location.reload();
+    }
+}
+
+// Настройка слушателей Firebase
+function setupRealtimeListeners() {
+    const db = firebase.database();
+    const targetsRef = db.ref('targets');
+    const deletedRef = db.ref('deletedTargets');
+
+    // Слушаем список удалённых целей
+    deletedRef.on('value', snapshot => {
+        const deletedArray = snapshot.val() || [];
+        deletedTargets = new Set(deletedArray);
+
+        // Обновляем карту сразу после получения deletedTargets
+        updateTargetsList();
+        targets.forEach(target => {
+            if (deletedTargets.has(target.id)) {
+                // Удаляем маркер с карты, если есть
+                if (markers[target.id]) {
+                    if (isClusteringEnabled) {
+                        markerCluster.removeLayer(markers[target.id]);
+                    } else {
+                        individualTargets.removeLayer(markers[target.id]);
+                    }
+                    delete markers[target.id];
+                }
+            }
+        });
+    });
+
+    // Слушаем все цели
+    targetsRef.on('value', snapshot => {
+        const firebaseTargets = snapshot.val() || {};
+        targets = [];
+
+        Object.values(firebaseTargets).forEach(target => {
+            if (!deletedTargets.has(target.id)) {
+                targets.push(target);
+
+                // Добавляем на карту, если маркера ещё нет
+                if (!markers[target.id]) addTargetToMap(target);
+            }
+        });
+
+        updateTargetsList();
+        updateStats();
+    });
+}
+
+// Завантажити дані з Firebase
+function loadFromFirebase() {
+    if (!isOnline) return;
+    
+    try {
+        const db = firebase.database();
+        const targetsRef = db.ref('targets');
+        const deletedRef = db.ref('deletedTargets');
+        
+        // Загружаем удаленные цели
+        deletedRef.once('value').then((snapshot) => {
+            const firebaseDeleted = snapshot.val() || [];
+            firebaseDeleted.forEach(id => {
+                if (!deletedTargets.has(id)) {
+                    deletedTargets.add(id);
+                }
+            });
+        });
+        
+        // Загружаем активные цели
+        targetsRef.once('value').then((snapshot) => {
+            const firebaseTargets = snapshot.val() || {};
+            mergeTargetsFromFirebase(firebaseTargets);
+        });
+        
+    } catch (error) {
+        console.error('Помилка завантаження з Firebase:', error);
+    }
+}
+
+// Об'єднати цілі з Firebase
+function mergeTargetsFromFirebase(firebaseTargets) {
+    if (isSyncing) return;
+    
+    const firebaseTargetsArray = Object.values(firebaseTargets);
+    
+    firebaseTargetsArray.forEach(firebaseTarget => {
+        // Пропускаем удаленные цели
+        if (deletedTargets.has(firebaseTarget.id)) return;
+        
+        const existingTarget = targets.find(t => t.id === firebaseTarget.id);
+        
+        if (!existingTarget) {
+            // Новая цель - добавляем
+            targets.push(firebaseTarget);
+            addTargetToMap(firebaseTarget);
+        } else {
+            // ↓↓↓ ВАЖНОЕ ИЗМЕНЕНИЕ: Обновляем ВСЕГДА, если данные из Firebase новее ↓↓↓
+            const localTime = existingTarget.updatedAt || 0;
+            const remoteTime = firebaseTarget.updatedAt || 0;
+            
+            if (remoteTime > localTime) {
+                console.log("Обновляем цель из Firebase:", firebaseTarget.name);
+                
+                // Сохраняем только для отладки
+                const oldCourse = existingTarget.course;
+                const oldSpeed = existingTarget.speed;
+                
+                // Полностью обновляем цель
+                Object.assign(existingTarget, firebaseTarget);
+                
+                updateMarkerRotation(existingTarget);
+                
+                console.log(`Курс изменен: ${oldCourse}° -> ${existingTarget.course}°`);
+                console.log(`Скорость изменена: ${oldSpeed} -> ${existingTarget.speed}`);
+            }
+        }
+    });
+    
+    updateStats();
+    updateTargetsList();
+}
+
+// Синхронизировать с Firebase
+function syncWithFirebase(customTargets) {
+    if (!isOnline) return;
+
+    const db = firebase.database();
+    const updates = {};
+
+    const targetsToSync = customTargets || targets;
+
+    targetsToSync.forEach(target => {
+        if (!deletedTargets.has(target.id)) {
+            updates[target.id] = target;
+        }
+    });
+
+    db.ref('targets').update(updates)
+        .then(() => console.log("Targets синхронизированы"))
+        .catch(err => console.error("Ошибка синхронизации targets:", err));
+}
+
+    // Додати ціль в конкретній позиції
+function addTargetAtPosition(latlng) {
+    if (!isAdmin) {
+        alert('Только администратор может добавлять цели');
+        return;
+    }
+
+    const name = document.getElementById('targetName').value.trim();
+    const type = document.getElementById('targetType').value;
+    const speed = parseInt(document.getElementById('targetSpeed').value);
+    const course = parseInt(document.getElementById('targetCourse').value);
+
+    if (!name) return alert('Введите название цели');
+    if (isNaN(speed) || speed < 0 || speed > 30000) return alert('Скорость 0–30000 км/ч');
+    if (isNaN(course) || course < 0 || course > 360) return alert('Курс 0–360°');
+
+    const target = {
+        id: Date.now().toString() + '-' + userSessionId,
+        name, type, speed, course,
+        latitude: latlng.lat,
+        longitude: latlng.lng,
+        distance: 0,
+        maxSpeed: speed,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastTrajectoryUpdate: Date.now(),
+        createdBy: userSessionId
+    };
+
+    targets.push(target);
+    locallyModifiedTargets.add(target.id);
+
+    // Таймаут защиты от перезаписи
+    if (modificationTimeouts[target.id]) clearTimeout(modificationTimeouts[target.id]);
+    modificationTimeouts[target.id] = setTimeout(() => {
+        locallyModifiedTargets.delete(target.id);
+    }, 10000);
+
+    // Инициализируем историю траектории
+    targetHistory[target.id] = [{ lat: target.latitude, lng: target.longitude, timestamp: Date.now() }];
+
+    addTargetToMap(target);
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+
+    console.log("Цель добавлена:", target);
+
+    // 🔹 Немедленная синхронизация с проверкой на удалённые цели
+    if (isOnline) {
+        setTimeout(() => {
+            // При синхронизации фильтруем удалённые цели
+            const safeTargets = targets.filter(t => !deletedTargets.has(t.id));
+            syncWithFirebase(safeTargets);
+        }, 100);
+    }
+}
+
+// Додати ціль в центрі карти
+function addTargetAtCenter() {
+    const center = map.getCenter();
+    addTargetAtPosition(center);
+}
+
+// Функция для получения иконки с учетом текущего стиля карты
+function getIconForType(type, course = 0) {
+    const iconUrl = getTargetIconUrl(type);
+    
+    // Проверяем, загрузилась ли иконка
+    if (iconUrl) {
+        const icon = L.divIcon({
+            html: `<div class="rotatable-png-icon" style="transform: rotate(${course + 90}deg); 
+                   background-image: url('${iconUrl}')"></div>`,
+            className: 'png-icon-marker',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
+        // Проверяем загрузку иконки
+        const testImage = new Image();
+        testImage.onerror = function() {
+            console.warn(`Иконка не найдена: ${iconUrl}`);
+            // Используем fallback иконку
+            markers[target.id]?.setIcon(createFallbackIcon(type, course));
+        };
+        testImage.src = iconUrl;
+        
+        return icon;
+    }
+    
+    return createFallbackIcon(type, course);
+}
+
+// Обновленная функция добавления цели на карту с проверкой иконок
+function addTargetToMap(target) {
+    if (markers[target.id]) {
+        if (isClusteringEnabled) {
+            markerCluster.removeLayer(markers[target.id]);
+        } else {
+            individualTargets.removeLayer(markers[target.id]);
+        }
+    }
+    
+    const icon = getIconForType(target.type, target.course);
+    const marker = L.marker([target.latitude, target.longitude], { icon: icon });
+    
+    // Форматируем дату создания
+    const createdDate = new Date(target.createdAt);
+    const formattedDate = createdDate.toLocaleString('uk-UA');
+    
+    // Создаем popup с кнопками действий
+    const popupContent = `
+        <div class="target-info-window">
+            <h4>${target.name}</h4>
+            <p><strong>Тип:</strong> ${targetTypes[target.type]?.name || target.type}</p>
+            <p><strong>Швидкість:</strong> ${target.speed} км/год</p>
+            <p><strong>Курс:</strong> ${target.course}°</p>
+            <p><strong>Відстань:</strong> ${(target.distance / 1000).toFixed(1)} км</p>
+            <p><strong>Додано:</strong> ${formattedDate}</p>
+            ${isAdmin ? `
+            <div class="action-buttons">
+                <button class="action-button edit-btn" onclick="event.stopPropagation(); editTarget('${target.id}')">
+                    <i class="fas fa-edit"></i> Редагувати
+                </button>
+                <button class="action-button delete-btn" onclick="event.stopPropagation(); deleteTarget('${target.id}')">
+                    <i class="fas fa-trash"></i> Видалити
+                </button>
+                <button class="action-button course-btn" onclick="event.stopPropagation(); showCourseSelectionModal('${target.id}')">
+                    <i class="fas fa-route"></i> Курс
+                </button>
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+    
+    if (isClusteringEnabled) {
+        markerCluster.addLayer(marker);
+    } else {
+        individualTargets.addLayer(marker);
+    }
+    
+    markers[target.id] = marker;
+
+    // ОБРАБОТЧИКИ ДЛЯ ОСТАНОВКИ ПРИ ОТКРЫТИИ POPUP
+    marker.on('popupopen', function() {
+        pausedTargets.add(target.id);
+    });
+    
+    marker.on('popupclose', function() {
+        pausedTargets.delete(target.id);
+    });
+    
+    // Додаємо траєкторію
+    addTrajectory(target);
+}
+
+// Обновление вращения маркера с проверкой иконок
+function updateMarkerRotation(target) {
+    if (markers[target.id]) {
+        const newIcon = getIconForType(target.type, target.course);
+        markers[target.id].setIcon(newIcon);
+        
+        // Обновляем popup
+        const createdDate = new Date(target.createdAt);
+        const formattedDate = createdDate.toLocaleString('uk-UA');
+        
+        const popupContent = `
+            <div class="target-info-window">
+                <h4>${target.name}</h4>
+                <p><strong>Тип:</strong> ${targetTypes[target.type]?.name || target.type}</p>
+                <p><strong>Швидкість:</strong> ${target.speed} км/год</p>
+                <p><strong>Курс:</strong> ${target.course}°</p>
+                <p><strong>Відстань:</strong> ${(target.distance / 1000).toFixed(1)} км</p>
+                <p><strong>Додано:</strong> ${formattedDate}</p>
+                ${isAdmin ? `
+                <div class="action-buttons">
+                    <button class="action-button edit-btn" onclick="event.stopPropagation(); editTarget('${target.id}')">
+                        <i class="fas fa-edit"></i> Редагувати
+                    </button>
+                    <button class="action-button delete-btn" onclick="event.stopPropagation(); deleteTarget('${target.id}')">
+                        <i class="fas fa-trash"></i> Видалити
+                    </button>
+                    <button class="action-button course-btn" onclick="event.stopPropagation(); showCourseSelectionModal('${target.id}')">
+                        <i class="fas fa-route"></i> Курс
+                    </button>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        markers[target.id].setPopupContent(popupContent);
+    }
+}
+
+// Додати траєкторію
+function addTrajectory(target) {
+    if (polylines[target.id]) {
+        map.removeLayer(polylines[target.id]);
+    }
+    
+    if (targetHistory[target.id] && targetHistory[target.id].length > 0) {
+        const polyline = L.polyline(targetHistory[target.id].map(point => [point.lat, point.lng]), {
+            color: '#00cec9',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '5, 10'
+        });
+        
+        if (showTrajectories) {
+            polyline.addTo(map);
+        }
+        polylines[target.id] = polyline;
+    }
+}
+
+// Обновить все траектории
+function updateTrajectories() {
+    // Удаляем все старые траектории
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    // Добавляем траектории для всех целей
+    if (showTrajectories) {
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id) && targetHistory[target.id]) {
+                addTrajectory(target);
+            }
+        });
+    }
+}
+
+// Видалити траєкторію
+function removeTrajectory(targetId) {
+    if (polylines[targetId]) {
+        map.removeLayer(polylines[targetId]);
+        delete polylines[targetId];
+    }
+}
+
+// Перемещение целей (исправленная скорость)
+function moveTargets() {
+    const now = Date.now();
+    const deltaTime = (now - lastUpdateTime) / 1000; // в секундах
+    lastUpdateTime = now;
+    
+    targets.forEach(target => {
+        if (deletedTargets.has(target.id) || pausedTargets.has(target.id)) return;
+        
+        // Переміщення цілі - реалистичная скорость (150 км/ч = 41.67 м/с)
+        const distance = (target.speed * 1000 / 3600) * deltaTime; // в метрах
+        const bearing = target.course * Math.PI / 180;
+        
+        const lat1 = target.latitude * Math.PI / 180;
+        const lon1 = target.longitude * Math.PI / 180;
+        
+        const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distance / 6371000) +
+                             Math.cos(lat1) * Math.sin(distance / 6371000) * Math.cos(bearing));
+        
+        const lon2 = lon1 + Math.atan2(Math.sin(bearing) * Math.sin(distance / 6371000) * Math.cos(lat1),
+                                     Math.cos(distance / 6371000) - Math.sin(lat1) * Math.sin(lat2));
+        
+        target.latitude = lat2 * 180 / Math.PI;
+        target.longitude = lon2 * 180 / Math.PI;
+        target.distance += distance;
+        
+        if (target.speed > target.maxSpeed) {
+            target.maxSpeed = target.speed;
+        }
+        
+        // ↓↓↓ ДОБАВЬТЕ ЗДЕСЬ ↓↓↓
+        target.updatedAt = Date.now();
+        // ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
+        
+        // Оновлення маркера
+        if (markers[target.id]) {
+            markers[target.id].setLatLng([target.latitude, target.longitude]);
+            updateMarkerRotation(target);
+        }
+        
+        // Оновлення траєкторії
+        if (!targetHistory[target.id]) {
+            targetHistory[target.id] = [];
+        }
+        
+        // Добавляем точку в историю только каждые 500ms для оптимизации
+        if (now - (targetHistory[target.id][targetHistory[target.id].length - 1]?.timestamp || 0) > 500) {
+            targetHistory[target.id].push({
+                lat: target.latitude,
+                lng: target.longitude,
+                timestamp: now
+            });
+            
+            // Ограничиваем историю последними 100 точками
+            if (targetHistory[target.id].length > 100) {
+                targetHistory[target.id].shift();
+            }
+            
+            // Обновляем траекторию на карте
+            if (showTrajectories && polylines[target.id]) {
+                polylines[target.id].setLatLngs(
+                    targetHistory[target.id].map(point => [point.lat, point.lng])
+                );
+            }
+        }
+        
+        target.lastTrajectoryUpdate = now;
+        target.updatedAt = now;
+    });
+    
+    // Оновлення часу останнього оновлення
+    document.getElementById('lastUpdate').textContent = 
+        `Оновлено: ${new Date().toLocaleTimeString()}`;
+    
+    // Обновляем статистику раз в секунду (без мерцания)
+    if (Date.now() - lastStatsUpdate > 1000) {
+        updateStats();
+        lastStatsUpdate = Date.now();
+    }
+}
+
+// Обновление кластеризации - ИСПРАВЛЕНА ЛОГИКА ПЕРЕКЛЮЧЕНИЯ
+function updateTargetClusters() {
+    // Автоматическая кластеризация при изменении зума
+    const currentZoom = map.getZoom();
+    
+    // Приближение - показываем отдельные маркеры
+    if (currentZoom > 10) {
+        markerCluster.options.maxClusterRadius = 30;
+    } 
+    // Отдаление - увеличиваем радиус кластеризации
+    else {
+        markerCluster.options.maxClusterRadius = 80;
+    }
+    
+    // Перерисовываем кластеры
+    if (isClusteringEnabled) {
+        markerCluster.refreshClusters();
+    }
+}
+
+// Редагувати ціль
+function editTarget(targetId) {
+    if (!isAdmin) return;
+    
+    const target = targets.find(t => t.id === targetId);
+    if (!target) return;
+    
+    currentEditTargetId = targetId;
+    document.getElementById('editName').value = target.name;
+    document.getElementById('editType').value = target.type;
+    document.getElementById('editSpeed').value = target.speed;
+    document.getElementById('editCourse').value = target.course;
+    
+    document.getElementById('editModal').style.display = 'block';
+}
+
+// Зберегти редагування цілі
+function saveTargetEdit() {
+    if (!currentEditTargetId) return;
+    const target = targets.find(t => t.id === currentEditTargetId);
+    if (!target) return;
+
+    target.name = document.getElementById('editName').value;
+    target.type = document.getElementById('editType').value;
+    target.speed = parseInt(document.getElementById('editSpeed').value);
+    target.course = parseInt(document.getElementById('editCourse').value);
+    target.updatedAt = Date.now();
+
+    locallyModifiedTargets.add(currentEditTargetId);
+
+    updateMarkerRotation(target);
+
+    // 🔹 Сразу пушим в Firebase
+    if (isOnline) {
+        firebase.database().ref("targets/" + target.id).update({
+            name: target.name,
+            type: target.type,
+            speed: target.speed,
+            course: target.course,
+            latitude: target.latitude,
+            longitude: target.longitude,
+            updatedAt: target.updatedAt
+        }).then(() => {
+            console.log("Зміни збережені у Firebase:", target.id);
+        }).catch((err) => {
+            console.error("Помилка збереження у Firebase:", err);
+        });
+
+        // Убираем из локально изменённых через 10 сек
+        setTimeout(() => locallyModifiedTargets.delete(currentEditTargetId), 10000);
+    }
+
+    saveTargets();
+    closeEditModal();
+    updateStats();
+    updateTargetsList();
+}
+
+// Видалити ціль
+function deleteTarget(targetId) {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ви впевнені, що хочете видалити цю ціль?')) return;
+
+    deletedTargets.add(targetId);
+    locallyModifiedTargets.add(targetId);
+
+    // Удаляем цель из массива
+    targets = targets.filter(t => t.id !== targetId);
+
+    // Удаляем маркер
+    if (markers[targetId]) {
+        if (isClusteringEnabled) {
+            markerCluster.removeLayer(markers[targetId]);
+        } else {
+            individualTargets.removeLayer(markers[targetId]);
+        }
+        delete markers[targetId];
+    }
+
+    // Удаляем траекторию и историю
+    removeTrajectory(targetId);
+    delete targetHistory[targetId];
+
+    // 🔹 Синхронизация удаления с Firebase
+    if (isOnline) {
+        const db = firebase.database();
+        const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
+
+        // Синхронизируем список удалённых целей
+        deletedRef.set(Array.from(deletedTargets))
+            .then(() => console.log("Список удалённых целей синхронизирован"))
+            .catch(err => console.error("Ошибка синхронизации удалённых целей:", err));
+
+        // Удаляем траекторию цели из Firebase
+        historyRef.child(targetId).remove()
+            .then(() => console.log("Траектория цели удалена из Firebase"))
+            .catch(err => console.error("Ошибка удаления траектории:", err));
+
+        // Синхронизируем оставшиеся цели
+        setTimeout(() => syncWithFirebase(), 100);
+    }
+
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+// Очистити всі цілі
+function clearAllTargets() {
+    if (!isAdmin) return;
+    
+    if (!confirm('Ви впевнені, що хочете видалити всі цілі?')) return;
+
+    // Добавляем все цели в deletedTargets
+    targets.forEach(t => deletedTargets.add(t.id));
+    
+    // Удаляем маркеры с карты
+    targets.forEach(t => {
+        if (markers[t.id]) {
+            if (isClusteringEnabled) {
+                markerCluster.removeLayer(markers[t.id]);
+            } else {
+                individualTargets.removeLayer(markers[t.id]);
+            }
+            delete markers[t.id];
+        }
+    });
+
+    // Удаляем все траектории
+    targets.forEach(t => {
+        removeTrajectory(t.id);
+        delete targetHistory[t.id];
+    });
+
+    // Очищаем локальный массив целей
+    targets = [];
+    locallyModifiedTargets.clear();
+
+    // Синхронизация с Firebase
+    if (isOnline) {
+        const db = firebase.database();
+        const deletedRef = db.ref('deletedTargets');
+        const historyRef = db.ref('targetHistory');
+
+        // Сохраняем список удалённых целей
+        deletedRef.set(Array.from(deletedTargets))
+            .then(() => console.log("Список удалённых целей синхронизирован"))
+            .catch(err => console.error("Ошибка синхронизации удалённых целей:", err));
+
+        // Удаляем все траектории из Firebase
+        historyRef.set({})
+            .then(() => console.log("Все траектории удалены из Firebase"))
+            .catch(err => console.error("Ошибка удаления траекторий:", err));
+
+        // Синхронизируем оставшиеся цели (их сейчас нет, но на всякий случай)
+        setTimeout(() => syncWithFirebase(), 100);
+    }
+
+    saveTargets();
+    updateStats();
+    updateTargetsList();
+}
+
+// Показати модальне вікно вибору курсу
+function showCourseSelectionModal(targetId) {
+    if (!isAdmin) return;
+    
+    selectedTargetForCourse = targetId;
+    isCourseSelectionMode = true;
+    document.getElementById('courseSelectionModal').style.display = 'block';
+    alert('Режим вибору курсу увімкнено. Клацніть по карті, щоб встановити курс');
+}
+
+// Підтвердити вибір курсу
+function confirmCourseSelection() {
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+// Скасувати вибір курсу
+function cancelCourseSelection() {
+    isCourseSelectionMode = false;
+    selectedTargetForCourse = null;
+    document.getElementById('courseSelectionModal').style.display = 'none';
+}
+
+// Встановити курс з карти
+function setTargetCourseFromMap(latlng) {
+    if (!selectedTargetForCourse) return;
+    const target = targets.find(t => t.id === selectedTargetForCourse);
+    if (!target) return;
+
+    const currentLatLng = L.latLng(target.latitude, target.longitude);
+    const course = calculateCourse(currentLatLng, latlng);
+
+    target.course = course;
+    target.updatedAt = Date.now();
+    locallyModifiedTargets.add(target.id);
+
+    updateMarkerRotation(target);
+    cancelCourseSelection();
+
+    if (isOnline) {
+        firebase.database().ref("targets/" + target.id).update({
+            course: target.course,
+            updatedAt: target.updatedAt
+        }).then(() => {
+            console.log(`Курс цілі ${target.name} збережено у Firebase: ${course}°`);
+        }).catch(err => {
+            console.error("Помилка оновлення курсу у Firebase:", err);
+        });
+
+        setTimeout(() => locallyModifiedTargets.delete(target.id), 10000);
+    }
+
+    saveTargets();
+}
+
+// Розрахувати курс між двома точками
+function calculateCourse(from, to) {
+    const dLon = (to.lng - from.lng) * Math.PI / 180;
+    const lat1 = from.lat * Math.PI / 180;
+    const lat2 = to.lat * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+             Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    
+    let course = Math.atan2(y, x) * 180 / Math.PI;
+    course = (course + 360) % 360;
+    
+    return Math.round(course);
+}
+
+// Оновити список цілей
+function updateTargetsList() {
+    const targetsList = document.getElementById('targetsList');
+    targetsList.innerHTML = '';
+    
+    targets.forEach(target => {
+        if (deletedTargets.has(target.id)) return;
+        
+        // Форматируем дату создания
+        const createdDate = new Date(target.createdAt);
+        const formattedDate = createdDate.toLocaleString('uk-UA');
+        
+        const targetItem = document.createElement('div');
+        targetItem.className = 'target-item';
+        targetItem.innerHTML = `
+            <h4>${target.name} <span style="font-size: 12px; color: #00cec9;">${target.type}</span></h4>
+            <p>Швидкість: ${target.speed} км/год</p>
+            <p>Курс: ${target.course}°</p>
+            <p>Відстань: ${(target.distance / 1000).toFixed(1)} км</p>
+            <p>Додано: ${formattedDate}</p>
+            ${isAdmin ? `
+            <div class="target-actions">
+                <button class="btn" onclick="editTarget('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-danger" onclick="deleteTarget('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <button class="btn btn-secondary" onclick="showCourseSelectionModal('${target.id}')" style="padding: 5px; font-size: 12px;">
+                    <i class="fas fa-route"></i>
+                </button>
+            </div>
+            ` : ''}
+        `;
+        targetsList.appendChild(targetItem);
+    });
+}
+
+// Оновити статистику
+function updateStats() {
+    const activeTargets = targets.filter(t => !deletedTargets.has(t.id));
+    
+    document.getElementById('totalTargets').textContent = activeTargets.length;
+    document.getElementById('activeTargets').textContent = activeTargets.filter(t => t.speed > 0).length;
+    
+    const maxSpeed = activeTargets.reduce((max, target) => 
+        target.speed > max ? target.speed : max, 0
+    );
+    document.getElementById('maxSpeed').textContent = maxSpeed;
+    
+    const totalDistance = activeTargets.reduce((sum, target) => 
+        sum + target.distance, 0
+    );
+    document.getElementById('totalDistance').textContent = (totalDistance / 1000).toFixed(1);
+}
+
+// Оновити статус
+function updateStatus() {
+    const statusText = document.getElementById('statusText');
+    statusText.textContent = 'Локальный режим';
+    statusText.style.color = '#f39c12'; // оранжевый для локального режима
+}
+
+// Зберегти цілі
+function saveTargets() {
+    // Сохраняем список удаленных целей
+    localStorage.setItem('deletedTargets', JSON.stringify(Array.from(deletedTargets)));
+    
+    // Збереження в локальне сховище
+    saveTargetsToLocalStorage();
+    
+    // Синхронізація з Firebase - ВСЕГДА когда онлайн
+    if (isOnline && !isSyncing) {
+        syncWithFirebase();
+    }
+}
+
+// Зберегти в локальне сховище
+function saveTargetsToLocalStorage() {
+    try {
+        localStorage.setItem('airTargets', JSON.stringify(targets));
+        localStorage.setItem('airTargetsHistory', JSON.stringify(targetHistory));
+        console.log("Цілі збережено в локальне сховище");
+    } catch (error) {
+        console.error("Помилка збереження в локальне сховище:", error);
+    }
+}
+
+// Завантажити з локального сховища
+function loadTargetsFromLocalStorage() {
+    try {
+        const savedTargets = localStorage.getItem('airTargets');
+        const savedHistory = localStorage.getItem('airTargetsHistory');
+        const savedDeleted = localStorage.getItem('deletedTargets');
+        const savedModified = localStorage.getItem('locallyModifiedTargets');
+        
+        if (savedTargets) {
+            targets = JSON.parse(savedTargets);
+        }
+        
+        if (savedHistory) {
+            targetHistory = JSON.parse(savedHistory);
+        }
+        
+        if (savedDeleted) {
+            deletedTargets = new Set(JSON.parse(savedDeleted));
+        }
+        
+        if (savedModified) {
+            locallyModifiedTargets = new Set(JSON.parse(savedModified));
+        }
+        
+        updateMap();
+        updateStats();
+        updateTargetsList();
+        
+    } catch (error) {
+        console.error("Помилка завантаження з локального сховища:", error);
+        targets = [];
+        targetHistory = {};
+        deletedTargets = new Set();
+        locallyModifiedTargets = new Set();
+    }
+}
+
+// Переключити траєкторії
+function toggleTrajectories() {
+    showTrajectories = !showTrajectories;
+    
+    if (showTrajectories) {
+        // Додати траєкторії
+        targets.forEach(target => {
+            if (!deletedTargets.has(target.id)) {
+                addTrajectory(target);
+            }
+        });
+    } else {
+        // Видалити траєкторії
+        Object.values(polylines).forEach(polyline => {
+            map.removeLayer(polyline);
+        });
+        polylines = {};
+    }
+    
+    alert(`Траєкторії ${showTrajectories ? 'увімкнено' : 'вимкнено'}`);
+    updateTrajectories(); // Принудительно обновляем все траектории
+}
+
+// Експорт цілей
+function exportTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може експортувати цілі');
+        return;
+    }
+    
+    try {
+        const activeTargets = targets.filter(t => !deletedTargets.has(t.id));
+        const dataStr = JSON.stringify(activeTargets, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        
+        const exportFileDefaultName = 'air-targets-' + new Date().toISOString().slice(0, 10) + '.json';
+        
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    } catch (error) {
+        console.error("Помилка експорту:", error);
+        alert('Помилка при експорті даних');
+    }
+}
+
+// Імпорт цілей
+function importTargets() {
+    if (!isAdmin) {
+        alert('Лише адміністратор може імпортувати цілі');
+        return;
+    }
+    
+    document.getElementById('importFile').click();
+}
+
+// Обробник вибору файлу для імпорту
+document.getElementById('importFile').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedTargets = JSON.parse(e.target.result);
+            
+            if (Array.isArray(importedTargets)) {
+                // Додати імпортовані цілі
+                importedTargets.forEach(target => {
+                    // Генеруємо новий ID для уникнення конфліктів
+                    target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9);
+                    target.createdAt = Date.now();
+                    target.updatedAt = Date.now();
+                    target.createdBy = userSessionId;
+                    targets.push(target);
+                });
+                
+                updateMap();
+                saveTargets();
+                updateStats();
+                updateTargetsList();
+                
+                alert(`Успішно імпортовано ${importedTargets.length} цілей`);
+            } else {
+                alert('Невірний формат файлу');
+            }
+        } catch (error) {
+            console.error('Помилка імпорту:', error);
+            alert('Помилка при імпорті файлу');
+        }
+    };
+    reader.readAsText(file);
+    
+    // Очистити input
+    event.target.value = '';
+});
+
+// Переключити панель
+function togglePanel() {
+    const panel = document.getElementById('sidePanel');
+    panel.classList.toggle('collapsed');
+    isPanelExpanded = !isPanelExpanded;
+    
+    const button = document.querySelector('.toggle-panel-btn');
+    button.innerHTML = isPanelExpanded ? 
+        '<i class="fas fa-eye-slash"></i><span>Сховати</span>' : 
+        '<i class="fas fa-eye"></i><span>Панель</span>';
+}
+
+// Показати модальне вікно логіну
+function showLoginModal() {
+    document.getElementById('loginModal').style.display = 'block';
+}
+
+// Закрити модальне вікно логіну
+function closeLoginModal() {
+    document.getElementById('loginModal').style.display = 'none';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+}
+
+// Закрити модальне вікно редагування
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentEditTargetId = null;
+}
+
+// Спроба входу
+function attemptLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    if (!email || !password) {
+        alert('Будь ласка, введіть email та пароль');
+        return;
+    }
+    
+    // Показываем индикатор загрузки
+    const loginBtn = document.querySelector('#loginModal .modal-buttons button:first-child');
+    const originalText = loginBtn.textContent;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Завантаження...';
+    loginBtn.disabled = true;
+    
+    firebase.auth().signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // Успешный вход
+            const user = userCredential.user;
+            isAdmin = true;
+            userSessionId = user.uid;
+            closeLoginModal();
+            updateUIForUserRole();
+            alert('Успішний вхід як адміністратор');
+        })
+        .catch((error) => {
+            // Ошибка входа
+            console.error('Помилка входу:', error);
+            
+            let errorMessage = 'Помилка входу';
+            switch (error.code) {
+                case 'auth/user-not-found':
+                    errorMessage = 'Користувача не знайдено';
+                    break;
+                case 'auth/wrong-password':
+                    errorMessage = 'Невірний пароль';
+                    break;
+                case 'auth/invalid-email':
+                    errorMessage = 'Невірний формат email';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Забагато спроб. Спробуйте пізніше';
+                    break;
+                default:
+                    errorMessage = 'Помилка входу: ' + error.message;
+            }
+            
+            alert(errorMessage);
+        })
+        .finally(() => {
+            // Восстанавливаем кнопку
+            loginBtn.innerHTML = originalText;
+            loginBtn.disabled = false;
+        });
+}
+
+// Вийти
+function logout() {
+    firebase.auth().signOut()
+        .then(() => {
+            isAdmin = false;
+            updateUIForUserRole();
+            alert('Вихід виконано');
+        })
+        .catch((error) => {
+            console.error('Помилка виходу:', error);
+            alert('Помилка при виході');
+        });
+}
+
+// Оновити UI відповідно до ролі користувача
+function updateUIForUserRole() {
+    const loginBtn = document.querySelector('.login-btn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminElements = document.querySelectorAll('.admin-only');
+    
+    if (!loginBtn || !logoutBtn) {
+        console.error('Не знайдено кнопки логіну/виходу');
+        return;
+    }
+    
+    if (isAdmin) {
+        loginBtn.style.display = 'none';
+        logoutBtn.style.display = 'block';
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'block';
+        });
+    } else {
+        loginBtn.style.display = 'block';
+        logoutBtn.style.display = 'none';
+        adminElements.forEach(el => {
+            if (el) el.style.display = 'none';
+        });
+    }
+}
+    // НОВЫЕ ФУНКЦИИ ДЛЯ СТРЕЛОК И КЛАСТЕРИЗАЦИИ
+
+// Переключение кластеризации - ИСПРАВЛЕНА ЛОГИКА
+function toggleClustering() {
+    isClusteringEnabled = !isClusteringEnabled;
+    const button = document.getElementById('toggleClusterBtn');
+    
+    if (isClusteringEnabled) {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Вимкнути кластеризацію';
+        // Перемещаем все маркеры в кластер
+        individualTargets.eachLayer(function(marker) {
+            markerCluster.addLayer(marker);
+        });
+        individualTargets.clearLayers();
+        map.removeLayer(individualTargets);
+        map.addLayer(markerCluster);
+    } else {
+        button.innerHTML = '<i class="fas fa-object-group"></i>Увімкнути кластеризацію';
+        // Извлекаем маркеры из кластера и добавляем по отдельности
+        markerCluster.eachLayer(function(marker) {
+            individualTargets.addLayer(marker);
+        });
+        markerCluster.clearLayers();
+        map.removeLayer(markerCluster);
+        map.addLayer(individualTargets);
+    }
+}
+
+// Переключение режима стрелки
+function toggleArrowMode() {
+    arrowMode = !arrowMode;
+    const button = document.getElementById('toggleArrowBtn');
+    
+    if (arrowMode) {
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Вийти з режиму стрілок';
+    } else {
+        button.style.backgroundColor = '';
+        button.style.color = '';
+        button.innerHTML = '<i class="fas fa-draw-polygon"></i>Режим стрілок';
+        // Видаляємо тимчасову лінію, якщо режим вимкнуто
+        if (tempArrowLine) {
+            map.removeLayer(tempArrowLine);
+            tempArrowLine = null;
+        }
+        tempArrowStartLatLng = null;
+    }
+}
+
+// Обработчик клика для рисования стрелок
+function handleArrowClick(e) {
+    if (!arrowMode) return;
+
+    if (!tempArrowStartLatLng) {
+        // Первый клик - начало стрелки
+        tempArrowStartLatLng = e.latlng;
+        tempArrowLine = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red'}).addTo(map);
+    } else {
+        // Второй клик - конец стрелки
+        const arrowIcon = L.icon({
+            iconUrl: 'icons/strelka.png',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        const arrowHead = L.marker(e.latlng, {icon: arrowIcon});
+        const arrowBody = L.polyline([tempArrowStartLatLng, e.latlng], {color: 'red', weight: 3});
+
+                // Добавляем контекстное меню для удаления стрелки
+        arrowHead.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+        arrowBody.on('contextmenu', function(e) {
+            map.removeLayer(arrowHead);
+            map.removeLayer(arrowBody);
+        });
+
+        // Добавляем стрелку на карту и в группу
+        allArrows.addLayer(arrowHead);
+        allArrows.addLayer(arrowBody);
+
+        // Сбрасываем временные переменные
+        map.removeLayer(tempArrowLine);
+        tempArrowLine = null;
+        tempArrowStartLatLng = null;
+    }
+}
+
+// Налаштування обробників подій
+function setupEventListeners() {
+    // Закриття модальних вікон по кліку на затемнений фон
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                isAddTargetMode = false;
+                isCourseSelectionMode = false;
+            }
+        });
+    });
+    
+    // Обробка клавіші ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeLoginModal();
+            closeEditModal();
+            cancelCourseSelection();
+            isAddTargetMode = false;
+        }
+    });
+    
+    // Автозаповнення назви цілі
+    document.getElementById('targetName').addEventListener('focus', function() {
+        if (!this.value) {
+            this.value = 'Ціль-' + (targets.length + 1);
+        }
+    });
+
+    // Додаємо обробник для імпорту файлів
+    document.getElementById('importFile').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        // Обробка імпортованих даних
+                        importedData.forEach(target => {
+                            target.id = Date.now().toString() + '-' + Math.random().toString(36).substr(2, 5);
+                            target.createdAt = Date.now();
+                            target.updatedAt = Date.now();
+                            target.createdBy = userSessionId;
+                            targets.push(target);
+                        });
+                        updateMap();
+                        saveTargets();
+                        updateStats();
+                        updateTargetsList();
+                        alert('Дані успішно імпортовані!');
+                    }
+                } catch (error) {
+                    alert('Помилка при імпорті файлу: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
+
+    console.log("Обробники подій успішно налаштовані");
+}
+
+// Оновити карту
+function updateMap() {
+    // Очистити всі маркери
+    markerCluster.clearLayers();
+    individualTargets.clearLayers();
+    markers = {};
+    
+    // Очистити всі траєкторії
+    Object.values(polylines).forEach(polyline => {
+        map.removeLayer(polyline);
+    });
+    polylines = {};
+    
+    // Додати цілі на карту (кроме удаленных)
+    targets.forEach(target => {
+        if (!deletedTargets.has(target.id)) {
+            addTargetToMap(target);
+        }
+    });
+}
+
+// Ініціалізація при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+});
+
+// Глобальные функции для использования в HTML
+window.addTargetAtCenter = addTargetAtCenter;
+window.toggleTrajectories = toggleTrajectories;
+window.toggleClustering = toggleClustering;
+window.toggleArrowMode = toggleArrowMode;
+window.clearAllTargets = clearAllTargets;
+window.exportTargets = exportTargets;
+window.importTargets = importTargets;
+window.togglePanel = togglePanel;
+window.showLoginModal = showLoginModal;
+window.closeLoginModal = closeLoginModal;
+window.attemptLogin = attemptLogin;
+window.logout = logout;
+window.editTarget = editTarget;
+window.deleteTarget = deleteTarget;
+window.saveTargetEdit = saveTargetEdit;
+window.closeEditModal = closeEditModal;
+window.showCourseSelectionModal = showCourseSelectionModal;
+window.confirmCourseSelection = confirmCourseSelection;
+window.cancelCourseSelection = cancelCourseSelection;
+window.setTargetCourseFromMap = setTargetCourseFromMap;
+window.performSearch = performSearch;
+window.changeMapStyle = changeMapStyle;
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    initApp();
+});
+</script>
+</body>
+</html>
