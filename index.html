@@ -1428,104 +1428,43 @@ const targetTypes = {
 
 // Инициализация приложения
 function initApp() {
-    // Добавьте эту проверку
-console.log("=== ДИАГНОСТИКА ТЕЛЕФОНА ===");
-console.log("User Agent:", navigator.userAgent);
-console.log("Cookies:", navigator.cookieEnabled);
-console.log("LocalStorage:", !!window.localStorage);
-console.log("IndexedDB:", !!window.indexedDB);
-console.log("Online status:", navigator.onLine);
-console.log("=== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ===");
-console.log("Targets count:", targets.length);
-console.log("Animation frame:", animationFrameId);
-
-    // Проверка Firebase
-    if (typeof firebase === 'undefined') {
-    console.error("Firebase не загрузился!");
-    } else {
-    console.log("Firebase загружен");
-  }
-  
-    // ↓↓↓ ДОБАВЬТЕ ЭТО В САМОЕ НАЧАЛО ФУНКЦИИ ↓↓↓
-    console.log("Firebase status:", {
-        isOnline: isOnline,
-        isSyncing: isSyncing,
-        targetsCount: targets.length,
-        modifiedTargets: locallyModifiedTargets.size
-    });
-    // ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
-    
-    // ↓↓↓ ДОБАВЬТЕ ЭТОТ КОД ЗДЕСЬ ↓↓↓
-console.log("Режим синхронизации: ", isOnline ? "ОНЛАЙН" : "ОФФЛАЙН");
-console.log("Количество целей: ", targets.length);
-console.log("User session ID: ", userSessionId);
-// ↑↑↑ КОНЕЦ ДОБАВЛЕНИЯ ↑↑↑
-
-    // Принудительная синхронизация при загрузке
-function forceFirebaseInit() {
-    setTimeout(() => {
-        if (!isOnline && typeof firebase !== 'undefined') {
-            console.log("Принудительная инициализация Firebase...");
-            try {
-                firebase.initializeApp(firebaseConfig);
-                isOnline = true;
-                updateStatus();
-                console.log("Firebase принудительно инициализирован");
-            } catch (e) {
-                console.log("Ошибка принудительной инициализации:", e);
-            }
-        }
-    }, 3000);
-}
-
-    // Вызовите в initApp()
-    forceFirebaseInit();
-    
-    // Проверка загрузки библиотек
-    if (typeof L === 'undefined') {
-        console.error('Leaflet не завантажився');
-        alert('Помилка: Бібліотека карт не завантажилась. Перевірте підключення до інтернету');
-        return;
-    }
-    
-    if (typeof firebase === 'undefined') {
-        console.error('Firebase не завантажився');
-        alert('Помилка: Firebase не завантажився. Деякі функції будуть обмежені');
-    }
+    console.log("=== ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ===");
     
     try {
+        // Проверка загрузки библиотек
+        if (typeof L === 'undefined') {
+            throw new Error('Leaflet не завантажився');
+        }
+        
         initMap();
         loadTargetsFromLocalStorage();
-        initFirebase();
         setupEventListeners();
         updateStats();
         updateStatus();
-        startAutoSave();
-        updateUIForUserRole();
         
+        // Запускаем Firebase асинхронно
+        setTimeout(() => {
+            try {
+                initFirebase();
+            } catch (error) {
+                console.log("Firebase в офлайн-режиме:", error);
+            }
+        }, 1000);
+        
+        // Запускаем анимацию
         startAnimationLoop();
-        
-        // Проверяем, что анимационный цикл запущен
-    setTimeout(() => {
-        console.log("Проверка движения целей:");
-        console.log("Targets:", targets.length);
-        console.log("Animation frame running:", !!animationFrameId);
-        
-        if (targets.length > 0) {
-            console.log("Первая цель:", targets[0]);
-            console.log("Координаты:", targets[0].latitude, targets[0].longitude);
-        }
-    }, 1000);
-}
         
         // Показываем предупреждение только при первом посещении
         if (!localStorage.getItem('warningShown')) {
             document.getElementById('warningModal').style.display = 'block';
         }
         
-        console.log("Додаток успішно ініціалізовано");
+        console.log("✅ Додаток успішно ініціалізовано");
+        console.log("🎯 Целей:", targets.length);
+        console.log("🔄 Анимация запущена");
+        
     } catch (error) {
-        console.error('Помилка ініціалізації:', error);
+        console.error('❌ Помилка ініціалізації:', error);
         alert('Помилка ініціалізації: ' + error.message);
     }
 }
